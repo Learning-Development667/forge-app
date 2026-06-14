@@ -89,7 +89,8 @@ body {
 #install-screen { background-image: url('../images/bg-login.png'); }
 
 #dashboard-screen,
-#log-screen { background-image: url('../images/bg-training.png'); }
+#log-screen,
+#form-screen { background-image: url('../images/bg-training.png'); }
 
 #warmup-screen,
 #cooldown-screen { background-image: url('../images/bg-recovery.png'); }
@@ -519,7 +520,8 @@ img.topbar-avatar,
 #install-screen,
 #progress-screen,
 #plan-screen,
-#settings-screen {
+#settings-screen,
+#form-screen {
   justify-content: flex-start;
   gap: 20px;
   width: 100%;
@@ -824,37 +826,47 @@ img.topbar-avatar,
   margin-bottom: -6px;
 }
 
+/* Mood icon cards — single row of 5 tappable SVG icons. */
 .moods {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 6px;
 }
 
 .mood {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 10px;
-  padding: 12px 14px;
-  color: var(--cream);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
+  padding: 10px 4px;
   cursor: pointer;
-  text-align: left;
+  color: var(--cream);
+  opacity: 0.5; /* inactive */
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.mood-icon svg {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.mood-cap {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .mood.is-selected {
-  border-color: var(--orange);
-  background: rgba(232, 98, 26, 0.12);
-}
-
-.mood-num {
-  font-family: 'DM Mono', monospace;
-  font-size: 13px;
+  opacity: 1;
   color: var(--orange);
-  width: 18px;
+  border-color: var(--orange);
+  filter: drop-shadow(0 0 6px rgba(232, 98, 26, 0.55));
 }
 
 /* ---------- Best effort timer ---------- */
@@ -1738,4 +1750,100 @@ button:focus { outline: none; }
 
 .toggle.is-on .toggle-knob {
   transform: translateX(20px);
+}
+
+/* ===================================================================
+   Form guide screen
+   =================================================================== */
+.form-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #141414;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--cream);
+}
+
+.form-play {
+  width: 56px;
+  height: 56px;
+  color: var(--orange);
+}
+
+.form-video-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.form-points {
+  width: 100%;
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-points li {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--cream);
+}
+
+.form-mistakes {
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--cream);
+  opacity: 0.8;
+}
+
+.form-mistakes strong { color: var(--orange); }
+
+/* ===================================================================
+   Progress screen graphs
+   =================================================================== */
+.progress-graphs {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.graph-card {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.graph-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  margin-bottom: 8px;
+}
+
+.graph-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+
+.graph-empty {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--dim);
+  padding: 8px 0 4px;
 }

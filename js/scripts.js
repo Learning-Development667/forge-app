@@ -49,6 +49,133 @@
     'Really tough': '😤'
   };
 
+  // Custom 48x48 SVG icons, one per mood (colour via currentColor).
+  var MOOD_ICONS = [
+    // Crushed it — flexing bicep arm
+    '<svg viewBox="0 0 48 48" fill="currentColor"><path d="M15 9a3 3 0 0 1 6 0v8c0 1.6 1.1 2.6 3 2.6 7 0 12 4.6 12 11.4a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2z"/><path d="M15 22c-3.2 0-5 2-5 5.2V33a2 2 0 0 0 2 2h3V22z"/></svg>',
+    // Felt good — smiley
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><circle cx="18" cy="20" r="1.7" fill="currentColor" stroke="none"/><circle cx="30" cy="20" r="1.7" fill="currentColor" stroke="none"/><path d="M16 28c2.5 4 13.5 4 16 0"/></svg>',
+    // Got through it — neutral + sweat drop
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><circle cx="18" cy="21" r="1.7" fill="currentColor" stroke="none"/><circle cx="30" cy="21" r="1.7" fill="currentColor" stroke="none"/><line x1="17" y1="30" x2="31" y2="30"/><path d="M38 11c-2.2 3-2.2 5.2 0 5.2s2.2-2.2 0-5.2z" fill="currentColor" stroke="none"/></svg>',
+    // Struggled — grimace teeth + furrowed brow
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><line x1="14" y1="17" x2="20" y2="19.5"/><line x1="34" y1="17" x2="28" y2="19.5"/><rect x="16" y="28" width="16" height="5.5" rx="1"/><line x1="21" y1="28" x2="21" y2="33.5"/><line x1="27" y1="28" x2="27" y2="33.5"/></svg>',
+    // Really tough — flame
+    '<svg viewBox="0 0 48 48" fill="currentColor"><path d="M24 4c2.5 7.5 9.5 9.5 9.5 17.5a9.5 9.5 0 0 1-19 0c0-3.2 1.2-5.4 3.2-7.4.6 3.8 3.3 3.8 3.3.5 0-3.2-1.1-5.4 3-10.6z"/></svg>'
+  ];
+
+  // Form guides keyed by exercise (plank has forward/reverse variants; bonus
+  // moves keyed by their display name).
+  var FORM_GUIDES = {
+    pressups: { points: [
+      'Start in a high plank position, hands slightly wider than shoulder width',
+      'Keep your body in a straight line from head to heels — no sagging hips',
+      'Lower your chest to just above the floor, elbows at roughly 45 degrees',
+      'Push back up to full arm extension',
+      'Keep your core engaged throughout',
+      'Breathe in on the way down, out on the way up'
+    ], mistakes: 'sagging hips, flaring elbows too wide, not going low enough' },
+    'plank-forward': { points: [
+      'Start face down, resting on forearms and toes',
+      'Elbows directly under shoulders',
+      'Keep body in a straight line from head to heels',
+      'Engage core and glutes — do not let hips sag or rise',
+      'Keep breathing steadily',
+      'Eyes looking down at the floor'
+    ], mistakes: 'hips too high or too low, holding breath, shoulders raised' },
+    'plank-reverse': { points: [
+      'Sit with legs extended, place hands behind hips with fingers pointing forward',
+      'Press through palms and heels to lift your torso',
+      'Your body should form a straight line from head to heels',
+      'Squeeze glutes and engage core',
+      'Keep chin slightly tucked',
+      'Hold steady, keep breathing'
+    ], mistakes: 'hips sagging, elbows bending, looking straight up straining the neck' },
+    situps: { points: [
+      'Lie on your back with knees bent and feet flat on the floor',
+      'Place hands behind your head or crossed on your chest',
+      'Engage your core and lift your upper body toward your knees',
+      'Lower back down with control — do not crash down',
+      'Keep feet flat throughout',
+      'Breathe out on the way up, in on the way down'
+    ], mistakes: 'pulling on neck with hands, using momentum, not lowering fully' },
+    lunges: { points: [
+      'Stand tall with feet hip width apart',
+      'Step forward with one leg and lower your back knee toward the floor',
+      'Front thigh should be parallel to the floor, front knee behind toes',
+      'Keep torso upright and core engaged',
+      'Push through the front heel to return to standing',
+      'Alternate legs each rep'
+    ], mistakes: 'front knee going past toes, leaning forward, back knee crashing to floor' },
+    'Dead Bug': { points: [
+      'Lie on your back with arms pointing straight up and knees bent at 90 degrees',
+      'Slowly lower opposite arm and leg toward the floor while keeping lower back pressed flat',
+      'Return to start and repeat on the other side',
+      'Keep core braced throughout',
+      'Move slowly and controlled'
+    ], mistakes: 'lower back arching off floor, rushing the movement' },
+    'Bird Dog': { points: [
+      'Start on hands and knees, wrists under shoulders, knees under hips',
+      'Extend opposite arm and leg simultaneously until both are parallel to the floor',
+      'Hold briefly, return and repeat on the other side',
+      'Keep hips level — do not rotate',
+      'Keep core engaged'
+    ], mistakes: 'hips rotating, lower back arching, rushing' },
+    'Glute Bridge': { points: [
+      'Lie on your back, knees bent, feet flat and hip width apart',
+      'Press through heels to lift hips until body forms a straight line from shoulders to knees',
+      'Squeeze glutes at the top, hold briefly',
+      'Lower with control'
+    ], mistakes: 'pushing through toes instead of heels, overextending lower back' },
+    'Mountain Climbers': { points: [
+      'Start in a high plank position',
+      'Drive one knee toward your chest, then quickly switch legs',
+      'Keep hips level — do not bounce them up and down',
+      'Keep core tight throughout',
+      'Maintain a strong plank position in upper body'
+    ], mistakes: 'hips rising, upper body collapsing, too slow to build cardio benefit' },
+    'Superman Hold': { points: [
+      'Lie face down with arms extended in front',
+      'Simultaneously lift arms, chest and legs off the floor',
+      'Squeeze glutes and lower back muscles',
+      'Hold the position, keep breathing',
+      'Lower with control'
+    ], mistakes: 'only lifting legs or only lifting arms, straining the neck' },
+    'Hollow Body Hold': { points: [
+      'Lie on your back, press lower back firmly into the floor',
+      'Extend arms overhead and legs out straight, both slightly off the floor',
+      'Hold this position with core fully engaged',
+      'If too difficult, bend knees or raise legs higher'
+    ], mistakes: 'lower back arching off floor, holding breath' },
+    'Single Leg Balance': { points: [
+      'Stand tall and lift one foot off the floor',
+      'Hold for the required time then switch legs',
+      'Keep a soft bend in the standing knee',
+      'Fix your gaze on a point ahead to help balance',
+      'Engage your core'
+    ], mistakes: 'locking the knee, looking down, rushing' },
+    'Crab Reach': { points: [
+      'Sit with knees bent, feet flat, hands behind you fingers pointing away',
+      'Press up into a reverse table top position',
+      'Lift one hand and rotate to reach it over to the opposite side',
+      'Return and repeat on the other side',
+      'Keep hips lifted throughout'
+    ], mistakes: 'hips dropping, rushing the rotation' },
+    'Flutter Kicks': { points: [
+      'Lie on your back with hands under your glutes for support',
+      'Lift both legs slightly off the floor',
+      'Alternate small rapid up and down kicks',
+      'Keep lower back pressed into the floor',
+      'Keep core engaged throughout'
+    ], mistakes: 'lower back arching, legs kicking too high' },
+    'Bear Crawl': { points: [
+      'Start on hands and knees, lift knees just off the floor',
+      'Move forward by stepping opposite hand and foot simultaneously',
+      'Keep back flat and parallel to the floor',
+      'Take controlled steps — do not rush',
+      'Keep core engaged throughout'
+    ], mistakes: 'hips rising too high, moving same side hand and foot together' }
+  };
+
   // Bonus spin pool — core & balance moves, separate from the 4 daily exercises.
   var BONUS_EXERCISES = [
     { name: 'Dead Bug', target: 'Hold for 30 seconds' },
@@ -1148,7 +1275,7 @@
     wireNav(dashboardScreen);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
-        openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
+        startLog(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1');
       });
       addFire(btn);
     });
@@ -1162,6 +1289,77 @@
   // ===================================================================
   // Exercise logging screen (normal + best effort)
   // ===================================================================
+  // --- Form guides --------------------------------------------------
+  function guideKeyFor(exKey) {
+    if (exKey === 'plank') return 'plank-' + ((state.user && state.user.plankPreference) || 'forward');
+    return exKey; // daily keys or bonus move names
+  }
+
+  function seenKeyFor(exKey) {
+    return exKey === 'plank' ? 'plank' : exKey;
+  }
+
+  function hasSeenGuide(exKey) {
+    return !!(state.user && state.user.formSeen && state.user.formSeen[seenKeyFor(exKey)]);
+  }
+
+  function markFormSeen(exKey) {
+    if (!state.user) return;
+    var key = seenKeyFor(exKey);
+    state.user.formSeen = state.user.formSeen || {};
+    if (state.user.formSeen[key]) return;
+    state.user.formSeen[key] = true;
+    var patch = {};
+    patch['formSeen.' + key] = true;
+    db.collection('users').doc(state.user.id).update(patch).catch(function () {
+      db.collection('users').doc(state.user.id)
+        .set({ formSeen: state.user.formSeen }, { merge: true })
+        .catch(function (e) { console.error('Failed to store form-seen:', e); });
+    });
+  }
+
+  function openFormGuide(displayName, exKey, onProceed, backFn) {
+    var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
+    var screen = ensureScreen('form-screen');
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">FORM GUIDE</span>' +
+      '</header>' +
+      '<h1 class="log-title">' + esc(displayName) + '</h1>' +
+      '<div class="form-video">' +
+        '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
+          '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
+        '<span class="form-video-label">Video coming soon</span>' +
+      '</div>' +
+      '<p class="section-heading">Key points</p>' +
+      '<ul class="form-points">' + guide.points.map(function (p) {
+        return '<li>' + esc(p) + '</li>';
+      }).join('') + '</ul>' +
+      (guide.mistakes
+        ? '<p class="form-mistakes"><strong>Common mistakes:</strong> ' + esc(guide.mistakes) + '</p>'
+        : '') +
+      '<button type="button" class="btn-forge form-ok">I understand good form</button>' +
+      '<button type="button" class="btn-link form-skip">Skip for now</button>';
+
+    function proceed() { markFormSeen(exKey); onProceed(); }
+    screen.querySelector('.form-ok').addEventListener('click', proceed);
+    screen.querySelector('.form-skip').addEventListener('click', proceed);
+    screen.querySelector('.back-btn').addEventListener('click', backFn || renderDashboard);
+    addFire(screen.querySelector('.form-ok'));
+    showScreen(screen);
+  }
+
+  // Entry point for a LOG tap: mandatory form guide the first time, then log.
+  function startLog(exKey, isBestEffort) {
+    function go() { openLogScreen(exKey, isBestEffort, false); }
+    if (hasSeenGuide(exKey)) {
+      go();
+    } else {
+      openFormGuide(EXERCISES[exKey].name, exKey, go, renderDashboard);
+    }
+  }
+
   function openLogScreen(exKey, isBestEffort, bonusExercise) {
     var ex = EXERCISES[exKey];
     var day = challengeDay(new Date());
@@ -1175,7 +1373,7 @@
     screen.innerHTML =
       '<header class="topbar">' +
         '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<span class="topbar-version">' + (isBestEffort ? 'BEST EFFORT' : (bonusExercise ? 'BONUS' : 'LOG')) + '</span>' +
+        '<button type="button" class="btn-link form-link">Form Guide</button>' +
       '</header>' +
       '<h1 class="log-title">' + ex.name + '</h1>' +
       '<p class="log-target">' + targetText + '</p>' +
@@ -1194,6 +1392,13 @@
       '<div class="log-flow' + (isBestEffort ? ' hidden' : '') + '"></div>';
 
     screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
+    var formLink = screen.querySelector('.form-link');
+    if (formLink) {
+      formLink.addEventListener('click', function () {
+        openFormGuide(ex.name, exKey, function () { openLogScreen(exKey, isBestEffort, bonusExercise); },
+          function () { openLogScreen(exKey, isBestEffort, bonusExercise); });
+      });
+    }
 
     var flow = screen.querySelector('.log-flow');
 
@@ -1255,7 +1460,8 @@
       '<p class="field-label mood-heading">How did it feel?</p>' +
       '<div class="moods">' + MOODS.map(function (m, i) {
         return '<button type="button" class="mood" data-mood="' + esc(m) + '">' +
-                 '<span class="mood-num">' + (i + 1) + '</span>' + esc(m) + '</button>';
+                 '<span class="mood-icon">' + MOOD_ICONS[i] + '</span>' +
+                 '<span class="mood-cap">' + esc(m) + '</span></button>';
       }).join('') + '</div>' +
       '<button type="button" class="btn-forge confirm-btn">Confirm</button>' +
       '<p class="message log-msg" role="status" aria-live="polite"></p>';
@@ -1356,19 +1562,30 @@
           clearInterval(iv);
           var bonus = BONUS_EXERCISES[final];
           reel.textContent = bonus.name;
-          result.classList.remove('hidden');
-          result.innerHTML =
-            '<p class="spin-result-name">' + esc(bonus.name) + '</p>' +
-            '<p class="spin-result-target">' + esc(bonus.target) + '</p>' +
-            '<div class="log-flow"></div>';
-          buildLogFlow(result.querySelector('.log-flow'), {
-            requireInput: false,
-            targetDisplay: bonus.target,
-            confirmValue: bonus.target,
-            onConfirm: function (value, mood) {
-              saveLog(bonus.name, value, bonus.target, mood, false, true).then(renderDashboard);
-            }
-          });
+
+          function showResult() {
+            showScreen(screen);
+            result.classList.remove('hidden');
+            result.innerHTML =
+              '<p class="spin-result-name">' + esc(bonus.name) + '</p>' +
+              '<p class="spin-result-target">' + esc(bonus.target) + '</p>' +
+              '<button type="button" class="btn-link form-link">Form Guide</button>' +
+              '<div class="log-flow"></div>';
+            result.querySelector('.form-link').addEventListener('click', function () {
+              openFormGuide(bonus.name, bonus.name, showResult, showResult);
+            });
+            buildLogFlow(result.querySelector('.log-flow'), {
+              requireInput: false,
+              targetDisplay: bonus.target,
+              confirmValue: bonus.target,
+              onConfirm: function (value, mood) {
+                saveLog(bonus.name, value, bonus.target, mood, false, true).then(renderDashboard);
+              }
+            });
+          }
+
+          if (hasSeenGuide(bonus.name)) showResult();
+          else openFormGuide(bonus.name, bonus.name, showResult, renderDashboard);
         }
       }, 90);
     });
@@ -1483,14 +1700,142 @@
   // ===================================================================
   // Progress / Plan placeholders + Settings
   // ===================================================================
+  var progressCharts = [];
+
+  function moodScore(label) {
+    var i = MOODS.indexOf(label);
+    return i < 0 ? null : (5 - i); // Crushed it = 5 … Really tough = 1
+  }
+
+  function computeDaysCompleted() {
+    var byDate = logsByDate(state.logs);
+    var today = atMidnight(new Date());
+    var d = new Date(CHALLENGE_START);
+    var count = 0;
+    while (d <= today) {
+      var sched = scheduleForDay(d.getDay());
+      if (sched.active.length && dayCompleted(d, byDate)) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+
   function openProgress() {
     var screen = ensureScreen('progress-screen');
+    var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
+    var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
+    var u = state.user || {};
+
     screen.innerHTML =
       navBarHTML('progress') +
-      '<h1 class="welcome">Progress</h1>' +
-      '<p class="dashboard-placeholder">Charts and milestones coming soon.</p>';
+      '<h1 class="settings-title">PROGRESS</h1>' +
+      '<p class="section-heading">Best Effort</p>' +
+      '<div id="progress-graphs" class="progress-graphs"></div>' +
+      '<section class="profile-section">' +
+        '<p class="section-heading">Personal Stats</p>' +
+        '<div class="profile-stats">' +
+          statRow('Total points', u.totalPoints || 0) +
+          statRow('Current streak', u.currentStreak || 0) +
+          statRow('Longest streak', u.longestStreak || 0) +
+          statRow('Exercises logged', totalExercises) +
+          statRow('Bonus exercises', totalBonus) +
+          statRow('Days completed', computeDaysCompleted() + ' / ' + TOTAL_DAYS) +
+        '</div>' +
+      '</section>';
+
     wireNav(screen);
     showScreen(screen);
+    loadProgressGraphs();
+  }
+
+  function loadProgressGraphs() {
+    var container = document.getElementById('progress-graphs');
+    if (!container) return;
+    progressCharts.forEach(function (c) { try { c.destroy(); } catch (e) { /* no-op */ } });
+    progressCharts = [];
+    container.innerHTML = '';
+
+    var userBE = state.logs.filter(function (l) { return l.isBestEffort; });
+    db.collectionGroup('logs').where('isBestEffort', '==', true).get()
+      .then(function (snap) {
+        var groupBE = [];
+        snap.forEach(function (doc) { groupBE.push(doc.data()); });
+        ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, groupBE); });
+      })
+      .catch(function (err) {
+        console.error('Group best-effort load failed:', err);
+        ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, []); });
+      });
+  }
+
+  function buildExerciseGraph(container, key, userBE, groupBE) {
+    var ex = EXERCISES[key];
+    var card = document.createElement('div');
+    card.className = 'graph-card';
+    card.innerHTML = '<p class="graph-title">' + esc(ex.name) + '</p>';
+
+    var ub = userBE.filter(function (l) { return l.exercise === key; });
+    if (!ub.length) {
+      card.innerHTML += '<p class="graph-empty">Best effort scores will appear here after your first Friday session</p>';
+      container.appendChild(card);
+      return;
+    }
+
+    var gb = groupBE.filter(function (l) { return l.exercise === key; });
+    function wk(l) { return weekNumber(challengeDay(parseKey(l.date))); }
+    function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : null; }
+
+    var weekSet = {};
+    ub.forEach(function (l) { weekSet[wk(l)] = true; });
+    gb.forEach(function (l) { var w = wk(l); if (w >= 1 && w <= TOTAL_WEEKS) weekSet[w] = true; });
+    var weeks = Object.keys(weekSet).map(Number).sort(function (a, b) { return a - b; });
+
+    var userData = weeks.map(function (w) {
+      var v = ub.filter(function (l) { return wk(l) === w; }).map(function (l) { return Number(l.repsCompleted) || 0; });
+      return v.length ? Math.max.apply(null, v) : null;
+    });
+    var groupData = weeks.map(function (w) {
+      return avg(gb.filter(function (l) { return wk(l) === w; }).map(function (l) { return Number(l.repsCompleted) || 0; }));
+    });
+    var moodData = weeks.map(function (w) {
+      return avg(ub.filter(function (l) { return wk(l) === w; })
+        .map(function (l) { return moodScore(l.mood); })
+        .filter(function (x) { return x != null; }));
+    });
+
+    var wrap = document.createElement('div');
+    wrap.className = 'graph-canvas-wrap';
+    var canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+    card.appendChild(wrap);
+    container.appendChild(card);
+
+    if (typeof Chart === 'undefined') return;
+    var chart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: weeks.map(function (w) { return 'Week ' + w; }),
+        datasets: [
+          { label: 'You', data: userData, borderColor: '#E8621A', backgroundColor: '#E8621A', tension: 0.3, spanGaps: true, yAxisID: 'y' },
+          { label: 'Group avg', data: groupData, borderColor: '#F5F0E8', backgroundColor: '#F5F0E8', tension: 0.3, spanGaps: true, yAxisID: 'y' },
+          { label: 'Mood', data: moodData, borderColor: '#FF8C00', backgroundColor: '#FF8C00', tension: 0.3, spanGaps: true, yAxisID: 'mood' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#F5F0E8', boxWidth: 12, font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { color: '#F5F0E8' }, grid: { color: 'rgba(245,240,232,0.08)' } },
+          y: { position: 'left', beginAtZero: true,
+            ticks: { color: '#F5F0E8' }, grid: { color: 'rgba(245,240,232,0.08)' },
+            title: { display: true, text: ex.kind === 'time' ? 'seconds' : 'reps', color: '#F5F0E8' } },
+          mood: { position: 'right', min: 1, max: 5,
+            ticks: { color: '#FF8C00', stepSize: 1 }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+    progressCharts.push(chart);
   }
 
   function openPlan() {
