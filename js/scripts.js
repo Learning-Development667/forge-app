@@ -1002,32 +1002,34 @@
   function ensureUserDoc(fbUser) {
     var email = (fbUser.email || '').toLowerCase();
     var localPart = email.split('@')[0];
-    var match = users.filter(function (u) { return u.email === email; })[0];
-    if (match) {
-      return db.collection('users').doc(match.id).get().then(function (snap) {
-        var data = snap.data() || {};
-        // One-time repair: if the stored name looks like an email username
-        // (empty, contains @, contains digits, or equals the email local part),
-        // replace it with the Firebase Auth display name and persist.
-        if (looksLikeUsername(data.name, localPart) && fbUser.displayName) {
-          data.name = fbUser.displayName;
-          db.collection('users').doc(match.id).set({ name: fbUser.displayName }, { merge: true })
-            .catch(function (e) { console.error('Failed to fix name:', e); });
+    // Query Firestore directly by email so we always find an existing doc
+    // (independent of the carousel users list / createdAt ordering).
+    return db.collection('users').where('email', '==', email).limit(1).get()
+      .then(function (snap) {
+        if (!snap.empty) {
+          var doc = snap.docs[0];
+          var data = doc.data() || {};
+          // One-time repair: an email-username-looking name is replaced with the
+          // Firebase Auth display name and persisted.
+          if (looksLikeUsername(data.name, localPart) && fbUser.displayName) {
+            data.name = fbUser.displayName;
+            doc.ref.set({ name: fbUser.displayName }, { merge: true })
+              .catch(function (e) { console.error('Failed to fix name:', e); });
+          }
+          return { id: doc.id, data: data };
         }
-        return { id: match.id, data: data };
+        var ref = db.collection('users').doc();
+        var data = {
+          name: fbUser.displayName || localPart || 'Forger',
+          email: email,
+          avatar: null,
+          totalPoints: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        return ref.set(data).then(function () { return { id: ref.id, data: data }; });
       });
-    }
-    var ref = db.collection('users').doc();
-    var data = {
-      name: email.split('@')[0] || 'Forger',
-      email: email,
-      avatar: null,
-      totalPoints: 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    return ref.set(data).then(function () { return { id: ref.id, data: data }; });
   }
 
   function loadLogs(id) {
@@ -1236,9 +1238,9 @@
 
       body +
 
-      (routine ? '<button type="button" class="btn-outline forge-laser" data-action="cooldown">Cool Down</button>' : '') +
+      bonusSpinHTML() +
 
-      bonusSpinHTML();
+      (routine ? '<button type="button" class="btn-outline forge-laser" data-action="cooldown">Cool Down</button>' : '');
 
     dashboardScreen.innerHTML = html;
     wireDashboard();
