@@ -275,7 +275,7 @@
   // Top navigation bar (persistent across main screens)
   // ===================================================================
   var NAV_ITEMS = [
-    { key: 'board', label: 'Board',
+    { key: 'board', label: 'Messages',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H8l-3 2v-2H5a2 2 0 0 1-2-2z"/><path d="M11 13v1a2 2 0 0 0 2 2h4l2 2v-2a2 2 0 0 0 2-2v-3"/></svg>' },
     { key: 'exercises', label: 'Exercises',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 2.7 3.5 3.8 3.5 7.2a3.5 3.5 0 0 1-7 0c0-1.4.6-2.3 1.4-3.1.2 1.6 1.6 1.7 1.6.2 0-1.3-.5-2.6.5-4.3z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></svg>' },
@@ -1033,7 +1033,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.30</span>' +
+          '<span class="topbar-version">v0.2.31</span>' +
         '</div>' +
       '</header>' +
 
@@ -1116,7 +1116,7 @@
       statusEl = '';
     }
 
-    return '<div class="card' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
+    return '<div class="card laser-border' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
              '<div class="card-info">' +
                '<h3 class="card-name">' + ex.name + '</h3>' +
                '<p class="card-target">' +

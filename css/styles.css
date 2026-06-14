@@ -671,13 +671,15 @@ img.topbar-avatar,
   justify-content: space-between;
   gap: 12px;
   background: var(--card);
-  border: 1px solid var(--card-border);
+  border: none;            /* the rotating laser is the border now */
   border-radius: 14px;
   padding: 16px 18px;
+  --laser-fill: var(--card); /* inner fill matches the card background */
 }
 
+/* Logged state: green tick inside is the indicator (no green border). */
 .card-done {
-  border-color: rgba(39, 174, 96, 0.5);
+  border: none;
 }
 
 .card-rest {
@@ -1591,25 +1593,28 @@ button:focus { outline: none; }
   top: 0;
   z-index: 5;
   width: 100%;
+  height: 60px; /* fixed, consistent across all screens */
   display: flex;
   justify-content: space-around;
-  align-items: stretch;
+  align-items: center;
   gap: 4px;
-  padding: 8px 4px;
+  padding: 0 4px;
   background: var(--charcoal);
   border-bottom: 1px solid rgba(232, 98, 26, 0.3);
 }
 
 .nav-item {
   flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center; /* centre icon + label vertically */
   gap: 3px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 0 6px;
+  padding: 0;
   color: rgba(245, 240, 232, 0.5); /* inactive */
   position: relative;
 }
