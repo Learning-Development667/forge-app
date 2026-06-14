@@ -172,6 +172,7 @@
   var carouselNext = document.getElementById('carousel-next');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
+  var installBtn = document.getElementById('install-btn');
   var loginMessage = document.getElementById('login-message');
   var loginJunk = document.getElementById('login-junk');
 
@@ -865,7 +866,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.14</span>' +
+          '<span class="topbar-version">v0.2.15</span>' +
         '</div>' +
       '</header>' +
 
@@ -891,8 +892,7 @@
       '<div class="dash-footer">' +
         '<button type="button" class="btn-link" data-nav="board">Message board</button>' +
         '<button type="button" class="btn-link" data-action="signout">Sign out</button>' +
-      '</div>' +
-      '<button type="button" class="install-link" data-action="install">Install App</button>';
+      '</div>';
 
     dashboardScreen.innerHTML = html;
     wireDashboard();
@@ -986,8 +986,6 @@
     });
     var out = dashboardScreen.querySelector('[data-action="signout"]');
     if (out) out.addEventListener('click', onSignOut);
-    var install = dashboardScreen.querySelector('[data-action="install"]');
-    if (install) install.addEventListener('click', openInstall);
   }
 
   // ===================================================================
@@ -1432,6 +1430,8 @@
       devLoginBtn.classList.remove('hidden');
       devLoginBtn.addEventListener('click', devLogin);
     }
+
+    if (installBtn) installBtn.addEventListener('click', openInstall);
 
     renderCarousel(); // static team list — independent of Firestore
 

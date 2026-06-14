@@ -675,19 +675,6 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Subtle install-instructions link below the footer links. */
-.install-link {
-  align-self: center;
-  background: none;
-  border: none;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  color: var(--cream);
-  opacity: 0.6;
-  cursor: pointer;
-  padding: 4px;
-}
-
 /* ---------- Logging screen ---------- */
 .log-title {
   width: 100%;
