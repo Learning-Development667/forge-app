@@ -39,6 +39,8 @@ body {
 
 /* ---------- Screens ---------- */
 .screen {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
@@ -49,7 +51,49 @@ body {
   padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
   max-width: 480px;
   margin: 0 auto;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: scroll; /* fixed on desktop (see media query) */
 }
+
+/* Consistent dark overlay so text stays legible over every background. */
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* All UI sits above the overlay. */
+.screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 1024px) {
+  .screen { background-attachment: fixed; }
+}
+
+/* Per-screen background images. */
+#login-screen,
+#register-screen,
+#confirm-screen,
+#install-screen { background-image: url('../images/bg-login.png'); }
+
+#dashboard-screen,
+#log-screen { background-image: url('../images/bg-training.png'); }
+
+#warmup-screen,
+#cooldown-screen { background-image: url('../images/bg-recovery.png'); }
+
+#board-screen { background-image: url('../images/bg-social.png'); }
+
+#profile-screen { background-image: url('../images/bg-minimal.png'); }
+
+#spin-screen { background-image: url('../images/bg-training.png'); }
 
 /* ---------- Brand ---------- */
 .brand {
@@ -167,6 +211,20 @@ body {
    fills the fixed box. */
 img.ucard-avatar {
   display: block;
+}
+
+/* The avatar PNGs are circular badges with transparent corners. A consistent
+   dark backing fills any transparent/inset area so every photo avatar renders
+   as an identical full circle (fixing Andy looking smaller) and so the page
+   background images never show through the corners. */
+img.ucard-avatar,
+img.profile-avatar,
+img.squad-avatar,
+img.mini-avatar,
+img.react-avatar,
+img.topbar-avatar,
+.icon-btn--photo {
+  background-color: #141414;
 }
 
 /* Text avatars (initial placeholder / register +) need flex to centre glyph. */
