@@ -6,9 +6,9 @@
 // and configuration). Do NOT put any other logic in this file.
 // =====================================================================
 
-const FIREBASE_API_KEY = 'your-api-key-here';
-const FIREBASE_AUTH_DOMAIN = 'your-auth-domain-here';
-const FIREBASE_PROJECT_ID = 'your-project-id-here';
-const FIREBASE_STORAGE_BUCKET = 'your-storage-bucket-here';
-const FIREBASE_MESSAGING_SENDER_ID = 'your-sender-id-here';
-const FIREBASE_APP_ID = 'your-app-id-here';
+const FIREBASE_API_KEY = 'AIzaSyBHa9tjcF7liqYRrnqcsuTZYdsJz5zgd-E';
+const FIREBASE_AUTH_DOMAIN = 'forge-bc1d3.firebaseapp.com';
+const FIREBASE_PROJECT_ID = 'forge-bc1d3';
+const FIREBASE_STORAGE_BUCKET = 'forge-bc1d3.firebasestorage.app';
+const FIREBASE_MESSAGING_SENDER_ID = '340499125460';
+const FIREBASE_APP_ID = 'G-7SQGJGZDGS';
