@@ -247,6 +247,8 @@
     Hayley: 'images/hayley.png',
     Liisa: 'images/liisa.png',
     Nikki: 'images/nikki.png',
+    Keith: 'images/keith.png',
+    Lou: 'images/lou.png',
     Andy: 'images/andy.png'
   };
 
@@ -965,6 +967,15 @@
   // ===================================================================
   // App entry — load user doc + logs, then dashboard
   // ===================================================================
+  // A name "looks like an email username" if it's empty, contains @, contains
+  // a digit, or matches the email local part (case-insensitive).
+  function looksLikeUsername(name, localPart) {
+    if (!name) return true;
+    var n = String(name);
+    return n.indexOf('@') >= 0 || /\d/.test(n) ||
+           n.toLowerCase() === String(localPart).toLowerCase();
+  }
+
   function ensureUserDoc(fbUser) {
     var email = (fbUser.email || '').toLowerCase();
     var localPart = email.split('@')[0];
@@ -972,9 +983,10 @@
     if (match) {
       return db.collection('users').doc(match.id).get().then(function (snap) {
         var data = snap.data() || {};
-        // Repair a missing/email-derived name using the provided display name
-        // (e.g. dev login as Mark) so the first name + photo resolve correctly.
-        if (fbUser.displayName && (!data.name || data.name === localPart)) {
+        // One-time repair: if the stored name looks like an email username
+        // (empty, contains @, contains digits, or equals the email local part),
+        // replace it with the Firebase Auth display name and persist.
+        if (looksLikeUsername(data.name, localPart) && fbUser.displayName) {
           data.name = fbUser.displayName;
           db.collection('users').doc(match.id).set({ name: fbUser.displayName }, { merge: true })
             .catch(function (e) { console.error('Failed to fix name:', e); });
