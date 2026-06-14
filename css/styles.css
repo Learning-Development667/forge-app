@@ -1776,6 +1776,16 @@ button:focus { outline: none; }
   color: var(--orange);
 }
 
+/* Real form video — full width 16:9, cropped to fill, rounded to match cards. */
+.form-video-el {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  background: #141414;
+}
+
 .form-video-label {
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;

@@ -63,6 +63,11 @@
     '<svg viewBox="0 0 48 48" fill="currentColor"><path d="M24 4c2.5 7.5 9.5 9.5 9.5 17.5a9.5 9.5 0 0 1-19 0c0-3.2 1.2-5.4 3.2-7.4.6 3.8 3.3 3.8 3.3.5 0-3.2-1.1-5.4 3-10.6z"/></svg>'
   ];
 
+  // Real form videos keyed by exercise (others fall back to the placeholder).
+  var FORM_VIDEOS = {
+    pressups: 'images/form-pressup.mp4'
+  };
+
   // Form guides keyed by exercise (plank has forward/reverse variants; bonus
   // moves keyed by their display name).
   var FORM_GUIDES = {
@@ -1327,6 +1332,7 @@
 
   function openFormGuide(displayName, exKey, onProceed, backFn) {
     var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
+    var video = FORM_VIDEOS[exKey];
     var screen = ensureScreen('form-screen');
     screen.innerHTML =
       '<header class="topbar">' +
@@ -1334,11 +1340,13 @@
         '<span class="topbar-version">FORM GUIDE</span>' +
       '</header>' +
       '<h1 class="log-title">' + esc(displayName) + '</h1>' +
-      '<div class="form-video">' +
-        '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
-          '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
-        '<span class="form-video-label">Video coming soon</span>' +
-      '</div>' +
+      (video
+        ? '<video class="form-video-el" src="' + video + '" autoplay loop muted playsinline></video>'
+        : '<div class="form-video">' +
+            '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
+              '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
+            '<span class="form-video-label">Video coming soon</span>' +
+          '</div>') +
       '<p class="section-heading">Key points</p>' +
       '<ul class="form-points">' + guide.points.map(function (p) {
         return '<li>' + esc(p) + '</li>';
