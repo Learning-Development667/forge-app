@@ -16,8 +16,10 @@
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
-  // Day 1 = 16 June 2026; points/streaks begin 22 June 2026.
-  var CHALLENGE_START = new Date(2026, 5, 16);
+  // Soft launch (train freely, no points) runs 16–21 June 2026.
+  // Day 1 of the 90-day challenge is Monday 22 June 2026; points/streaks begin then.
+  var SOFT_START = new Date(2026, 5, 16);
+  var CHALLENGE_START = new Date(2026, 5, 22);
   var POINTS_START = new Date(2026, 5, 22);
 
   // Exercise definitions with linear progression start/end points.
@@ -233,7 +235,7 @@
 
   function inSoftLaunch(d) {
     var m = atMidnight(d);
-    return m >= CHALLENGE_START && m < POINTS_START;
+    return m >= SOFT_START && m < POINTS_START;
   }
 
   function pointsActive(d) {
@@ -723,7 +725,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.1</span>' +
+          '<span class="topbar-version">v0.2.2</span>' +
         '</div>' +
       '</header>' +
 
