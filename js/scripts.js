@@ -697,12 +697,11 @@
     var week = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
 
     var banner = '';
-    if (day < 1) {
-      banner = 'Forge ignites 16 June — get ready!';
-    } else if (day > TOTAL_DAYS) {
+    if (day > TOTAL_DAYS) {
       banner = 'Challenge complete — you forged 90 days!';
-    } else if (inSoftLaunch(today)) {
-      banner = 'Forge ignites 22 June — keep training!';
+    } else if (atMidnight(today) < POINTS_START) {
+      // Soft launch (16–21 June) and the run-up: points/streaks begin 22 June.
+      banner = 'Forge ignites Monday 22 June — keep training!';
     }
 
     var body;
@@ -724,7 +723,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.0</span>' +
+          '<span class="topbar-version">v0.2.1</span>' +
         '</div>' +
       '</header>' +
 
