@@ -1146,16 +1146,7 @@
     var today = new Date();
     var day = challengeDay(today);
     var sched = todaySchedule();
-
-    // Warm-up intercepts the Exercises tab the first time each day before any
-    // exercise is logged; cool-down shows once all due exercises are logged.
     var routine = todayRoutine();
-    if (routine && !routineShownToday('warmup') && !hasLoggedTrainingToday()) {
-      return showRoutine('warmup', routine.warmup);
-    }
-    if (routine && !routineShownToday('cooldown') && allDueLoggedToday(sched)) {
-      return showRoutine('cooldown', routine.cooldown);
-    }
 
     var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
     var week = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
@@ -1187,9 +1178,6 @@
 
       '<header class="topbar">' +
         '<span class="topbar-brand">FORGE</span>' +
-        '<div class="topbar-right">' +
-          topbarAvatarHTML() +
-        '</div>' +
       '</header>' +
 
       (banner ? '<div class="banner">' + esc(banner) + '</div>' : '') +
@@ -1201,11 +1189,15 @@
         statCard((state.user ? state.user.totalPoints : 0), 'Points') +
       '</section>' +
 
+      (routine ? '<button type="button" class="btn-outline forge-laser" data-action="warmup">Warm Up</button>' : '') +
+
       (sched.type === 'besteffort'
         ? '<p class="section-label">Best Effort Friday — 2 min each</p>'
         : '<p class="section-label">Today\'s training</p>') +
 
       body +
+
+      (routine ? '<button type="button" class="btn-outline forge-laser" data-action="cooldown">Cool Down</button>' : '') +
 
       bonusSpinHTML();
 
@@ -1294,8 +1286,16 @@
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
     if (spin) { spin.addEventListener('click', openSpin); addFire(spin); }
 
-    var prof = dashboardScreen.querySelector('[data-nav="profile"]');
-    if (prof) prof.addEventListener('click', openProfile);
+    var warm = dashboardScreen.querySelector('[data-action="warmup"]');
+    if (warm) warm.addEventListener('click', function () { openRoutineScreen('warmup'); });
+    var cool = dashboardScreen.querySelector('[data-action="cooldown"]');
+    if (cool) cool.addEventListener('click', function () { openRoutineScreen('cooldown'); });
+  }
+
+  function openRoutineScreen(type) {
+    var routine = todayRoutine();
+    if (!routine) return;
+    showRoutine(type, type === 'warmup' ? routine.warmup : routine.cooldown);
   }
 
   // ===================================================================
@@ -1738,10 +1738,19 @@
     var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
     var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
     var u = state.user || {};
+    var name = u.name || 'Forger';
+    var photo = AVATARS[name];
+    var avatarHTML = photo
+      ? '<img class="ucard-avatar profile-avatar" src="' + photo + '" alt="">'
+      : '<span class="ucard-avatar ucard-avatar--placeholder profile-avatar">' +
+          esc(name.charAt(0).toUpperCase()) + '</span>';
 
     screen.innerHTML =
       navBarHTML('progress') +
-      '<h1 class="settings-title">PROGRESS</h1>' +
+      '<div class="profile-head">' +
+        avatarHTML +
+        '<h1 class="profile-name">' + esc(name) + '</h1>' +
+      '</div>' +
       '<p class="section-heading">Best Effort</p>' +
       '<div id="progress-graphs" class="progress-graphs"></div>' +
       '<section class="profile-section">' +
