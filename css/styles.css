@@ -152,12 +152,26 @@ body {
 
 /* All avatars share the same circular footprint. */
 .ucard-avatar {
+  /* Fixed box so every avatar is identical regardless of the source image. */
   width: 120px;
   height: 120px;
+  min-width: 120px;
+  min-height: 120px;
   border-radius: 50%;
   object-fit: cover;          /* crop photo avatars to fill the circle */
   object-position: center top; /* keep faces in frame */
   flex-shrink: 0;
+}
+
+/* Photo avatars: keep <img> a clean replaced element (no flex) so it always
+   fills the fixed box. */
+img.ucard-avatar {
+  display: block;
+}
+
+/* Text avatars (initial placeholder / register +) need flex to centre glyph. */
+.ucard-avatar--placeholder,
+.ucard-avatar--register {
   display: flex;
   align-items: center;
   justify-content: center;
