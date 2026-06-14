@@ -86,9 +86,16 @@
   var registerScreen = document.getElementById('register-screen');
   var dashboardScreen = document.getElementById('dashboard-screen');
 
-  var drum = document.getElementById('drum');
+  var carousel = document.getElementById('carousel');
+  var carouselPrev = document.getElementById('carousel-prev');
+  var carouselNext = document.getElementById('carousel-next');
   var forgeBtn = document.getElementById('forge-btn');
   var loginMessage = document.getElementById('login-message');
+
+  var confirmScreen = document.getElementById('confirm-screen');
+  var confirmEmail = document.getElementById('confirm-email');
+  var confirmBtn = document.getElementById('confirm-btn');
+  var confirmMessage = document.getElementById('confirm-message');
 
   var registerForm = document.getElementById('register-form');
   var registerBack = document.getElementById('register-back');
@@ -99,9 +106,10 @@
 
   // ---- State --------------------------------------------------------
   var users = [];           // registered users from Firestore
-  var selectedIndex = 0;    // drum selection (users + register row)
-  var snapTimer = null;
-  var selectionLockUntil = 0; // ignore scroll-driven selection right after a tap
+  var cards = [];           // carousel card elements (users + register)
+  var currentIndex = 0;     // centred carousel card
+  var touchStartX = null;   // swipe tracking
+  var completingSignIn = false; // suppress login screen while a magic link completes
 
   var state = { user: null, logs: [] };
 
@@ -316,103 +324,127 @@
   }
 
   // ===================================================================
-  // Drum (slot-machine) selector — login screen
+  // Rolodex carousel — login screen
   // ===================================================================
-  function renderDrum() {
-    drum.innerHTML = '';
-    users.forEach(function (user, i) {
-      var avatar = AVATARS[user.name] || user.avatar;
-      drum.appendChild(buildDrumItem(user.name, avatar, i, false));
-    });
-    drum.appendChild(buildDrumItem('Register', null, users.length, true));
+  function renderCarousel() {
+    carousel.innerHTML = '';
+    cards = [];
 
-    selectedIndex = 0;
-    requestAnimationFrame(function () {
-      scrollToIndex(selectedIndex, 'auto');
-      updateSelectionStyles();
+    users.forEach(function (user, i) {
+      cards.push(buildCard(user.name, AVATARS[user.name] || user.avatar, i, false));
     });
+    cards.push(buildCard('Register', null, users.length, true));
+
+    cards.forEach(function (card) { carousel.appendChild(card); });
+
+    currentIndex = 0;
+    layout();
+    playEntryAnimation();
   }
 
-  function buildDrumItem(name, avatar, index, isRegister) {
-    var li = document.createElement('li');
-    li.className = 'drum-item' + (isRegister ? ' drum-item--register' : '');
-    li.setAttribute('role', 'option');
-    li.dataset.index = String(index);
+  function buildCard(name, avatar, index, isRegister) {
+    var card = document.createElement('div');
+    card.className = 'ucard' + (isRegister ? ' ucard--register' : '');
+    card.setAttribute('role', 'option');
+    card.dataset.index = String(index);
 
-    if (!isRegister) {
-      if (avatar) {
-        var img = document.createElement('img');
-        img.className = 'drum-avatar';
-        img.src = avatar;
-        img.alt = '';
-        li.appendChild(img);
-      } else {
-        var av = document.createElement('span');
-        av.className = 'drum-avatar drum-avatar--placeholder';
-        av.textContent = name.charAt(0).toUpperCase();
-        li.appendChild(av);
-      }
+    var inner = document.createElement('div');
+    inner.className = 'ucard-inner';
+
+    if (isRegister) {
+      var plus = document.createElement('span');
+      plus.className = 'ucard-avatar ucard-avatar--register';
+      plus.textContent = '+';
+      inner.appendChild(plus);
+    } else if (avatar) {
+      var img = document.createElement('img');
+      img.className = 'ucard-avatar';
+      img.src = avatar;
+      img.alt = '';
+      inner.appendChild(img);
+    } else {
+      var ph = document.createElement('span');
+      ph.className = 'ucard-avatar ucard-avatar--placeholder';
+      ph.textContent = name.charAt(0).toUpperCase();
+      inner.appendChild(ph);
     }
 
     var label = document.createElement('span');
-    label.className = 'drum-name';
+    label.className = 'ucard-name';
     label.textContent = name;
-    li.appendChild(label);
+    inner.appendChild(label);
 
-    li.addEventListener('click', function () {
-      // A tap is a deliberate selection: apply it immediately and lock it so
-      // the smooth-scroll animation's scroll events can't override it before
-      // the user presses "Let's Forge".
-      selectionLockUntil = Date.now() + 500;
-      markSelected(index);
-      scrollToIndex(index, 'smooth');
-    });
-    return li;
+    card.appendChild(inner);
+    card.addEventListener('click', function () { setIndex(index); });
+    return card;
   }
 
-  function itemHeight() {
-    var css = getComputedStyle(document.documentElement).getPropertyValue('--drum-item-height');
-    return parseInt(css, 10) || 64;
-  }
+  // Position every card relative to the centred currentIndex: the active card
+  // sits centre/full-scale, neighbours compress and fade into the flanks.
+  function layout() {
+    cards.forEach(function (card, i) {
+      var off = i - currentIndex;
+      var abs = Math.abs(off);
+      var x, scale, opacity, z;
+      if (off === 0) { x = 0; scale = 1; opacity = 1; z = 30; }
+      else if (abs === 1) { x = off * 120; scale = 0.85; opacity = 0.5; z = 20; }
+      else { x = (off > 0 ? 1 : -1) * 150; scale = 0.7; opacity = 0; z = 10; }
 
-  function scrollToIndex(index, behavior) {
-    drum.scrollTo({ top: index * itemHeight(), behavior: behavior || 'smooth' });
-  }
-
-  function markSelected(idx) {
-    selectedIndex = Math.max(0, Math.min(idx, drum.children.length - 1));
-    Array.prototype.forEach.call(drum.children, function (child, i) {
-      child.classList.toggle('is-selected', i === selectedIndex);
+      card.style.transform = 'translate(-50%, -50%) translateX(' + x + 'px) scale(' + scale + ')';
+      card.style.opacity = opacity;
+      card.style.zIndex = z;
+      card.classList.toggle('is-active', off === 0);
     });
   }
 
-  function updateSelectionStyles() {
-    // Don't let mid-animation scroll events clobber a fresh deliberate tap.
-    if (Date.now() < selectionLockUntil) return;
-    markSelected(Math.round(drum.scrollTop / itemHeight()));
+  function playEntryAnimation() {
+    cards.forEach(function (card) {
+      var inner = card.firstChild;
+      var delay = Math.abs(Number(card.dataset.index) - currentIndex) * 150;
+      inner.style.animation = 'none';
+      // Force reflow so the animation restarts on every render.
+      void inner.offsetWidth;
+      inner.style.animation = 'cardIn 500ms ease-out both';
+      inner.style.animationDelay = delay + 'ms';
+    });
   }
 
-  function onDrumScroll() {
-    updateSelectionStyles();
-    if (snapTimer) clearTimeout(snapTimer);
-    snapTimer = setTimeout(function () { scrollToIndex(selectedIndex, 'smooth'); }, 90);
+  function setIndex(i) {
+    currentIndex = Math.max(0, Math.min(i, cards.length - 1));
+    layout();
+  }
+
+  function carouselGo(delta) {
+    setIndex(currentIndex + delta);
   }
 
   function isRegisterSelected() {
-    return selectedIndex === users.length;
+    return currentIndex === users.length;
   }
 
-  function onDrumKey(e) {
-    if (e.key === 'ArrowDown') {
+  function onCarouselKey(e) {
+    if (e.key === 'ArrowRight') {
       e.preventDefault();
-      scrollToIndex(Math.min(selectedIndex + 1, drum.children.length - 1));
-    } else if (e.key === 'ArrowUp') {
+      carouselGo(1);
+    } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      scrollToIndex(Math.max(selectedIndex - 1, 0));
+      carouselGo(-1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       onForge();
     }
+  }
+
+  function onTouchStart(e) {
+    touchStartX = e.changedTouches[0].clientX;
+  }
+
+  function onTouchEnd(e) {
+    if (touchStartX === null) return;
+    var delta = e.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(delta) < 40) return;
+    carouselGo(delta < 0 ? 1 : -1); // swipe left -> next, swipe right -> prev
   }
 
   // ===================================================================
@@ -426,11 +458,11 @@
           var data = doc.data();
           users.push({ id: doc.id, name: data.name, email: data.email, avatar: data.avatar || null });
         });
-        renderDrum();
+        renderCarousel();
       })
       .catch(function (err) {
         users = [];
-        renderDrum();
+        renderCarousel();
         console.error('Failed to load users:', err);
       });
   }
@@ -442,7 +474,7 @@
       setMessage(registerMessage, '');
       return;
     }
-    var user = users[selectedIndex];
+    var user = users[currentIndex];
     if (!user) {
       setMessage(loginMessage, 'Please select a user.', true);
       return;
@@ -501,15 +533,42 @@
 
   function completeSignInIfPresent() {
     if (!auth.isSignInWithEmailLink(window.location.href)) return;
+    completingSignIn = true; // keep the login carousel hidden while we finish
     var email = window.localStorage.getItem(EMAIL_STORAGE_KEY);
-    if (!email) email = window.prompt('Please confirm your email to finish signing in:');
-    if (!email) return;
-    auth.signInWithEmailLink(email, window.location.href)
+    if (email) {
+      finishSignIn(email);
+    } else {
+      // No stored email (e.g. opened on another device): ask in-app, no prompt().
+      showEmailConfirm('');
+    }
+  }
+
+  function showEmailConfirm(errorText) {
+    showScreen(confirmScreen);
+    setMessage(confirmMessage, errorText || '', !!errorText);
+  }
+
+  function finishSignIn(email) {
+    return auth.signInWithEmailLink(email, window.location.href)
       .then(function () {
         window.localStorage.removeItem(EMAIL_STORAGE_KEY);
         history.replaceState(null, '', window.location.origin + '/forge-app/');
+        // onAuthStateChanged routes on to the dashboard.
       })
-      .catch(function (err) { setMessage(loginMessage, friendlyError(err), true); });
+      .catch(function (err) {
+        completingSignIn = false;
+        showEmailConfirm(friendlyError(err));
+      });
+  }
+
+  function onConfirmEmail() {
+    var email = confirmEmail.value.trim().toLowerCase();
+    if (!email) {
+      setMessage(confirmMessage, 'Enter your email address.', true);
+      return;
+    }
+    completingSignIn = true;
+    finishSignIn(email);
   }
 
   // ===================================================================
@@ -956,10 +1015,22 @@
   function init() {
     showRandomQuote();
     forgeBtn.addEventListener('click', onForge);
-    drum.addEventListener('scroll', onDrumScroll, { passive: true });
-    drum.addEventListener('keydown', onDrumKey);
+
+    carouselPrev.addEventListener('click', function () { carouselGo(-1); });
+    carouselNext.addEventListener('click', function () { carouselGo(1); });
+    carousel.addEventListener('touchstart', onTouchStart, { passive: true });
+    carousel.addEventListener('touchend', onTouchEnd, { passive: true });
+    // Left/right arrow keys drive the carousel while the login screen is shown.
+    document.addEventListener('keydown', function (e) {
+      if (!loginScreen.classList.contains('hidden') &&
+          (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        onCarouselKey(e);
+      }
+    });
+
     registerForm.addEventListener('submit', onRegisterSubmit);
     registerBack.addEventListener('click', function () { showScreen(loginScreen); });
+    confirmBtn.addEventListener('click', onConfirmEmail);
 
     completeSignInIfPresent();
 
@@ -967,7 +1038,7 @@
       loadUsers().then(function () {
         if (firebaseUser) {
           enterApp(firebaseUser);
-        } else {
+        } else if (!completingSignIn) {
           showScreen(loginScreen);
         }
       });

@@ -12,9 +12,6 @@
   --orange: #E8621A;
   --cream: #F5F0E8;
   --dim: rgba(245, 240, 232, 0.28);
-
-  --drum-item-height: 100px;
-  --drum-visible: 3; /* visible rows in the drum */
 }
 
 * {
@@ -119,92 +116,47 @@ body {
   content: '';
 }
 
-/* ---------- Slot-machine drum ---------- */
-.drum-wrapper {
+/* ---------- Rolodex carousel ---------- */
+.carousel {
   position: relative;
   width: 100%;
-  height: calc(var(--drum-item-height) * var(--drum-visible));
+  height: 240px;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 25%,
-    #000 75%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 25%,
-    #000 75%,
-    transparent 100%
-  );
 }
 
-/* Highlight band marking the centre / selected slot */
-.drum-selection-band {
+.carousel-track {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: var(--drum-item-height);
-  transform: translateY(-50%);
-  border-top: 1px solid rgba(232, 98, 26, 0.5);
-  border-bottom: 1px solid rgba(232, 98, 26, 0.5);
-  background: rgba(232, 98, 26, 0.06);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.drum-overlay {
-  display: none; /* visual fade handled by the mask above */
-}
-
-.drum {
-  list-style: none;
-  height: 100%;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
-  /* Pad so first and last items can snap to the vertical centre */
-  padding: calc((var(--drum-item-height) * (var(--drum-visible) - 1)) / 2) 0;
+  inset: 0;
   outline: none;
 }
 
-.drum::-webkit-scrollbar {
-  display: none;
-}
-
-.drum-item {
-  height: var(--drum-item-height);
-  scroll-snap-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--dim);
-  opacity: 0.45;
-  transform: scale(0.85);
-  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+/* Each card is centred; layout() offsets it via transform. */
+.ucard {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150px;
+  /* Base transform is overwritten inline by JS, but provides a sane default. */
+  transform: translate(-50%, -50%);
+  transition: transform 0.4s ease, opacity 0.4s ease;
   cursor: pointer;
   user-select: none;
 }
 
-.drum-item.is-selected {
-  color: var(--cream);
-  opacity: 1;
-  transform: scale(1);
+.ucard-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-/* All avatars share the same 60px circular footprint. */
-.drum-avatar {
-  width: 60px;
-  height: 60px;
+/* All avatars share the same circular footprint. */
+.ucard-avatar {
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  object-fit: cover; /* crop photo avatars to fill the circle */
+  object-fit: cover;          /* crop photo avatars to fill the circle */
+  object-position: center top; /* keep faces in frame */
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -212,22 +164,96 @@ body {
 }
 
 /* CSS-generated placeholder: burnt-orange circle, white initial. */
-.drum-avatar--placeholder {
+.ucard-avatar--placeholder {
   background: var(--orange);
   color: #fff;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 30px;
+  font-size: 56px;
   line-height: 1;
 }
 
-.drum-name {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 28px;
-  letter-spacing: 1.5px;
+/* Register card: orange circle with a + symbol. */
+.ucard-avatar--register {
+  background: var(--orange);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 1;
 }
 
-.drum-item--register .drum-name {
-  color: var(--orange);
+.ucard-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 1.5px;
+  color: var(--cream);
+}
+
+/* Active card name reads at full brightness; neighbours inherit the dimmed
+   card opacity set by JS. */
+.ucard.is-active .ucard-name {
+  color: var(--cream);
+}
+
+/* Burnt-orange navigation arrows at the vertical midpoint. */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: var(--orange);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 32px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 0 4px;
+}
+
+.carousel-arrow:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.carousel-arrow--left {
+  left: 4px;
+}
+
+.carousel-arrow--right {
+  right: 4px;
+}
+
+/* Entry animation: cards rise and fade in, active leading, flanks staggered. */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Email confirmation screen ---------- */
+.confirm-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: center;
+}
+
+.confirm-text {
+  font-size: 16px;
+  color: var(--cream);
+  opacity: 0.85;
 }
 
 /* ---------- Forge button ---------- */
