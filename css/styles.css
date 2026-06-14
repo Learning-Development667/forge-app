@@ -1493,6 +1493,57 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   z-index: 1;
 }
 
+/* Rotating orange/amber/gold conic laser border (3px), GPU transform, 2s.
+   Sits behind the button content: conic (-2) -> inner fill (-1) -> fire (0)
+   -> label (1). The inner fill matches the button background so only a 3px
+   rotating border shows. */
+.laser-border {
+  position: relative;
+  overflow: hidden;
+  --laser-fill: var(--orange);
+}
+
+.laser-border::before {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  left: 50%;
+  top: 50%;
+  width: 250%;
+  height: 250%;
+  background: conic-gradient(from 0deg, #E8621A, #FF8C00, #FFD700, #FF8C00, #E8621A);
+  transform: translate(-50%, -50%) rotate(0deg);
+  transform-origin: center;
+  animation: laserSpin 2s linear infinite;
+  will-change: transform;
+}
+
+.laser-border::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: inherit;
+  background: var(--laser-fill);
+}
+
+@keyframes laserSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Buttons whose visible background isn't orange need a matching inner fill. */
+.btn-outline.laser-border {
+  --laser-fill: var(--charcoal);
+  border-color: transparent; /* the laser is the border now */
+}
+.board-to-dash.laser-border {
+  --laser-fill: var(--charcoal);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: var(--cream);
+  text-decoration: none;
+}
+
 /* Fire along the bottom of the best-effort countdown timer. */
 .ring-fire {
   position: absolute;

@@ -250,11 +250,12 @@
     });
   }
 
-  // Wrap a button's text in a label span and add a looping Lottie fire layer at
-  // the bottom. The flames sit behind the text and never block clicks.
+  // Wrap a button's text in a label span, add a rotating laser border, and a
+  // looping Lottie fire layer at the bottom. The flames sit behind the text and
+  // never block clicks.
   function addFire(btn) {
     if (!btn || btn.classList.contains('has-fire')) return;
-    btn.classList.add('has-fire');
+    btn.classList.add('has-fire', 'laser-border');
     var label = document.createElement('span');
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
@@ -954,7 +955,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.27</span>' +
+          '<span class="topbar-version">v0.2.28</span>' +
         '</div>' +
       '</header>' +
 
@@ -1129,9 +1130,11 @@
       timerFire.setAttribute('loop', '');
       ringWrap.appendChild(timerFire);
 
+      addFire(startBtn); // laser border + fire on the START button
       startBtn.addEventListener('click', function () {
         startBtn.disabled = true;
-        startBtn.textContent = 'Go!';
+        var lbl = startBtn.querySelector('.btn-label');
+        if (lbl) lbl.textContent = 'Go!';
         startCountdown(120, ringFg, ringLabel, timerFire, function () {
           ringLabel.textContent = 'Done!';
           flow.classList.remove('hidden');
