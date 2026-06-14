@@ -109,6 +109,10 @@
     Andy: 'images/andy.png'
   };
 
+  // The full team is always shown in the carousel, registered or not. Members
+  // with a photo in AVATARS show it; the rest get an initial placeholder.
+  var TEAM = ['Mark', 'Shelley', 'Hayley', 'Liisa', 'Nikki', 'Keith', 'Lou', 'Andy'];
+
   // Motivational quotes — a random one is shown on the login screen each load.
   var QUOTES = [
     "The only bad workout is the one that didn't happen.",
@@ -402,10 +406,10 @@
     carousel.innerHTML = '';
     cards = [];
 
-    users.forEach(function (user, i) {
-      cards.push(buildCard(user.name, AVATARS[user.name] || user.avatar, i, false));
+    TEAM.forEach(function (name, i) {
+      cards.push(buildCard(name, AVATARS[name] || null, i, false));
     });
-    cards.push(buildCard('Register', null, users.length, true));
+    cards.push(buildCard('Register', null, TEAM.length, true));
 
     cards.forEach(function (card) { carousel.appendChild(card); });
 
@@ -491,7 +495,7 @@
   }
 
   function isRegisterSelected() {
-    return currentIndex === users.length;
+    return currentIndex === TEAM.length;
   }
 
   function onCarouselKey(e) {
@@ -522,6 +526,8 @@
   // ===================================================================
   // Users / login
   // ===================================================================
+  // Load registered users (used to decide registered vs. not, and by enterApp).
+  // The carousel itself is the static TEAM list, so it does not depend on this.
   function loadUsers() {
     return db.collection('users').orderBy('createdAt', 'asc').limit(MAX_USERS).get()
       .then(function (snap) {
@@ -530,32 +536,44 @@
           var data = doc.data();
           users.push({ id: doc.id, name: data.name, email: data.email, avatar: data.avatar || null });
         });
-        renderCarousel();
       })
       .catch(function (err) {
         users = [];
-        renderCarousel();
         console.error('Failed to load users:', err);
       });
+  }
+
+  function registeredUser(name) {
+    return users.filter(function (u) { return u.name === name; })[0] || null;
+  }
+
+  function openRegister(prefillName) {
+    showScreen(registerScreen);
+    setMessage(registerMessage, '');
+    registerForm.reset();
+    regName.value = prefillName || '';
   }
 
   function onForge() {
     setMessage(loginMessage, '');
     if (isRegisterSelected()) {
-      showScreen(registerScreen);
-      setMessage(registerMessage, '');
+      openRegister('');
       return;
     }
-    var user = users[currentIndex];
-    if (!user) {
-      setMessage(loginMessage, 'Please select a user.', true);
-      return;
+
+    var name = TEAM[currentIndex];
+    var existing = registeredUser(name);
+    if (existing) {
+      // Registered already — send a magic link to their saved email.
+      sendMagicLink(existing.email)
+        .then(function () {
+          setMessage(loginMessage, 'Magic link sent to ' + existing.email + '. Check your inbox.');
+        })
+        .catch(function (err) { setMessage(loginMessage, friendlyError(err), true); });
+    } else {
+      // Not registered yet — open the form with their name pre-filled.
+      openRegister(name);
     }
-    sendMagicLink(user.email)
-      .then(function () {
-        setMessage(loginMessage, 'Magic link sent to ' + user.email + '. Check your inbox.');
-      })
-      .catch(function (err) { setMessage(loginMessage, friendlyError(err), true); });
   }
 
   function sendMagicLink(email) {
@@ -830,7 +848,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.8</span>' +
+          '<span class="topbar-version">v0.2.9</span>' +
         '</div>' +
       '</header>' +
 
@@ -1218,6 +1236,8 @@
       devLoginBtn.classList.remove('hidden');
       devLoginBtn.addEventListener('click', devLogin);
     }
+
+    renderCarousel(); // static team list — independent of Firestore
 
     carouselPrev.addEventListener('click', function () { carouselGo(-1); });
     carouselNext.addEventListener('click', function () { carouselGo(1); });
