@@ -151,6 +151,12 @@
   var auth = firebase.auth();
   var db = firebase.firestore();
 
+  // Keep the session across hard refreshes so a logged-in user lands straight
+  // on the dashboard instead of re-triggering any auth flow.
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function (err) {
+    console.error('Failed to set auth persistence:', err);
+  });
+
   var actionCodeSettings = {
     url: window.location.origin + '/forge-app/',
     handleCodeInApp: true
@@ -167,6 +173,7 @@
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var loginMessage = document.getElementById('login-message');
+  var loginJunk = document.getElementById('login-junk');
 
   var confirmScreen = document.getElementById('confirm-screen');
   var confirmEmail = document.getElementById('confirm-email');
@@ -176,6 +183,7 @@
   var registerForm = document.getElementById('register-form');
   var registerBack = document.getElementById('register-back');
   var registerMessage = document.getElementById('register-message');
+  var registerJunk = document.getElementById('register-junk');
   var regName = document.getElementById('reg-name');
   var regEmail = document.getElementById('reg-email');
   var regCode = document.getElementById('reg-code');
@@ -555,12 +563,14 @@
   function openRegister(prefillName) {
     showScreen(registerScreen);
     setMessage(registerMessage, '');
+    registerJunk.classList.add('hidden');
     registerForm.reset();
     regName.value = prefillName || '';
   }
 
   function onForge() {
     setMessage(loginMessage, '');
+    loginJunk.classList.add('hidden');
     if (isRegisterSelected()) {
       openRegister('');
       return;
@@ -573,6 +583,7 @@
       sendMagicLink(existing.email)
         .then(function () {
           setMessage(loginMessage, 'Magic link sent to ' + existing.email + '. Check your inbox.');
+          loginJunk.classList.remove('hidden');
         })
         .catch(function (err) { setMessage(loginMessage, friendlyError(err), true); });
     } else {
@@ -621,6 +632,7 @@
       .then(function () { return sendMagicLink(email); })
       .then(function () {
         setMessage(registerMessage, 'Account created! A magic link is on its way to ' + email + '.');
+        registerJunk.classList.remove('hidden');
         registerForm.reset();
       })
       .catch(function (err) { setMessage(registerMessage, friendlyError(err), true); });
@@ -853,7 +865,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.10</span>' +
+          '<span class="topbar-version">v0.2.11</span>' +
         '</div>' +
       '</header>' +
 

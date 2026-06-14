@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.10</p>
+      <p class="brand-version">v0.2.11</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -45,6 +45,7 @@
     <button id="dev-login-btn" class="dev-login hidden" type="button">Dev Login</button>
 
     <p id="login-message" class="message" role="status" aria-live="polite"></p>
+    <p id="login-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
   </main>
 
   <!-- ===================== REGISTER FORM ===================== -->
@@ -56,8 +57,8 @@
 
     <form id="register-form" class="form" novalidate>
       <label class="field">
-        <span class="field-label">First name</span>
-        <input id="reg-name" name="name" type="text" autocomplete="given-name" placeholder="First name" required />
+        <span class="field-label">First Name</span>
+        <input id="reg-name" name="name" type="text" autocomplete="given-name" placeholder="First Name" required />
       </label>
 
       <label class="field">
@@ -73,6 +74,7 @@
       <button type="submit" class="btn-forge">Create account</button>
       <button type="button" id="register-back" class="btn-link">Back</button>
       <p id="register-message" class="message" role="status" aria-live="polite"></p>
+      <p id="register-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
     </form>
   </main>
 

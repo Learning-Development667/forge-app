@@ -363,6 +363,15 @@ body {
   color: var(--orange);
 }
 
+/* Junk/spam reminder shown under a "magic link sent" confirmation. */
+.junk-note {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  text-align: center;
+  color: var(--cream);
+  opacity: 0.6;
+}
+
 /* ---------- Dashboard ---------- */
 .dashboard {
   text-align: center;
