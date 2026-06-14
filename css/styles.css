@@ -776,6 +776,55 @@ body {
   text-align: center;
 }
 
+/* Landed bonus result: name large in Bebas Neue, target below in DM Sans. */
+.spin-result-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 44px;
+  letter-spacing: 1.5px;
+  color: var(--cream);
+  text-align: center;
+  line-height: 1;
+}
+
+.spin-result-target {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 18px;
+  color: var(--orange);
+  text-align: center;
+  margin-top: -8px;
+}
+
+/* Once-per-day bonus completed state on the dashboard. */
+.bonus-done {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid rgba(39, 174, 96, 0.5);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.bonus-done-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.bonus-done-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--dim);
+}
+
+.bonus-done-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--cream);
+}
+
 .placeholder {
   width: 100%;
   text-align: center;

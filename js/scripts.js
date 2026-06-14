@@ -661,6 +661,11 @@
     return todayLogs().some(function (l) { return l.exercise === exKey && !l.bonusExercise; });
   }
 
+  // The bonus log recorded today, if the user has already spun. One per day.
+  function todaysBonusLog() {
+    return todayLogs().filter(function (l) { return l.bonusExercise; })[0] || null;
+  }
+
   function saveLog(exKey, repsCompleted, target, mood, isBestEffort, bonusExercise) {
     var entry = {
       date: dateKey(new Date()),
@@ -740,7 +745,7 @@
 
       body +
 
-      '<button type="button" class="btn-forge btn-spin" data-action="spin">★ Bonus Spin</button>' +
+      bonusSpinHTML() +
 
       '<div class="dash-footer">' +
         '<button type="button" class="btn-link" data-nav="board">Message board</button>' +
@@ -757,6 +762,22 @@
              '<div class="stat-value">' + value + '</div>' +
              '<div class="stat-label">' + label + '</div>' +
            '</div>';
+  }
+
+  // Bonus spin is once per day: show the button, or a completed confirmation
+  // if a bonus exercise has already been logged today.
+  function bonusSpinHTML() {
+    var bonus = todaysBonusLog();
+    if (bonus) {
+      return '<div class="bonus-done">' +
+               '<span class="tick" aria-label="Completed">✓</span>' +
+               '<div class="bonus-done-text">' +
+                 '<span class="bonus-done-label">Bonus complete</span>' +
+                 '<span class="bonus-done-name">' + esc(bonus.exercise) + '</span>' +
+               '</div>' +
+             '</div>';
+    }
+    return '<button type="button" class="btn-forge btn-spin" data-action="spin">★ Bonus Spin</button>';
   }
 
   function cardHTML(exKey, sched, day) {
@@ -985,7 +1006,8 @@
           reel.textContent = bonus.name;
           result.classList.remove('hidden');
           result.innerHTML =
-            '<p class="spin-target">' + esc(bonus.name) + ' — ' + esc(bonus.target) + '</p>' +
+            '<p class="spin-result-name">' + esc(bonus.name) + '</p>' +
+            '<p class="spin-result-target">' + esc(bonus.target) + '</p>' +
             '<div class="log-flow"></div>';
           buildLogFlow(result.querySelector('.log-flow'), {
             requireInput: false,
