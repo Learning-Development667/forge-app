@@ -87,6 +87,38 @@ body {
   font-size: clamp(48px, 14vw, 72px);
 }
 
+/* ---------- Motivational quote (login) ---------- */
+.login-quote {
+  margin: 8px auto;
+  padding: 0 12px;
+  max-width: 340px;
+  font-family: 'DM Sans', sans-serif;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--cream);
+  opacity: 0.7;
+}
+
+.login-quote::before {
+  content: '\201C'; /* left double quotation mark */
+  margin-right: 2px;
+  color: var(--orange);
+}
+
+.login-quote::after {
+  content: '\201D'; /* right double quotation mark */
+  margin-left: 2px;
+  color: var(--orange);
+}
+
+/* Hide the marks until a quote has been populated. */
+.login-quote:empty::before,
+.login-quote:empty::after {
+  content: '';
+}
+
 /* ---------- Slot-machine drum ---------- */
 .drum-wrapper {
   position: relative;

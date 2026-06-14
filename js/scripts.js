@@ -31,6 +31,30 @@
 
   var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Really tough'];
 
+  // Motivational quotes — a random one is shown on the login screen each load.
+  var QUOTES = [
+    "The only bad workout is the one that didn't happen.",
+    'Push yourself because no one else is going to do it for you.',
+    "Your body can stand almost anything. It's your mind you have to convince.",
+    'Success starts with self-discipline.',
+    'The pain you feel today will be the strength you feel tomorrow.',
+    "Don't stop when it hurts. Stop when you're done.",
+    'Wake up with determination. Go to bed with satisfaction.',
+    'Do something today that your future self will thank you for.',
+    'It never gets easier, you just get stronger.',
+    'Believe in yourself and all that you are.',
+    'Champions are made from something they have deep inside them — a desire, a dream, a vision.',
+    "The harder you work for something, the greater you'll feel when you achieve it.",
+    "Take care of your body. It's the only place you have to live.",
+    'Strength does not come from the body. It comes from the will of the soul.',
+    'Every rep, every set, every day — it all adds up.',
+    'Small steps every day lead to big results.',
+    "You don't have to be great to start, but you have to start to be great.",
+    'Forge yourself. Day by day.',
+    'The clock is ticking. Are you becoming the person you want to be?',
+    'Iron sharpens iron. So one person sharpens another.'
+  ];
+
   // ---- Firebase init ------------------------------------------------
   var firebaseConfig = {
     apiKey: FIREBASE_API_KEY,
@@ -903,7 +927,13 @@
   // ===================================================================
   // Boot
   // ===================================================================
+  function showRandomQuote() {
+    var el = document.getElementById('login-quote');
+    if (el) el.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  }
+
   function init() {
+    showRandomQuote();
     forgeBtn.addEventListener('click', onForge);
     drum.addEventListener('scroll', onDrumScroll, { passive: true });
     drum.addEventListener('keydown', onDrumKey);
