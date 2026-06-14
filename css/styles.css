@@ -13,8 +13,8 @@
   --cream: #F5F0E8;
   --dim: rgba(245, 240, 232, 0.28);
 
-  --drum-item-height: 64px;
-  --drum-visible: 5; /* visible rows in the drum */
+  --drum-item-height: 100px;
+  --drum-visible: 3; /* visible rows in the drum */
 }
 
 * {
@@ -181,9 +181,10 @@ body {
   height: var(--drum-item-height);
   scroll-snap-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 8px;
   color: var(--dim);
   opacity: 0.45;
   transform: scale(0.85);
@@ -198,24 +199,30 @@ body {
   transform: scale(1);
 }
 
+/* All avatars share the same 60px circular footprint. */
 .drum-avatar {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  object-fit: cover;
-  background: rgba(245, 240, 232, 0.1);
+  object-fit: cover; /* crop photo avatars to fill the circle */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* CSS-generated placeholder: burnt-orange circle, white initial. */
+.drum-avatar--placeholder {
+  background: var(--orange);
+  color: #fff;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  color: var(--orange);
-  flex-shrink: 0;
+  font-size: 30px;
+  line-height: 1;
 }
 
 .drum-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 30px;
+  font-size: 28px;
   letter-spacing: 1.5px;
 }
 

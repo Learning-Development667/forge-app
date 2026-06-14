@@ -31,6 +31,13 @@
 
   var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Really tough'];
 
+  // Photo avatars keyed by user name. Anyone not listed gets a CSS-generated
+  // placeholder (orange circle with their initial).
+  var AVATARS = {
+    Mark: 'images/mark.png',
+    Shelley: 'images/shelley.png'
+  };
+
   // Motivational quotes — a random one is shown on the login screen each load.
   var QUOTES = [
     "The only bad workout is the one that didn't happen.",
@@ -313,7 +320,8 @@
   function renderDrum() {
     drum.innerHTML = '';
     users.forEach(function (user, i) {
-      drum.appendChild(buildDrumItem(user.name, user.avatar, i, false));
+      var avatar = AVATARS[user.name] || user.avatar;
+      drum.appendChild(buildDrumItem(user.name, avatar, i, false));
     });
     drum.appendChild(buildDrumItem('Register', null, users.length, true));
 
@@ -339,7 +347,7 @@
         li.appendChild(img);
       } else {
         var av = document.createElement('span');
-        av.className = 'drum-avatar';
+        av.className = 'drum-avatar drum-avatar--placeholder';
         av.textContent = name.charAt(0).toUpperCase();
         li.appendChild(av);
       }
