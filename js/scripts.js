@@ -928,7 +928,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.20</span>' +
+          '<span class="topbar-version">v0.2.21</span>' +
         '</div>' +
       '</header>' +
 
@@ -1091,11 +1091,12 @@
     if (isBestEffort) {
       var ringFg = screen.querySelector('.ring-fg');
       var ringLabel = screen.querySelector('.ring-label');
+      var ringWrap = screen.querySelector('.ring-wrap');
       var startBtn = screen.querySelector('.timer-start');
       startBtn.addEventListener('click', function () {
         startBtn.disabled = true;
         startBtn.textContent = 'Go!';
-        startCountdown(120, ringFg, ringLabel, function () {
+        startCountdown(120, ringFg, ringLabel, ringWrap, function () {
           ringLabel.textContent = 'Done!';
           flow.classList.remove('hidden');
         });
@@ -1167,7 +1168,7 @@
     });
   }
 
-  function startCountdown(seconds, ringEl, labelEl, onDone) {
+  function startCountdown(seconds, ringEl, labelEl, ringWrap, onDone) {
     var C = 2 * Math.PI * 54; // circumference for r=54
     var total = seconds;
     var remaining = seconds;
@@ -1178,6 +1179,11 @@
       remaining--;
       labelEl.textContent = clock(Math.max(0, remaining));
       ringEl.style.strokeDashoffset = C * (1 - remaining / total);
+      // Final 30s: spin the flame ring faster for urgency (3s -> ~0.6s).
+      if (ringWrap && remaining <= 30) {
+        var dur = 0.6 + (Math.max(0, remaining) / 30) * (3 - 0.6);
+        ringWrap.style.setProperty('--spin-dur', dur.toFixed(2) + 's');
+      }
       if (remaining <= 0) {
         clearInterval(iv);
         onDone();
@@ -1474,7 +1480,8 @@
     screen.innerHTML =
       '<header class="topbar">' +
         '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<button type="button" class="btn-link board-to-dash flame-border">Today\'s Training →</button>' +
+        '<button type="button" class="btn-link board-to-dash flame-border">Today\'s Training →' +
+          '<span class="btn-flames" aria-hidden="true"></span></button>' +
       '</header>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
