@@ -1242,30 +1242,54 @@ img.topbar-avatar,
   width: 100%;
 }
 
+/* Rotating conic-gradient ring around the avatar (GPU-accelerated transform). */
 .squad-ring {
   position: relative;
   display: flex;
-  padding: 3px;
+  padding: 4px;            /* ring thickness around the avatar */
   border-radius: 50%;
-  border: 3px solid transparent;
+  overflow: hidden;        /* clip the spinning gradient to a circle */
 }
 
-.ring-incomplete {
-  border-color: #E23B3B;
-  animation: ringPulse 1.4s ease-in-out infinite;
+.squad-ring::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 250%;
+  height: 250%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  transform-origin: center;
+  animation: squadSpin 2s linear infinite;
+  will-change: transform;
 }
 
-.ring-complete { border-color: var(--green); }
-.ring-rest { border-color: #6b6b6b; }
+/* Avatar (and rest-day moon) sit above the spinning ring. */
+.squad-ring .squad-avatar { position: relative; z-index: 1; }
 
-@keyframes ringPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 59, 59, 0.5); }
-  50% { box-shadow: 0 0 0 6px rgba(226, 59, 59, 0); }
+@keyframes squadSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.ring-incomplete::before {
+  background: conic-gradient(#FF4444, #CC0000, #FF4444, #CC0000, #FF4444);
+}
+
+.ring-complete::before {
+  background: conic-gradient(#27AE60, #2ECC71, #27AE60, #2ECC71, #27AE60);
+}
+
+/* Saturday rest: static grey, no rotation. */
+.ring-rest::before {
+  background: #6b6b6b;
+  animation: none;
 }
 
 .squad-moon {
   position: absolute;
-  inset: 3px;
+  inset: 4px;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;

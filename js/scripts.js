@@ -954,7 +954,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.26</span>' +
+          '<span class="topbar-version">v0.2.27</span>' +
         '</div>' +
       '</header>' +
 
