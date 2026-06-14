@@ -464,7 +464,8 @@
     e.preventDefault();
     setMessage(registerMessage, '');
 
-    var name = regName.value.trim();
+    // First name only — take the first word if more is entered.
+    var name = regName.value.trim().split(/\s+/)[0];
     var email = regEmail.value.trim().toLowerCase();
     var code = regCode.value.trim();
 
