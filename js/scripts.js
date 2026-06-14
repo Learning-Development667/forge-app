@@ -101,6 +101,7 @@
   var users = [];           // registered users from Firestore
   var selectedIndex = 0;    // drum selection (users + register row)
   var snapTimer = null;
+  var selectionLockUntil = 0; // ignore scroll-driven selection right after a tap
 
   var state = { user: null, logs: [] };
 
@@ -358,7 +359,14 @@
     label.textContent = name;
     li.appendChild(label);
 
-    li.addEventListener('click', function () { scrollToIndex(index, 'smooth'); });
+    li.addEventListener('click', function () {
+      // A tap is a deliberate selection: apply it immediately and lock it so
+      // the smooth-scroll animation's scroll events can't override it before
+      // the user presses "Let's Forge".
+      selectionLockUntil = Date.now() + 500;
+      markSelected(index);
+      scrollToIndex(index, 'smooth');
+    });
     return li;
   }
 
@@ -371,13 +379,17 @@
     drum.scrollTo({ top: index * itemHeight(), behavior: behavior || 'smooth' });
   }
 
-  function updateSelectionStyles() {
-    var idx = Math.round(drum.scrollTop / itemHeight());
-    idx = Math.max(0, Math.min(idx, drum.children.length - 1));
-    selectedIndex = idx;
+  function markSelected(idx) {
+    selectedIndex = Math.max(0, Math.min(idx, drum.children.length - 1));
     Array.prototype.forEach.call(drum.children, function (child, i) {
-      child.classList.toggle('is-selected', i === idx);
+      child.classList.toggle('is-selected', i === selectedIndex);
     });
+  }
+
+  function updateSelectionStyles() {
+    // Don't let mid-animation scroll events clobber a fresh deliberate tap.
+    if (Date.now() < selectionLockUntil) return;
+    markSelected(Math.round(drum.scrollTop / itemHeight()));
   }
 
   function onDrumScroll() {
