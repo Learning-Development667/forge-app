@@ -304,8 +304,6 @@
   var dashboardScreen = document.getElementById('dashboard-screen');
 
   var carousel = document.getElementById('carousel');
-  var carouselPrev = document.getElementById('carousel-prev');
-  var carouselNext = document.getElementById('carousel-next');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
@@ -401,7 +399,7 @@
   // Fill the button width with 80x60 fire tiles; re-tile when the width changes
   // (e.g. when a hidden screen becomes visible).
   function tileFire(container, btn) {
-    var count = Math.max(1, Math.ceil((btn.clientWidth || 0) / 80));
+    var count = Math.max(1, Math.ceil((btn.clientWidth || 0) / 60));
     if (Number(container.dataset.count) === count) return;
     container.dataset.count = count;
     container.innerHTML = '';
@@ -411,8 +409,20 @@
       p.setAttribute('src', 'images/fire.json');
       p.setAttribute('autoplay', '');
       p.setAttribute('loop', '');
+      p.setAttribute('preserveAspectRatio', 'xMidYMid slice'); // fill each tile, no gaps
       container.appendChild(p);
     }
+  }
+
+  // A single rAF loop drives the rotating laser angle for every laser element.
+  function startLaserLoop() {
+    var root = document.documentElement;
+    function frame(t) {
+      var angle = (t / 2000 * 360) % 360; // one rotation per 2s
+      root.style.setProperty('--laser-angle', angle.toFixed(1) + 'deg');
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
   }
 
   // ===================================================================
@@ -963,10 +973,19 @@
   // ===================================================================
   function ensureUserDoc(fbUser) {
     var email = (fbUser.email || '').toLowerCase();
+    var localPart = email.split('@')[0];
     var match = users.filter(function (u) { return u.email === email; })[0];
     if (match) {
       return db.collection('users').doc(match.id).get().then(function (snap) {
-        return { id: match.id, data: snap.data() || {} };
+        var data = snap.data() || {};
+        // Repair a missing/email-derived name using the provided display name
+        // (e.g. dev login as Mark) so the first name + photo resolve correctly.
+        if (fbUser.displayName && (!data.name || data.name === localPart)) {
+          data.name = fbUser.displayName;
+          db.collection('users').doc(match.id).set({ name: fbUser.displayName }, { merge: true })
+            .catch(function (e) { console.error('Failed to fix name:', e); });
+        }
+        return { id: match.id, data: data };
       });
     }
     var ref = db.collection('users').doc();
@@ -1011,14 +1030,10 @@
       });
   }
 
-  // Daily entry: warm-up first (if due), then the message board is home.
+  // Daily entry: the message board is always the first screen after login.
+  // The warm-up now intercepts the Exercises tab (see renderDashboard).
   function enterHome() {
-    var routine = todayRoutine();
-    if (routine && !routineShownToday('warmup') && !hasLoggedTrainingToday()) {
-      showRoutine('warmup', routine.warmup);
-    } else {
-      openBoard();
-    }
+    openBoard();
   }
 
   // DEV_MODE only: skip the magic link and enter the app as Mark, loading his
@@ -1138,9 +1153,12 @@
     var day = challengeDay(today);
     var sched = todaySchedule();
 
-    // Auto-show the cool-down once all due exercises are logged (warm-up is
-    // handled at daily entry, before the message board).
+    // Warm-up intercepts the Exercises tab the first time each day before any
+    // exercise is logged; cool-down shows once all due exercises are logged.
     var routine = todayRoutine();
+    if (routine && !routineShownToday('warmup') && !hasLoggedTrainingToday()) {
+      return showRoutine('warmup', routine.warmup);
+    }
     if (routine && !routineShownToday('cooldown') && allDueLoggedToday(sched)) {
       return showRoutine('cooldown', routine.cooldown);
     }
@@ -1379,7 +1397,7 @@
       '<p class="log-target">' + targetText + '</p>' +
       (isBestEffort
         ? '<div class="timer-zone">' +
-            '<div class="ring-wrap">' +
+            '<div class="ring-wrap laser-border">' +
               '<svg class="ring" viewBox="0 0 120 120">' +
                 '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
                 '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
@@ -1622,10 +1640,8 @@
       '<button type="button" class="btn-link routine-skip">Skip</button>';
 
     function dismiss() {
-      // Warm-up leads into the message board (home); cool-down returns to the
-      // dashboard where it was triggered.
-      var next = isWarmup ? openBoard : renderDashboard;
-      markRoutineShown(type).then(next);
+      // Both warm-up and cool-down lead into the dashboard (Exercises tab).
+      markRoutineShown(type).then(renderDashboard);
     }
     screen.querySelector('.routine-go').addEventListener('click', dismiss);
     screen.querySelector('.routine-skip').addEventListener('click', dismiss);
@@ -2263,11 +2279,11 @@
 
     addFire(forgeBtn);
     addFire(installBtn);
+    startLaserLoop();
 
     renderCarousel(); // static team list — independent of Firestore
 
-    carouselPrev.addEventListener('click', function () { carouselGo(-1); });
-    carouselNext.addEventListener('click', function () { carouselGo(1); });
+    // Swipe-only navigation (arrow buttons removed); arrow keys still work.
     carousel.addEventListener('touchstart', onTouchStart, { passive: true });
     carousel.addEventListener('touchend', onTouchEnd, { passive: true });
     // Left/right arrow keys drive the carousel while the login screen is shown.

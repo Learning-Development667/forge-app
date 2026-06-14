@@ -12,6 +12,7 @@
   --orange: #E8621A;
   --cream: #F5F0E8;
   --dim: rgba(245, 240, 232, 0.28);
+  --laser-angle: 0deg; /* updated each frame by JS for the rotating laser */
 }
 
 * {
@@ -1507,15 +1508,18 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   max-width: none;
   height: 60px;
   display: flex;            /* tile fire instances side by side */
+  gap: 0;                   /* seamless edge to edge */
   pointer-events: none;
   z-index: 0;
 }
 
-/* Each fire tile is a fixed 80x60 so it never distorts. */
+/* Each fire tile is a fixed 60x60, no margin/padding, filling its box. */
 .fire-tile {
-  width: 80px;
+  width: 60px;
   height: 60px;
-  flex: 0 0 80px;
+  flex: 0 0 60px;
+  margin: 0;
+  padding: 0;
 }
 
 .btn-label {
@@ -1528,17 +1532,12 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
    -> label (1). The inner fill matches the button background so only a 3px
    rotating border shows. */
 /* Animatable angle so the conic gradient rotates smoothly (no jumping). */
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
+/* The conic angle is driven by JS (a single rAF loop sets --laser-angle on
+   :root) so every laser element rotates smoothly and in sync on all browsers. */
 .laser-border {
   position: relative;
   overflow: hidden;
   --laser-fill: var(--orange);
-  --angle: 0deg;
 }
 
 .laser-border::before {
@@ -1547,9 +1546,8 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   inset: 0;
   z-index: -2;
   border-radius: inherit;
-  background: conic-gradient(from var(--angle),
+  background: conic-gradient(from var(--laser-angle, 0deg),
     #E8621A, #FF8C00, #FFD700, #FF8C00, #E8621A);
-  animation: laserSpin 2s linear infinite;
 }
 
 .laser-border::after {
@@ -1559,10 +1557,6 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   inset: 3px;
   border-radius: inherit;
   background: var(--laser-fill);
-}
-
-@keyframes laserSpin {
-  to { --angle: 360deg; }
 }
 
 /* Buttons whose visible background isn't orange need a matching inner fill. */
@@ -1577,6 +1571,13 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   color: var(--cream);
   text-decoration: none;
 }
+
+/* Countdown timer ring: circular laser around the timer. */
+.ring-wrap.laser-border {
+  --laser-fill: var(--charcoal);
+  border-radius: 50%;
+}
+.ring-wrap.laser-border::after { inset: 6px; }
 
 /* No green (or any) UA focus ring / tap highlight on buttons. Keyboard focus
    gets a burnt-orange outline; button borders are only orange/amber/gold. */
@@ -1613,10 +1614,13 @@ button:focus { outline: none; }
   top: 0;
   z-index: 5;
   width: 100%;
-  height: 60px; /* fixed, consistent across all screens */
+  height: 60px;       /* fixed, consistent across all screens */
+  min-height: 60px;
+  flex-shrink: 0;     /* never compress in a flex column */
+  box-sizing: border-box;
   display: flex;
   justify-content: space-around;
-  align-items: center;
+  align-items: center; /* icons + labels vertically centred */
   gap: 4px;
   padding: 0 4px;
   background: var(--charcoal);
