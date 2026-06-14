@@ -199,16 +199,17 @@ body {
   gap: 12px;
 }
 
-/* All avatars share the same circular footprint. */
+/* All avatars share the same fixed circular footprint. No image can ever
+   render smaller than 60x60 regardless of the source dimensions. */
 .ucard-avatar {
-  /* Fixed box so every avatar is identical regardless of the source image. */
-  width: 120px;
-  height: 120px;
-  min-width: 120px;
-  min-height: 120px;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
   border-radius: 50%;
-  object-fit: cover;          /* crop photo avatars to fill the circle */
-  object-position: center top; /* keep faces in frame */
+  object-fit: cover;            /* fill the circle, cropping as needed */
+  object-position: center center;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
@@ -245,7 +246,7 @@ img.topbar-avatar,
   background: var(--orange);
   color: #fff;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 56px;
+  font-size: 28px;
   line-height: 1;
 }
 
@@ -255,7 +256,7 @@ img.topbar-avatar,
   color: #fff;
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
-  font-size: 64px;
+  font-size: 34px;
   line-height: 1;
 }
 
@@ -1049,6 +1050,11 @@ img.topbar-avatar,
   height: 120px;
 }
 
+/* Profile placeholder is larger, so restore a proportional initial. */
+.profile-avatar.ucard-avatar--placeholder {
+  font-size: 56px;
+}
+
 .profile-name {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 44px;
@@ -1280,13 +1286,15 @@ img.topbar-avatar,
 .squad-avatar, .mini-avatar, .react-avatar {
   border-radius: 50%;
   object-fit: cover;
-  object-position: center top;
+  object-position: center center;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
 img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 
-.squad-avatar { width: 56px; height: 56px; }
+/* Squad photos fill a fixed 60px circle and can never render smaller. */
+.squad-avatar { width: 60px; height: 60px; min-width: 60px; min-height: 60px; }
 .mini-avatar { width: 36px; height: 36px; }
 .react-avatar { width: 20px; height: 20px; }
 
