@@ -1487,8 +1487,10 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 .btn-fire {
   position: absolute;
   left: 0;
+  right: 0;
   bottom: 0;
   width: 100%;
+  max-width: none;
   height: 60px;
   pointer-events: none;
   z-index: 0;
@@ -1503,25 +1505,29 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
    Sits behind the button content: conic (-2) -> inner fill (-1) -> fire (0)
    -> label (1). The inner fill matches the button background so only a 3px
    rotating border shows. */
+/* Animatable angle so the conic gradient rotates smoothly (no jumping). */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .laser-border {
   position: relative;
   overflow: hidden;
   --laser-fill: var(--orange);
+  --angle: 0deg;
 }
 
 .laser-border::before {
   content: '';
   position: absolute;
+  inset: 0;
   z-index: -2;
-  left: 50%;
-  top: 50%;
-  width: 250%;
-  height: 250%;
-  background: conic-gradient(from 0deg, #E8621A, #FF8C00, #FFD700, #FF8C00, #E8621A);
-  transform: translate(-50%, -50%) rotate(0deg);
-  transform-origin: center;
+  border-radius: inherit;
+  background: conic-gradient(from var(--angle),
+    #E8621A, #FF8C00, #FFD700, #FF8C00, #E8621A);
   animation: laserSpin 2s linear infinite;
-  will-change: transform;
 }
 
 .laser-border::after {
@@ -1534,7 +1540,7 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 }
 
 @keyframes laserSpin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+  to { --angle: 360deg; }
 }
 
 /* Buttons whose visible background isn't orange need a matching inner fill. */
@@ -1548,6 +1554,20 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   padding: 8px 14px;
   color: var(--cream);
   text-decoration: none;
+}
+
+/* No green (or any) UA focus ring / tap highlight on buttons. Keyboard focus
+   gets a burnt-orange outline; button borders are only orange/amber/gold. */
+button { -webkit-tap-highlight-color: transparent; }
+button:focus { outline: none; }
+.btn-forge:focus-visible,
+.btn-outline:focus-visible,
+.btn-link:focus-visible,
+.btn-log:focus-visible,
+.nav-item:focus-visible,
+.toggle:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
 }
 
 /* Fire along the bottom of the best-effort countdown timer. */

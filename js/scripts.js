@@ -112,6 +112,7 @@
   var AVATARS = {
     Mark: 'images/mark.png',
     Shelley: 'images/shelley.png',
+    Hayley: 'images/hayley.png',
     Liisa: 'images/liisa.png',
     Nikki: 'images/nikki.png',
     Andy: 'images/andy.png'
@@ -265,6 +266,8 @@
     fire.setAttribute('src', 'images/fire.json');
     fire.setAttribute('autoplay', '');
     fire.setAttribute('loop', '');
+    // Stretch the flames edge-to-edge across the full button width.
+    fire.setAttribute('preserveAspectRatio', 'none');
     btn.appendChild(fire);
   }
 
@@ -1030,11 +1033,9 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.29</span>' +
+          '<span class="topbar-version">v0.2.30</span>' +
         '</div>' +
       '</header>' +
-
-      '<h1 class="welcome">Welcome back, ' + esc(state.user ? state.user.name : 'Forger') + '</h1>' +
 
       (banner ? '<div class="banner">' + esc(banner) + '</div>' : '') +
 
@@ -1668,6 +1669,7 @@
     var screen = ensureScreen('board-screen');
     screen.innerHTML =
       navBarHTML('board') +
+      '<h1 class="welcome">Welcome back, ' + esc(state.user ? state.user.name : 'Forger') + '</h1>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
       '<div id="board-feed" class="board-feed"></div>' +
