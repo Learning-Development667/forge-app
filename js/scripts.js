@@ -49,6 +49,50 @@
     { name: 'Bear Crawl', target: '10 steps forward, 10 steps back' }
   ];
 
+  // Warm-up / cool-down routines keyed by weekday (0=Sun … 6=Sat). The moves
+  // match the exercises active that day. Saturday (full rest) has none.
+  var R = {
+    armCircles:    { name: 'Arm circles', target: '10 reps' },
+    shoulderRolls: { name: 'Shoulder rolls', target: '10 reps' },
+    hipCircles:    { name: 'Hip circles', target: '10 reps' },
+    legSwings:     { name: 'Leg swings', target: '10 reps each leg' },
+    inchworm:      { name: 'Inchworm', target: '5 reps' },
+    gluteBridge:   { name: 'Glute bridge', target: '10 reps' },
+    catCow:        { name: 'Cat-cow', target: '10 reps' },
+    chestStretch:  { name: 'Chest stretch', target: '30 sec' },
+    childsPose:    { name: "Child's pose", target: '30 sec' },
+    spinalTwist:   { name: 'Spinal twist', target: '30 sec each side' },
+    hipFlexor:     { name: 'Hip flexor stretch', target: '30 sec each side' },
+    quadStretch:   { name: 'Quad stretch', target: '30 sec each side' }
+  };
+
+  var SUN_MON = {
+    warmup: [R.armCircles, R.shoulderRolls, R.inchworm, R.gluteBridge],
+    cooldown: [R.chestStretch, R.childsPose, R.catCow, R.spinalTwist]
+  };
+
+  var ROUTINES = {
+    0: SUN_MON, // Sunday — Press-ups, Sit-ups, Plank
+    1: SUN_MON, // Monday — Press-ups, Sit-ups, Plank
+    2: {        // Tuesday — Press-ups, Sit-ups, Lunges
+      warmup: [R.armCircles, R.hipCircles, R.legSwings, R.inchworm],
+      cooldown: [R.chestStretch, R.hipFlexor, R.quadStretch, R.spinalTwist]
+    },
+    3: {        // Wednesday — Sit-ups, Plank, Lunges
+      warmup: [R.hipCircles, R.legSwings, R.gluteBridge, R.catCow],
+      cooldown: [R.childsPose, R.hipFlexor, R.spinalTwist, R.quadStretch]
+    },
+    4: {        // Thursday — Press-ups, Plank, Lunges
+      warmup: [R.armCircles, R.shoulderRolls, R.legSwings, R.inchworm],
+      cooldown: [R.chestStretch, R.childsPose, R.hipFlexor, R.quadStretch]
+    },
+    5: {        // Friday — all four, best effort
+      warmup: [R.armCircles, R.hipCircles, R.legSwings, R.inchworm, R.gluteBridge],
+      cooldown: [R.chestStretch, R.childsPose, R.catCow, R.hipFlexor, R.quadStretch, R.spinalTwist]
+    },
+    6: null     // Saturday — full rest, no routine
+  };
+
   // Photo avatars keyed by user name. Anyone not listed gets a CSS-generated
   // placeholder (orange circle with their initial).
   var AVATARS = {
@@ -670,6 +714,36 @@
     return todayLogs().filter(function (l) { return l.bonusExercise; })[0] || null;
   }
 
+  // --- Warm-up / cool-down routine helpers ---------------------------
+  function routineFor(d) {
+    return ROUTINES[d.getDay()] || null;
+  }
+
+  function hasLoggedTrainingToday() {
+    return todayLogs().some(function (l) { return !l.bonusExercise; });
+  }
+
+  function allDueLoggedToday(sched) {
+    return sched.active.length > 0 && sched.active.every(isLogged);
+  }
+
+  function routineShownToday(type) {
+    if (!state.user) return true; // no user doc -> don't pop routines
+    var field = type === 'warmup' ? 'warmupShownDate' : 'cooldownShownDate';
+    return state.user[field] === dateKey(new Date());
+  }
+
+  function markRoutineShown(type) {
+    var field = type === 'warmup' ? 'warmupShownDate' : 'cooldownShownDate';
+    var key = dateKey(new Date());
+    if (!state.user) return Promise.resolve();
+    state.user[field] = key;
+    var patch = {};
+    patch[field] = key;
+    return db.collection('users').doc(state.user.id).set(patch, { merge: true })
+      .catch(function (err) { console.error('Failed to store routine flag:', err); });
+  }
+
   function saveLog(exKey, repsCompleted, target, mood, isBestEffort, bonusExercise) {
     var entry = {
       date: dateKey(new Date()),
@@ -696,6 +770,18 @@
     var today = new Date();
     var day = challengeDay(today);
     var sched = scheduleFor(today);
+
+    // Auto-show the warm-up (before any training is logged) or the cool-down
+    // (once all due exercises are logged), unless already seen today.
+    var routine = routineFor(today);
+    if (routine) {
+      if (!routineShownToday('warmup') && !hasLoggedTrainingToday()) {
+        return showRoutine('warmup', routine.warmup);
+      }
+      if (!routineShownToday('cooldown') && allDueLoggedToday(sched)) {
+        return showRoutine('cooldown', routine.cooldown);
+      }
+    }
 
     var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
     var week = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
@@ -727,7 +813,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.3</span>' +
+          '<span class="topbar-version">v0.2.4</span>' +
         '</div>' +
       '</header>' +
 
@@ -1023,6 +1109,43 @@
         }
       }, 90);
     });
+
+    showScreen(screen);
+  }
+
+  // ===================================================================
+  // Warm-up / cool-down screens
+  // ===================================================================
+  function showRoutine(type, items) {
+    var isWarmup = type === 'warmup';
+    var screen = ensureScreen(type + '-screen');
+
+    var list = items.map(function (it) {
+      return '<li class="routine-item">' +
+               '<span class="routine-name">' + esc(it.name) + '</span>' +
+               '<span class="routine-target">' + esc(it.target) + '</span>' +
+             '</li>';
+    }).join('');
+
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<span class="topbar-brand">FORGE</span>' +
+        '<span class="topbar-version">' + (isWarmup ? 'WARM UP' : 'COOL DOWN') + '</span>' +
+      '</header>' +
+      '<h1 class="routine-title">' + (isWarmup ? 'WARM UP' : 'COOL DOWN') + '</h1>' +
+      '<p class="routine-sub">' +
+        (isWarmup ? 'Prime your body before you train.' : 'Ease down and recover.') +
+      '</p>' +
+      '<ul class="routine-list">' + list + '</ul>' +
+      '<button type="button" class="btn-forge routine-go">' +
+        (isWarmup ? 'Start Training' : 'Done') + '</button>' +
+      '<button type="button" class="btn-link routine-skip">Skip</button>';
+
+    function dismiss() {
+      markRoutineShown(type).then(renderDashboard);
+    }
+    screen.querySelector('.routine-go').addEventListener('click', dismiss);
+    screen.querySelector('.routine-skip').addEventListener('click', dismiss);
 
     showScreen(screen);
   }

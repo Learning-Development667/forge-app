@@ -383,7 +383,9 @@ body {
 #log-screen,
 #spin-screen,
 #profile-screen,
-#board-screen {
+#board-screen,
+#warmup-screen,
+#cooldown-screen {
   justify-content: flex-start;
   gap: 20px;
   width: 100%;
@@ -829,4 +831,56 @@ body {
   width: 100%;
   text-align: center;
   padding-top: 40px;
+}
+
+/* ---------- Warm-up / cool-down ---------- */
+.routine-title {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 56px;
+  letter-spacing: 2px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.routine-sub {
+  width: 100%;
+  font-size: 15px;
+  color: var(--orange);
+  margin-top: -12px;
+}
+
+.routine-list {
+  width: 100%;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routine-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.routine-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--cream);
+}
+
+.routine-target {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--orange);
+}
+
+.routine-skip {
+  align-self: center;
 }
