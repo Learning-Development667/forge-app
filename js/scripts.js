@@ -180,6 +180,7 @@
   var carouselNext = document.getElementById('carousel-next');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
+  var devFridayBtn = document.getElementById('dev-friday-btn');
   var installBtn = document.getElementById('install-btn');
   var loginMessage = document.getElementById('login-message');
   var loginJunk = document.getElementById('login-junk');
@@ -205,6 +206,9 @@
   var completingSignIn = false; // suppress login screen while a magic link completes
 
   var state = { user: null, logs: [] };
+
+  // DEV_MODE session flag: treat today as a Friday (best-effort) for display.
+  var devForceFriday = false;
 
   // Message board real-time state.
   var boardUnsubs = [];
@@ -303,9 +307,9 @@
     return 'reps completed';
   }
 
-  // Weekly rest-day rotation. getDay(): 0=Sun .. 6=Sat
-  function scheduleFor(d) {
-    switch (d.getDay()) {
+  // Weekly rest-day rotation. weekday: 0=Sun .. 6=Sat
+  function scheduleForDay(wd) {
+    switch (wd) {
       case 1: return { type: 'normal', rest: 'lunges',   active: ['pressups', 'situps', 'plank'] };
       case 2: return { type: 'normal', rest: 'plank',    active: ['pressups', 'situps', 'lunges'] };
       case 3: return { type: 'normal', rest: 'pressups', active: ['situps', 'plank', 'lunges'] };
@@ -314,6 +318,20 @@
       case 6: return { type: 'rest', rest: null,         active: [] };
       default: return { type: 'normal', rest: 'lunges',  active: ['pressups', 'situps', 'plank'] }; // Sunday
     }
+  }
+
+  function scheduleFor(d) {
+    return scheduleForDay(d.getDay());
+  }
+
+  // Today's schedule/routine, honouring the DEV_MODE Friday override. This only
+  // affects what's shown for *today* — historical stats use real weekdays.
+  function todaySchedule() {
+    return devForceFriday ? scheduleForDay(5) : scheduleFor(new Date());
+  }
+
+  function todayRoutine() {
+    return devForceFriday ? ROUTINES[5] : routineFor(new Date());
   }
 
   function inSoftLaunch(d) {
@@ -748,7 +766,7 @@
 
   // Daily entry: warm-up first (if due), then the message board is home.
   function enterHome() {
-    var routine = routineFor(new Date());
+    var routine = todayRoutine();
     if (routine && !routineShownToday('warmup') && !hasLoggedTrainingToday()) {
       showRoutine('warmup', routine.warmup);
     } else {
@@ -760,6 +778,14 @@
   // real Firestore data via the normal enterApp path.
   function devLogin() {
     if (!DEV_MODE) return;
+    devForceFriday = false;
+    enterApp({ email: 'markbrown667@gmail.com', displayName: 'Mark' });
+  }
+
+  // DEV_MODE only: log in as Mark and treat today as a best-effort Friday.
+  function devFridayLogin() {
+    if (!DEV_MODE) return;
+    devForceFriday = true;
     enterApp({ email: 'markbrown667@gmail.com', displayName: 'Mark' });
   }
 
@@ -863,11 +889,11 @@
   function renderDashboard() {
     var today = new Date();
     var day = challengeDay(today);
-    var sched = scheduleFor(today);
+    var sched = todaySchedule();
 
     // Auto-show the cool-down once all due exercises are logged (warm-up is
     // handled at daily entry, before the message board).
-    var routine = routineFor(today);
+    var routine = todayRoutine();
     if (routine && !routineShownToday('cooldown') && allDueLoggedToday(sched)) {
       return showRoutine('cooldown', routine.cooldown);
     }
@@ -902,7 +928,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.18</span>' +
+          '<span class="topbar-version">v0.2.19</span>' +
         '</div>' +
       '</header>' +
 
@@ -1524,7 +1550,7 @@
   function renderSquad() {
     var row = document.getElementById('squad-row');
     if (!row) return;
-    var sched = scheduleFor(new Date());
+    var sched = todaySchedule();
     var isRest = sched.type === 'rest';
 
     row.innerHTML = TEAM.map(function (name) {
@@ -1640,6 +1666,7 @@
 
   function onSignOut() {
     teardownBoard();
+    devForceFriday = false;
     auth.signOut().then(function () {
       state.user = null;
       state.logs = [];
@@ -1670,6 +1697,10 @@
     if (DEV_MODE && devLoginBtn) {
       devLoginBtn.classList.remove('hidden');
       devLoginBtn.addEventListener('click', devLogin);
+    }
+    if (DEV_MODE && devFridayBtn) {
+      devFridayBtn.classList.remove('hidden');
+      devFridayBtn.addEventListener('click', devFridayLogin);
     }
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
