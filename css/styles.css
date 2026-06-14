@@ -648,6 +648,16 @@ body {
   gap: 16px;
 }
 
+/* Large confirmation prompt on normal training days (no input field). */
+.log-confirm-q {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  color: var(--cream);
+  text-align: center;
+}
+
 .mood-heading {
   margin-bottom: -6px;
 }

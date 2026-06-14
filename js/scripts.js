@@ -31,6 +31,20 @@
 
   var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Really tough'];
 
+  // Bonus spin pool — core & balance moves, separate from the 4 daily exercises.
+  var BONUS_EXERCISES = [
+    { name: 'Dead Bug', target: 'Hold for 30 seconds' },
+    { name: 'Bird Dog', target: '10 reps each side' },
+    { name: 'Glute Bridge', target: '20 reps' },
+    { name: 'Mountain Climbers', target: '30 seconds' },
+    { name: 'Superman Hold', target: 'Hold for 30 seconds' },
+    { name: 'Hollow Body Hold', target: 'Hold for 20 seconds' },
+    { name: 'Single Leg Balance', target: '30 seconds each leg' },
+    { name: 'Crab Reach', target: '10 reps each side' },
+    { name: 'Flutter Kicks', target: '30 seconds' },
+    { name: 'Bear Crawl', target: '10 steps forward, 10 steps back' }
+  ];
+
   // Photo avatars keyed by user name. Anyone not listed gets a CSS-generated
   // placeholder (orange circle with their initial).
   var AVATARS = {
@@ -651,7 +665,7 @@
     var entry = {
       date: dateKey(new Date()),
       exercise: exKey,
-      repsCompleted: Number(repsCompleted),
+      repsCompleted: repsCompleted, // number on training days, description for bonus moves
       target: target,
       mood: mood,
       isBestEffort: !!isBestEffort,
@@ -846,27 +860,40 @@
       });
     }
 
-    buildLogFlow(flow, ex, target, function (reps, mood) {
-      saveLog(ex.key, reps, target, mood, isBestEffort, bonusExercise).then(renderDashboard);
+    buildLogFlow(flow, {
+      requireInput: isBestEffort,            // only Best Effort Fridays take a number
+      unitLabel: unitLabel(ex),
+      targetDisplay: isBestEffort ? target : formatTarget(ex, target),
+      confirmValue: target,                  // normal days log the known target
+      onConfirm: function (reps, mood) {
+        saveLog(ex.key, reps, target, mood, isBestEffort, bonusExercise).then(renderDashboard);
+      }
     });
 
     showScreen(screen);
   }
 
-  function buildLogFlow(container, ex, target, onConfirm) {
+  // opts: { requireInput, unitLabel, targetDisplay, confirmValue, onConfirm }
+  // requireInput true  -> user types a number (Best Effort Fridays only)
+  // requireInput false -> confirm the known target; logs confirmValue as completed
+  function buildLogFlow(container, opts) {
     var inputId = 'log-input';
+    var topBlock = opts.requireInput
+      ? '<label class="field">' +
+          '<span class="field-label">' + esc(opts.unitLabel) + '</span>' +
+          '<input id="' + inputId + '" type="number" inputmode="numeric" min="0" ' +
+            'placeholder="' + esc(String(opts.targetDisplay)) + '" />' +
+        '</label>'
+      : '<p class="log-confirm-q">Did you complete ' + esc(String(opts.targetDisplay)) + '?</p>';
+
     container.innerHTML =
-      '<label class="field">' +
-        '<span class="field-label">' + unitLabel(ex) + '</span>' +
-        '<input id="' + inputId + '" type="number" inputmode="numeric" min="0" ' +
-          'placeholder="' + target + '" />' +
-      '</label>' +
+      topBlock +
       '<p class="field-label mood-heading">How did it feel?</p>' +
       '<div class="moods">' + MOODS.map(function (m, i) {
         return '<button type="button" class="mood" data-mood="' + esc(m) + '">' +
                  '<span class="mood-num">' + (i + 1) + '</span>' + esc(m) + '</button>';
       }).join('') + '</div>' +
-      '<button type="button" class="btn-forge confirm-btn">Confirm Log</button>' +
+      '<button type="button" class="btn-forge confirm-btn">Confirm</button>' +
       '<p class="message log-msg" role="status" aria-live="polite"></p>';
 
     var selectedMood = null;
@@ -881,17 +908,20 @@
 
     var msg = container.querySelector('.log-msg');
     container.querySelector('.confirm-btn').addEventListener('click', function () {
-      var input = container.querySelector('#' + inputId);
-      var reps = input.value.trim();
-      if (reps === '' || isNaN(Number(reps)) || Number(reps) < 0) {
-        setMessage(msg, 'Enter how many you completed.', true);
-        return;
+      var value = opts.confirmValue;
+      if (opts.requireInput) {
+        var raw = container.querySelector('#' + inputId).value.trim();
+        if (raw === '' || isNaN(Number(raw)) || Number(raw) < 0) {
+          setMessage(msg, 'Enter how many you completed.', true);
+          return;
+        }
+        value = Number(raw);
       }
       if (!selectedMood) {
         setMessage(msg, 'Pick how it felt.', true);
         return;
       }
-      onConfirm(Number(reps), selectedMood);
+      opts.onConfirm(value, selectedMood);
     });
   }
 
@@ -924,7 +954,6 @@
   // ===================================================================
   function openSpin() {
     var screen = ensureScreen('spin-screen');
-    var day = challengeDay(new Date());
 
     screen.innerHTML =
       '<header class="topbar">' +
@@ -946,21 +975,25 @@
     goBtn.addEventListener('click', function () {
       goBtn.disabled = true;
       var ticks = 0;
-      var final = ORDER[Math.floor(Math.random() * ORDER.length)];
+      var final = Math.floor(Math.random() * BONUS_EXERCISES.length);
       var iv = setInterval(function () {
-        reel.textContent = EXERCISES[ORDER[ticks % ORDER.length]].name;
+        reel.textContent = BONUS_EXERCISES[ticks % BONUS_EXERCISES.length].name;
         ticks++;
         if (ticks > 16) {
           clearInterval(iv);
-          reel.textContent = EXERCISES[final].name;
-          var ex = EXERCISES[final];
-          var target = targetFor(ex, day);
+          var bonus = BONUS_EXERCISES[final];
+          reel.textContent = bonus.name;
           result.classList.remove('hidden');
           result.innerHTML =
-            '<p class="spin-target">Bonus: ' + formatTarget(ex, target) + '</p>' +
+            '<p class="spin-target">' + esc(bonus.name) + ' — ' + esc(bonus.target) + '</p>' +
             '<div class="log-flow"></div>';
-          buildLogFlow(result.querySelector('.log-flow'), ex, target, function (reps, mood) {
-            saveLog(ex.key, reps, target, mood, false, true).then(renderDashboard);
+          buildLogFlow(result.querySelector('.log-flow'), {
+            requireInput: false,
+            targetDisplay: bonus.target,
+            confirmValue: bonus.target,
+            onConfirm: function (value, mood) {
+              saveLog(bonus.name, value, bonus.target, mood, false, true).then(renderDashboard);
+            }
           });
         }
       }, 90);
