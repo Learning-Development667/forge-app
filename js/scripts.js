@@ -103,7 +103,10 @@
   // placeholder (orange circle with their initial).
   var AVATARS = {
     Mark: 'images/mark.png',
-    Shelley: 'images/shelley.png'
+    Shelley: 'images/shelley.png',
+    Liisa: 'images/liisa.png',
+    Nikki: 'images/nikki.png',
+    Andy: 'images/andy.png'
   };
 
   // Motivational quotes — a random one is shown on the login screen each load.
@@ -827,7 +830,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.5</span>' +
+          '<span class="topbar-version">v0.2.6</span>' +
         '</div>' +
       '</header>' +
 
