@@ -1173,12 +1173,18 @@
       }).join('') + '</div>';
     }
 
+    var showIntro = !!(state.user && !state.user.introSeen);
+
     var html =
       navBarHTML('exercises') +
 
       '<header class="topbar">' +
         '<span class="topbar-brand">FORGE</span>' +
       '</header>' +
+
+      (showIntro
+        ? '<div class="intro-note">New to Forge? Tap the info icon on each exercise to check your form before you start.</div>'
+        : '') +
 
       (banner ? '<div class="banner">' + esc(banner) + '</div>' : '') +
 
@@ -1204,6 +1210,7 @@
     dashboardScreen.innerHTML = html;
     wireDashboard();
     showScreen(dashboardScreen);
+    if (showIntro) markIntroSeen(); // one-time note; gone on next render
   }
 
   function statCard(value, label) {
@@ -1263,9 +1270,14 @@
       statusEl = '';
     }
 
+    var infoBtn = isRest ? '' :
+      '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">i</button>';
+
     return '<div class="card' + (isRest ? ' card-rest' : ' forge-laser') + (logged ? ' card-done' : '') + '">' +
              '<div class="card-info">' +
-               '<h3 class="card-name">' + ex.name + '</h3>' +
+               '<div class="card-name-row">' +
+                 '<h3 class="card-name">' + ex.name + '</h3>' + infoBtn +
+               '</div>' +
                '<p class="card-target">' +
                  (isRest ? 'Rest day for this one' :
                    (bestEffort ? 'Max effort · 2:00' : formatTarget(ex, target))) +
@@ -1279,9 +1291,15 @@
     wireNav(dashboardScreen);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
-        startLog(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1');
+        openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
       });
       addFire(btn);
+    });
+    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-info]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-info');
+        openFormGuide(EXERCISES[key].name, key, renderDashboard, renderDashboard);
+      });
     });
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
     if (spin) { spin.addEventListener('click', openSpin); addFire(spin); }
@@ -1330,6 +1348,13 @@
     });
   }
 
+  function markIntroSeen() {
+    if (!state.user || state.user.introSeen) return;
+    state.user.introSeen = true;
+    db.collection('users').doc(state.user.id).set({ introSeen: true }, { merge: true })
+      .catch(function (e) { console.error('Failed to store intro-seen:', e); });
+  }
+
   function openFormGuide(displayName, exKey, onProceed, backFn) {
     var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
     var video = FORM_VIDEOS[exKey];
@@ -1363,16 +1388,6 @@
     screen.querySelector('.back-btn').addEventListener('click', backFn || renderDashboard);
     addFire(screen.querySelector('.form-ok'));
     showScreen(screen);
-  }
-
-  // Entry point for a LOG tap: mandatory form guide the first time, then log.
-  function startLog(exKey, isBestEffort) {
-    function go() { openLogScreen(exKey, isBestEffort, false); }
-    if (hasSeenGuide(exKey)) {
-      go();
-    } else {
-      openFormGuide(EXERCISES[exKey].name, exKey, go, renderDashboard);
-    }
   }
 
   function openLogScreen(exKey, isBestEffort, bonusExercise) {
@@ -1599,8 +1614,7 @@
             });
           }
 
-          if (hasSeenGuide(bonus.name)) showResult();
-          else openFormGuide(bonus.name, bonus.name, showResult, renderDashboard);
+          showResult();
         }
       }, 90);
     });

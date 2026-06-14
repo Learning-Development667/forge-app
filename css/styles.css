@@ -692,6 +692,46 @@ img.topbar-avatar,
 .card-rest .card-name { color: rgba(245, 240, 232, 0.45); }
 .card-rest .card-target { color: var(--dim); }
 
+/* Exercise name + form-guide info icon row. */
+.card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-info-btn {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--cream);
+  background: none;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* One-time onboarding note at the top of the Exercises screen. */
+.intro-note {
+  width: 100%;
+  background: rgba(232, 98, 26, 0.12);
+  border: 1px solid rgba(232, 98, 26, 0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--cream);
+  text-align: center;
+}
+
 .card-name {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 26px;
