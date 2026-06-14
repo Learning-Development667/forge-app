@@ -261,14 +261,31 @@
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
     btn.appendChild(label);
-    var fire = document.createElement('lottie-player');
+    // Tile fixed-size fire instances across the button width (no stretching).
+    var fire = document.createElement('div');
     fire.className = 'btn-fire';
-    fire.setAttribute('src', 'images/fire.json');
-    fire.setAttribute('autoplay', '');
-    fire.setAttribute('loop', '');
-    // Stretch the flames edge-to-edge across the full button width.
-    fire.setAttribute('preserveAspectRatio', 'none');
     btn.appendChild(fire);
+    tileFire(fire, btn);
+    if (window.ResizeObserver) {
+      new ResizeObserver(function () { tileFire(fire, btn); }).observe(btn);
+    }
+  }
+
+  // Fill the button width with 80x60 fire tiles; re-tile when the width changes
+  // (e.g. when a hidden screen becomes visible).
+  function tileFire(container, btn) {
+    var count = Math.max(1, Math.ceil((btn.clientWidth || 0) / 80));
+    if (Number(container.dataset.count) === count) return;
+    container.dataset.count = count;
+    container.innerHTML = '';
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement('lottie-player');
+      p.className = 'fire-tile';
+      p.setAttribute('src', 'images/fire.json');
+      p.setAttribute('autoplay', '');
+      p.setAttribute('loop', '');
+      container.appendChild(p);
+    }
   }
 
   // ===================================================================
@@ -1033,7 +1050,6 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.31</span>' +
         '</div>' +
       '</header>' +
 
