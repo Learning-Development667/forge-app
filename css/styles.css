@@ -409,7 +409,8 @@ body {
 #profile-screen,
 #board-screen,
 #warmup-screen,
-#cooldown-screen {
+#cooldown-screen,
+#install-screen {
   justify-content: flex-start;
   gap: 20px;
   width: 100%;
@@ -672,6 +673,19 @@ body {
   align-items: center;
   justify-content: space-between;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Subtle install-instructions link below the footer links. */
+.install-link {
+  align-self: center;
+  background: none;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px;
 }
 
 /* ---------- Logging screen ---------- */
@@ -1038,4 +1052,67 @@ body {
   font-family: 'DM Mono', monospace;
   font-size: 18px;
   color: var(--orange);
+}
+
+/* ---------- Install instructions screen ---------- */
+.install-title {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.install-section {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.install-os {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 1px;
+  color: var(--orange);
+  margin-bottom: 10px;
+}
+
+.install-steps {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.install-steps li {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--cream);
+}
+
+.install-note {
+  margin-top: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.6;
+}
+
+.install-share {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.install-url {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--cream);
+  word-break: break-all;
+  text-align: center;
 }

@@ -865,7 +865,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.13</span>' +
+          '<span class="topbar-version">v0.2.14</span>' +
         '</div>' +
       '</header>' +
 
@@ -891,7 +891,8 @@
       '<div class="dash-footer">' +
         '<button type="button" class="btn-link" data-nav="board">Message board</button>' +
         '<button type="button" class="btn-link" data-action="signout">Sign out</button>' +
-      '</div>';
+      '</div>' +
+      '<button type="button" class="install-link" data-action="install">Install App</button>';
 
     dashboardScreen.innerHTML = html;
     wireDashboard();
@@ -985,6 +986,8 @@
     });
     var out = dashboardScreen.querySelector('[data-action="signout"]');
     if (out) out.addEventListener('click', onSignOut);
+    var install = dashboardScreen.querySelector('[data-action="install"]');
+    if (install) install.addEventListener('click', openInstall);
   }
 
   // ===================================================================
@@ -1296,6 +1299,86 @@
     db.collection('users').doc(state.user.id).set({ plankPreference: value }, { merge: true })
       .catch(function (err) { console.error('Failed to save plank preference:', err); });
     openProfile(); // re-render to update the highlighted option
+  }
+
+  // ===================================================================
+  // Install instructions screen
+  // ===================================================================
+  function openInstall() {
+    var screen = ensureScreen('install-screen');
+    var appUrl = 'https://learning-development667.github.io/forge-app/';
+
+    function steps(list) {
+      return '<ol class="install-steps">' + list.map(function (s) {
+        return '<li>' + esc(s) + '</li>';
+      }).join('') + '</ol>';
+    }
+
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">INSTALL</span>' +
+      '</header>' +
+      '<h1 class="install-title">INSTALL FORGE</h1>' +
+
+      '<section class="install-section">' +
+        '<h2 class="install-os">iPhone</h2>' +
+        steps([
+          'Open this link in Safari (not Chrome or Gmail)',
+          'Tap the Share button at the bottom of the screen',
+          'Scroll down and tap "Add to Home Screen"',
+          'Tap Add in the top right corner',
+          'Forge will appear on your home screen ready to use'
+        ]) +
+        '<p class="install-note">Push notifications only work when installed via Safari on iPhone</p>' +
+      '</section>' +
+
+      '<section class="install-section">' +
+        '<h2 class="install-os">Android</h2>' +
+        steps([
+          'Open this link in Chrome',
+          'Tap the three dots menu in the top right',
+          'Tap "Add to Home Screen" or "Install App"',
+          'Tap Install to confirm',
+          'Forge will appear on your home screen ready to use'
+        ]) +
+      '</section>' +
+
+      '<section class="install-section install-share">' +
+        '<p class="section-heading">Shareable link</p>' +
+        '<p class="install-url">' + esc(appUrl) + '</p>' +
+        '<button type="button" class="btn-forge copy-link-btn">Copy Link</button>' +
+      '</section>';
+
+    screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
+
+    var copyBtn = screen.querySelector('.copy-link-btn');
+    copyBtn.addEventListener('click', function () {
+      copyToClipboard(appUrl);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function () { copyBtn.textContent = 'Copy Link'; }, 2000);
+    });
+
+    showScreen(screen);
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () { legacyCopy(text); });
+    } else {
+      legacyCopy(text);
+    }
+  }
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* no-op */ }
+    document.body.removeChild(ta);
   }
 
   // ===================================================================
