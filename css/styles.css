@@ -284,6 +284,29 @@ body {
   cursor: not-allowed;
 }
 
+/* Full-width outlined button — secondary to the filled Let's Forge button. */
+.btn-outline {
+  width: 100%;
+  border: 1px solid var(--cream);
+  border-radius: 14px;
+  background: var(--charcoal);
+  color: var(--cream);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 2px;
+  padding: 14px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.btn-outline:hover {
+  filter: brightness(1.15);
+}
+
+.btn-outline:active {
+  transform: scale(0.98);
+}
+
 /* Subtle developer-only login shortcut — clearly not part of the real UI. */
 .dev-login {
   align-self: center;
