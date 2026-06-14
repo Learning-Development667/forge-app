@@ -1,0 +1,295 @@
+/* ===================================================================
+   Forge — styles
+   Brand palette:
+     Charcoal background  #1C1C1E
+     Burnt orange accent  #E8621A
+     Warm cream secondary #F5F0E8
+   Fonts: Bebas Neue (headings), DM Sans (body)
+   =================================================================== */
+
+:root {
+  --charcoal: #1C1C1E;
+  --orange: #E8621A;
+  --cream: #F5F0E8;
+  --dim: rgba(245, 240, 232, 0.28);
+
+  --drum-item-height: 64px;
+  --drum-visible: 5; /* visible rows in the drum */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--charcoal);
+  color: var(--cream);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ---------- Screens ---------- */
+.screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ---------- Brand ---------- */
+.brand {
+  text-align: center;
+}
+
+.brand-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(72px, 22vw, 120px);
+  line-height: 0.9;
+  letter-spacing: 4px;
+  color: var(--cream);
+}
+
+.brand-tagline {
+  margin-top: 8px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  color: var(--orange);
+}
+
+.brand--compact .brand-name {
+  font-size: clamp(48px, 14vw, 72px);
+}
+
+/* ---------- Slot-machine drum ---------- */
+.drum-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(var(--drum-item-height) * var(--drum-visible));
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 25%,
+    #000 75%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 25%,
+    #000 75%,
+    transparent 100%
+  );
+}
+
+/* Highlight band marking the centre / selected slot */
+.drum-selection-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--drum-item-height);
+  transform: translateY(-50%);
+  border-top: 1px solid rgba(232, 98, 26, 0.5);
+  border-bottom: 1px solid rgba(232, 98, 26, 0.5);
+  background: rgba(232, 98, 26, 0.06);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.drum-overlay {
+  display: none; /* visual fade handled by the mask above */
+}
+
+.drum {
+  list-style: none;
+  height: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
+  /* Pad so first and last items can snap to the vertical centre */
+  padding: calc((var(--drum-item-height) * (var(--drum-visible) - 1)) / 2) 0;
+  outline: none;
+}
+
+.drum::-webkit-scrollbar {
+  display: none;
+}
+
+.drum-item {
+  height: var(--drum-item-height);
+  scroll-snap-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--dim);
+  opacity: 0.45;
+  transform: scale(0.85);
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.drum-item.is-selected {
+  color: var(--cream);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.drum-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(245, 240, 232, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.drum-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 1.5px;
+}
+
+.drum-item--register .drum-name {
+  color: var(--orange);
+}
+
+/* ---------- Forge button ---------- */
+.btn-forge {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  background: var(--orange);
+  color: var(--cream);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 2px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.btn-forge:hover {
+  filter: brightness(1.08);
+}
+
+.btn-forge:active {
+  transform: scale(0.98);
+}
+
+.btn-forge:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: var(--cream);
+}
+
+/* ---------- Forms ---------- */
+.form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.field input {
+  background: #2a2a2d;
+  border: 1px solid #3a3a3d;
+  border-radius: 10px;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  padding: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.field input:focus {
+  border-color: var(--orange);
+}
+
+/* ---------- Messages ---------- */
+.message {
+  min-height: 20px;
+  font-size: 14px;
+  text-align: center;
+  color: var(--cream);
+}
+
+.message.is-error {
+  color: var(--orange);
+}
+
+/* ---------- Dashboard ---------- */
+.dashboard {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-greeting {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 1.5px;
+  color: var(--orange);
+}
+
+.dashboard-placeholder {
+  font-size: 18px;
+  color: var(--cream);
+}
