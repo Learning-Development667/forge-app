@@ -250,6 +250,23 @@
     });
   }
 
+  // Wrap a button's text in a label span and add a looping Lottie fire layer at
+  // the bottom. The flames sit behind the text and never block clicks.
+  function addFire(btn) {
+    if (!btn || btn.classList.contains('has-fire')) return;
+    btn.classList.add('has-fire');
+    var label = document.createElement('span');
+    label.className = 'btn-label';
+    while (btn.firstChild) label.appendChild(btn.firstChild);
+    btn.appendChild(label);
+    var fire = document.createElement('lottie-player');
+    fire.className = 'btn-fire';
+    fire.setAttribute('src', 'images/fire.json');
+    fire.setAttribute('autoplay', '');
+    fire.setAttribute('loop', '');
+    btn.appendChild(fire);
+  }
+
   // ===================================================================
   // Date / progression / schedule maths
   // ===================================================================
@@ -928,7 +945,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.23</span>' +
+          '<span class="topbar-version">v0.2.24</span>' +
         '</div>' +
       '</header>' +
 
@@ -1035,6 +1052,7 @@
       btn.addEventListener('click', function () {
         openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
       });
+      addFire(btn);
     });
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
     if (spin) spin.addEventListener('click', openSpin);
@@ -1072,7 +1090,7 @@
       '<p class="log-target">' + targetText + '</p>' +
       (isBestEffort
         ? '<div class="timer-zone">' +
-            '<div class="ring-wrap flame-border">' +
+            '<div class="ring-wrap">' +
               '<svg class="ring" viewBox="0 0 120 120">' +
                 '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
                 '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
@@ -1093,10 +1111,19 @@
       var ringLabel = screen.querySelector('.ring-label');
       var ringWrap = screen.querySelector('.ring-wrap');
       var startBtn = screen.querySelector('.timer-start');
+
+      // Fire along the bottom of the timer container.
+      var timerFire = document.createElement('lottie-player');
+      timerFire.className = 'ring-fire';
+      timerFire.setAttribute('src', 'images/fire.json');
+      timerFire.setAttribute('autoplay', '');
+      timerFire.setAttribute('loop', '');
+      ringWrap.appendChild(timerFire);
+
       startBtn.addEventListener('click', function () {
         startBtn.disabled = true;
         startBtn.textContent = 'Go!';
-        startCountdown(120, ringFg, ringLabel, ringWrap, function () {
+        startCountdown(120, ringFg, ringLabel, timerFire, function () {
           ringLabel.textContent = 'Done!';
           flow.classList.remove('hidden');
         });
@@ -1150,6 +1177,7 @@
     });
 
     var msg = container.querySelector('.log-msg');
+    addFire(container.querySelector('.confirm-btn'));
     container.querySelector('.confirm-btn').addEventListener('click', function () {
       var value = opts.confirmValue;
       if (opts.requireInput) {
@@ -1168,7 +1196,7 @@
     });
   }
 
-  function startCountdown(seconds, ringEl, labelEl, ringWrap, onDone) {
+  function startCountdown(seconds, ringEl, labelEl, fireEl, onDone) {
     var C = 2 * Math.PI * 54; // circumference for r=54
     var total = seconds;
     var remaining = seconds;
@@ -1179,10 +1207,9 @@
       remaining--;
       labelEl.textContent = clock(Math.max(0, remaining));
       ringEl.style.strokeDashoffset = C * (1 - remaining / total);
-      // Final 30s: spin the flame ring faster for urgency (3s -> ~0.6s).
-      if (ringWrap && remaining <= 30) {
-        var dur = 0.6 + (Math.max(0, remaining) / 30) * (3 - 0.6);
-        ringWrap.style.setProperty('--spin-dur', dur.toFixed(2) + 's');
+      // Final 30s: double the fire animation speed for urgency.
+      if (remaining === 30 && fireEl && fireEl.setSpeed) {
+        fireEl.setSpeed(2);
       }
       if (remaining <= 0) {
         clearInterval(iv);
@@ -1480,8 +1507,7 @@
     screen.innerHTML =
       '<header class="topbar">' +
         '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<button type="button" class="btn-link board-to-dash flame-border">Today\'s Training →' +
-          '<span class="btn-flames" aria-hidden="true"></span></button>' +
+        '<button type="button" class="btn-link board-to-dash">Today\'s Training →</button>' +
       '</header>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
@@ -1509,6 +1535,9 @@
     }
     postBtn.addEventListener('click', post);
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') post(); });
+
+    addFire(postBtn);
+    addFire(screen.querySelector('.board-to-dash'));
 
     renderSquad();
     renderFeed();
@@ -1711,6 +1740,9 @@
     }
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
+
+    addFire(forgeBtn);
+    addFire(installBtn);
 
     renderCarousel(); // static team list — independent of Firestore
 
