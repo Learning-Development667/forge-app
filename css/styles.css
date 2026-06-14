@@ -1593,24 +1593,26 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   animation: forgeGlow 2s ease-in-out infinite;
 }
 
-.forge-laser::before {
+  .forge-laser::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 12px;
   padding: 3px;
+  /* Narrow ~36deg comet: bright gold head with a short fade trail, transparent
+     the rest of the way so it reads as one tight sweep. */
   background: conic-gradient(from var(--forgeAngle, 0deg),
-              rgba(232, 98, 26, 0) 0deg,
-              rgba(232, 98, 26, 0) 250deg,
-              rgba(255, 140, 0, 0.7) 300deg,
-              #FFD700 335deg,
-              rgba(255, 140, 0, 0.7) 350deg,
+              #FFD700 0deg,
+              #FF8C00 7deg,
+              rgba(232, 98, 26, 0.55) 18deg,
+              rgba(232, 98, 26, 0) 36deg,
               rgba(232, 98, 26, 0) 360deg);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: forgTrace 1.2s linear infinite;
+  animation: forgTrace 3s linear infinite;
+  animation-delay: var(--laser-delay, 0s); /* per-element random start point */
   pointer-events: none;
 }
 

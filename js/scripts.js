@@ -387,9 +387,17 @@
   // Wrap a button's text in a label span, add a rotating laser border, and a
   // looping Lottie fire layer at the bottom. The flames sit behind the text and
   // never block clicks.
+  // Give a forge-laser element a random start point so they don't sweep in sync.
+  function staggerLaser(el) {
+    if (el && !el.style.getPropertyValue('--laser-delay')) {
+      el.style.setProperty('--laser-delay', '-' + (Math.random() * 3).toFixed(2) + 's');
+    }
+  }
+
   function addFire(btn) {
     if (!btn || btn.classList.contains('has-fire')) return;
     btn.classList.add('has-fire', 'forge-laser');
+    staggerLaser(btn);
     var label = document.createElement('span');
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
@@ -1324,6 +1332,8 @@
   }
 
   function wireDashboard() {
+    // Random start point for every laser element (cards, warm/cool, buttons).
+    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('.forge-laser'), staggerLaser);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
         openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
