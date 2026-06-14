@@ -211,6 +211,8 @@ body {
   object-position: center center;
   overflow: hidden;
   flex-shrink: 0;
+  /* Carousel resizes avatars per position; animate smoothly. */
+  transition: width 0.4s ease, height 0.4s ease, font-size 0.4s ease;
 }
 
 /* Photo avatars: keep <img> a clean replaced element (no flex) so it always

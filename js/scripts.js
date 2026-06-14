@@ -523,15 +523,24 @@
       var off = ((i - currentIndex) % n + n) % n; // 0..n-1
       if (off > n / 2) off -= n;                   // shift far side to negatives
       var abs = Math.abs(off);
-      var x, scale, opacity, z;
-      if (off === 0) { x = 0; scale = 1; opacity = 1; z = 30; }
-      else if (abs === 1) { x = off * 120; scale = 0.85; opacity = 0.5; z = 20; }
-      else { x = (off > 0 ? 1 : -1) * 150; scale = 0.7; opacity = 0; z = 10; }
+      // Depth is conveyed by avatar diameter: 120 active, 80 adjacent, 60 far.
+      var x, opacity, z, size;
+      if (off === 0) { x = 0; opacity = 1; z = 30; size = 120; }
+      else if (abs === 1) { x = off * 120; opacity = 0.5; z = 20; size = 80; }
+      else { x = (off > 0 ? 1 : -1) * 150; opacity = 0; z = 10; size = 60; }
 
-      card.style.transform = 'translate(-50%, -50%) translateX(' + x + 'px) scale(' + scale + ')';
+      card.style.transform = 'translate(-50%, -50%) translateX(' + x + 'px)';
       card.style.opacity = opacity;
       card.style.zIndex = z;
       card.classList.toggle('is-active', off === 0);
+
+      var av = card.querySelector('.ucard-avatar');
+      if (av) {
+        av.style.width = size + 'px';
+        av.style.height = size + 'px';
+        // Scale the placeholder/register glyph with the circle.
+        if (av.tagName !== 'IMG') av.style.fontSize = Math.round(size * 0.5) + 'px';
+      }
     });
   }
 
@@ -945,7 +954,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.25</span>' +
+          '<span class="topbar-version">v0.2.26</span>' +
         '</div>' +
       '</header>' +
 
