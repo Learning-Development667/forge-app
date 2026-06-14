@@ -102,11 +102,11 @@
   // Photo avatars keyed by user name. Anyone not listed gets a CSS-generated
   // placeholder (orange circle with their initial).
   var AVATARS = {
-    Mark: 'images/mark.png',
-    Shelley: 'images/shelley.png',
-    Liisa: 'images/liisa.png',
-    Nikki: 'images/nikki.png',
-    Andy: 'images/andy.png'
+    Mark: 'images/mark.jpg',
+    Shelley: 'images/shelley.jpg',
+    Liisa: 'images/liisa.jpg',
+    Nikki: 'images/nikki.jpg',
+    Andy: 'images/andy.jpg'
   };
 
   // Motivational quotes — a random one is shown on the login screen each load.
@@ -830,7 +830,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.6</span>' +
+          '<span class="topbar-version">v0.2.7</span>' +
         '</div>' +
       '</header>' +
 
