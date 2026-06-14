@@ -381,7 +381,7 @@
   // never block clicks.
   function addFire(btn) {
     if (!btn || btn.classList.contains('has-fire')) return;
-    btn.classList.add('has-fire', 'laser-border');
+    btn.classList.add('has-fire', 'forge-laser');
     var label = document.createElement('span');
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
@@ -412,17 +412,6 @@
       p.setAttribute('preserveAspectRatio', 'xMidYMid slice'); // fill each tile, no gaps
       container.appendChild(p);
     }
-  }
-
-  // A single rAF loop drives the rotating laser angle for every laser element.
-  function startLaserLoop() {
-    var root = document.documentElement;
-    function frame(t) {
-      var angle = (t / 2000 * 360) % 360; // one rotation per 2s
-      root.style.setProperty('--laser-angle', angle.toFixed(1) + 'deg');
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
   }
 
   // ===================================================================
@@ -1277,7 +1266,7 @@
       statusEl = '';
     }
 
-    return '<div class="card laser-border' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
+    return '<div class="card' + (isRest ? ' card-rest' : ' forge-laser') + (logged ? ' card-done' : '') + '">' +
              '<div class="card-info">' +
                '<h3 class="card-name">' + ex.name + '</h3>' +
                '<p class="card-target">' +
@@ -1298,7 +1287,7 @@
       addFire(btn);
     });
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
-    if (spin) spin.addEventListener('click', openSpin);
+    if (spin) { spin.addEventListener('click', openSpin); addFire(spin); }
 
     var prof = dashboardScreen.querySelector('[data-nav="profile"]');
     if (prof) prof.addEventListener('click', openProfile);
@@ -1397,7 +1386,7 @@
       '<p class="log-target">' + targetText + '</p>' +
       (isBestEffort
         ? '<div class="timer-zone">' +
-            '<div class="ring-wrap laser-border">' +
+            '<div class="ring-wrap">' +
               '<svg class="ring" viewBox="0 0 120 120">' +
                 '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
                 '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
@@ -2279,7 +2268,6 @@
 
     addFire(forgeBtn);
     addFire(installBtn);
-    startLaserLoop();
 
     renderCarousel(); // static team list — independent of Firestore
 

@@ -12,7 +12,6 @@
   --orange: #E8621A;
   --cream: #F5F0E8;
   --dim: rgba(245, 240, 232, 0.28);
-  --laser-angle: 0deg; /* updated each frame by JS for the rotating laser */
 }
 
 * {
@@ -674,20 +673,24 @@ img.topbar-avatar,
   justify-content: space-between;
   gap: 12px;
   background: var(--card);
-  border: none;            /* the rotating laser is the border now */
-  border-radius: 14px;
+  border: none;
+  border-radius: 12px;
   padding: 16px 18px;
-  --laser-fill: var(--card); /* inner fill matches the card background */
 }
 
-/* Logged state: green tick inside is the indicator (no green border). */
+/* Logged state: green tick inside is the indicator. */
 .card-done {
   border: none;
 }
 
+/* Rest-day card: no laser — static dim grey border, darker bg, dimmed text. */
 .card-rest {
-  opacity: 0.6;
+  border: 1px solid #4a4a4d;
+  background: #202022;
 }
+
+.card-rest .card-name { color: rgba(245, 240, 232, 0.45); }
+.card-rest .card-target { color: var(--dim); }
 
 .card-name {
   font-family: 'Bebas Neue', sans-serif;
@@ -1527,57 +1530,50 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   z-index: 1;
 }
 
-/* Rotating orange/amber/gold conic laser border (3px), GPU transform, 2s.
-   Sits behind the button content: conic (-2) -> inner fill (-1) -> fire (0)
-   -> label (1). The inner fill matches the button background so only a 3px
-   rotating border shows. */
-/* Animatable angle so the conic gradient rotates smoothly (no jumping). */
-/* The conic angle is driven by JS (a single rAF loop sets --laser-angle on
-   :root) so every laser element rotates smoothly and in sync on all browsers. */
-.laser-border {
-  position: relative;
-  overflow: hidden;
-  --laser-fill: var(--orange);
+/* Rotating laser border (Magicman pattern) — a bright orange/amber/gold comet
+   traces the border via a conic gradient masked to a 3px ring. */
+@property --forgeAngle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
-.laser-border::before {
-  content: '';
+@keyframes forgTrace {
+  to { --forgeAngle: 360deg; }
+}
+
+@keyframes forgeGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(232, 98, 26, 0.4); }
+  50% { box-shadow: 0 0 22px rgba(232, 98, 26, 0.7); }
+}
+
+.forge-laser {
+  position: relative;
+  border: 3px solid #E8621A;
+  border-radius: 12px;
+  animation: forgeGlow 2s ease-in-out infinite;
+}
+
+.forge-laser::before {
+  content: "";
   position: absolute;
   inset: 0;
-  z-index: -2;
-  border-radius: inherit;
-  background: conic-gradient(from var(--laser-angle, 0deg),
-    #E8621A, #FF8C00, #FFD700, #FF8C00, #E8621A);
+  border-radius: 12px;
+  padding: 3px;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              rgba(232, 98, 26, 0) 0deg,
+              rgba(232, 98, 26, 0) 250deg,
+              rgba(255, 140, 0, 0.7) 300deg,
+              #FFD700 335deg,
+              rgba(255, 140, 0, 0.7) 350deg,
+              rgba(232, 98, 26, 0) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: forgTrace 2s linear infinite;
+  pointer-events: none;
 }
-
-.laser-border::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 3px;
-  border-radius: inherit;
-  background: var(--laser-fill);
-}
-
-/* Buttons whose visible background isn't orange need a matching inner fill. */
-.btn-outline.laser-border {
-  --laser-fill: var(--charcoal);
-  border-color: transparent; /* the laser is the border now */
-}
-.board-to-dash.laser-border {
-  --laser-fill: var(--charcoal);
-  border-radius: 10px;
-  padding: 8px 14px;
-  color: var(--cream);
-  text-decoration: none;
-}
-
-/* Countdown timer ring: circular laser around the timer. */
-.ring-wrap.laser-border {
-  --laser-fill: var(--charcoal);
-  border-radius: 50%;
-}
-.ring-wrap.laser-border::after { inset: 6px; }
 
 /* No green (or any) UA focus ring / tap highlight on buttons. Keyboard focus
    gets a burnt-orange outline; button borders are only orange/amber/gold. */
