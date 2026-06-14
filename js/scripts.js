@@ -358,6 +358,7 @@
       s.classList.add('hidden');
     });
     screen.classList.remove('hidden');
+    hideNav(); // main screens re-show it via showNav(); others stay nav-free
     window.scrollTo(0, 0);
   }
 
@@ -437,18 +438,40 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg>' }
   ];
 
-  function navBarHTML(active) {
-    return '<nav class="topnav">' + NAV_ITEMS.map(function (it) {
-      return '<button type="button" class="nav-item' + (it.key === active ? ' is-active' : '') +
-               '" data-go="' + it.key + '">' + it.icon +
-               '<span class="nav-label">' + it.label + '</span></button>';
-    }).join('') + '</nav>';
-  }
+  // One persistent nav element, built once and reused — never rebuilt per
+  // screen, so its height/position are identical everywhere.
+  var navEl = null;
 
-  function wireNav(screen) {
-    Array.prototype.forEach.call(screen.querySelectorAll('.nav-item'), function (btn) {
+  function buildNav() {
+    navEl = document.createElement('nav');
+    navEl.id = 'topnav';
+    navEl.className = 'topnav hidden';
+    navEl.innerHTML = NAV_ITEMS.map(function (it) {
+      return '<button type="button" class="nav-item" data-go="' + it.key + '">' +
+               it.icon + '<span class="nav-label">' + it.label + '</span></button>';
+    }).join('');
+    Array.prototype.forEach.call(navEl.querySelectorAll('.nav-item'), function (btn) {
       btn.addEventListener('click', function () { navGo(btn.getAttribute('data-go')); });
     });
+    document.body.appendChild(navEl);
+  }
+
+  function showNav(active) {
+    if (!navEl) buildNav();
+    navEl.classList.remove('hidden');
+    Array.prototype.forEach.call(navEl.querySelectorAll('.nav-item'), function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-go') === active);
+    });
+    // Diagnostic: confirm one nav element at a consistent height.
+    requestAnimationFrame(function () {
+      console.log('[FORGE nav] screen=' + active +
+        ' | .topnav count=' + document.querySelectorAll('.topnav').length +
+        ' | clientHeight=' + navEl.clientHeight + 'px');
+    });
+  }
+
+  function hideNav() {
+    if (navEl) navEl.classList.add('hidden');
   }
 
   function navGo(dest) {
@@ -1188,8 +1211,6 @@
     var showIntro = !!(state.user && !state.user.introSeen);
 
     var html =
-      navBarHTML('exercises') +
-
       '<header class="topbar">' +
         '<span class="topbar-brand">FORGE</span>' +
       '</header>' +
@@ -1222,6 +1243,7 @@
     dashboardScreen.innerHTML = html;
     wireDashboard();
     showScreen(dashboardScreen);
+    showNav('exercises');
     if (showIntro) markIntroSeen(); // one-time note; gone on next render
   }
 
@@ -1300,7 +1322,6 @@
   }
 
   function wireDashboard() {
-    wireNav(dashboardScreen);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
         openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
@@ -1772,7 +1793,6 @@
           esc(name.charAt(0).toUpperCase()) + '</span>';
 
     screen.innerHTML =
-      navBarHTML('progress') +
       '<div class="profile-head">' +
         avatarHTML +
         '<h1 class="profile-name">' + esc(name) + '</h1>' +
@@ -1791,8 +1811,8 @@
         '</div>' +
       '</section>';
 
-    wireNav(screen);
     showScreen(screen);
+    showNav('progress');
     loadProgressGraphs();
   }
 
@@ -1889,11 +1909,10 @@
   function openPlan() {
     var screen = ensureScreen('plan-screen');
     screen.innerHTML =
-      navBarHTML('plan') +
       '<h1 class="welcome">The Plan</h1>' +
       '<p class="dashboard-placeholder">The full 90-day plan coming soon.</p>';
-    wireNav(screen);
     showScreen(screen);
+    showNav('plan');
   }
 
   function openSettings() {
@@ -1904,7 +1923,6 @@
     var reminderTime = u.reminderTime || '07:00';
 
     screen.innerHTML =
-      navBarHTML('settings') +
       '<h1 class="settings-title">SETTINGS</h1>' +
 
       '<section class="profile-section">' +
@@ -1941,8 +1959,6 @@
       '</section>' +
       '<p class="message set-msg" role="status" aria-live="polite"></p>';
 
-    wireNav(screen);
-
     var toggle = screen.querySelector('#reminder-toggle');
     toggle.addEventListener('click', function () {
       toggle.classList.toggle('is-on');
@@ -1967,6 +1983,7 @@
     screen.querySelector('.set-signout').addEventListener('click', onSignOut);
 
     showScreen(screen);
+    showNav('settings');
   }
 
   // ===================================================================
@@ -2077,7 +2094,6 @@
     teardownBoard();
     var screen = ensureScreen('board-screen');
     screen.innerHTML =
-      navBarHTML('board') +
       '<h1 class="welcome">Welcome back, ' + esc(state.user ? state.user.name : 'Forger') + '</h1>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
@@ -2086,8 +2102,6 @@
         '<input id="board-msg" type="text" maxlength="200" placeholder="Say something motivating..." />' +
         '<button type="button" class="btn-forge board-post">Post</button>' +
       '</div>';
-
-    wireNav(screen);
 
     var input = screen.querySelector('#board-msg');
     var postBtn = screen.querySelector('.board-post');
@@ -2111,6 +2125,7 @@
     renderFeed();
     listenBoard();
     showScreen(screen);
+    showNav('board');
   }
 
   function listenBoard() {
@@ -2312,6 +2327,7 @@
     addFire(forgeBtn);
     addFire(installBtn);
 
+    buildNav();       // one persistent top nav, reused across screens
     renderCarousel(); // static team list — independent of Firestore
 
     // Swipe-only navigation (arrow buttons removed); arrow keys still work.
