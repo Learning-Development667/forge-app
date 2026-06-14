@@ -1140,3 +1140,236 @@ img.ucard-avatar {
   word-break: break-all;
   text-align: center;
 }
+
+/* ===================================================================
+   Message board (home screen)
+   =================================================================== */
+#board-screen {
+  height: 100vh;
+  height: 100dvh;
+  gap: 12px;
+  padding: 14px 16px calc(12px + env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+/* ---------- Squad row (Instagram-stories style) ---------- */
+.squad-row {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.squad-row::-webkit-scrollbar { display: none; }
+
+.squad-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 72px;
+}
+
+.squad-ring {
+  position: relative;
+  display: flex;
+  padding: 3px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+
+.ring-incomplete {
+  border-color: #E23B3B;
+  animation: ringPulse 1.4s ease-in-out infinite;
+}
+
+.ring-complete { border-color: var(--green); }
+.ring-rest { border-color: #6b6b6b; }
+
+@keyframes ringPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 59, 59, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(226, 59, 59, 0); }
+}
+
+.squad-moon {
+  position: absolute;
+  inset: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: rgba(28, 28, 30, 0.55);
+  border-radius: 50%;
+}
+
+.squad-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--cream);
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Shared mini avatars ---------- */
+.squad-avatar, .mini-avatar, .react-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  flex-shrink: 0;
+}
+
+img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
+
+.squad-avatar { width: 56px; height: 56px; }
+.mini-avatar { width: 36px; height: 36px; }
+.react-avatar { width: 20px; height: 20px; }
+
+.avatar-ph {
+  background: var(--orange);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.squad-avatar.avatar-ph { font-size: 22px; }
+.mini-avatar.avatar-ph { font-size: 15px; }
+.react-avatar.avatar-ph { font-size: 10px; }
+
+/* ---------- Feed ---------- */
+.board-feed {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feed-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.feed-activity { border-left: 3px solid var(--orange); }
+.feed-message { border-left: 3px solid var(--cream); }
+
+.feed-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feed-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--cream);
+}
+
+.feed-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--cream);
+  word-break: break-word;
+}
+
+.feed-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.feed-reactions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.react-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.feed-del {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.feed-empty {
+  text-align: center;
+  color: var(--dim);
+  font-family: 'DM Sans', sans-serif;
+  padding: 24px;
+}
+
+/* ---------- Message input (fixed at bottom) ---------- */
+.board-input {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+.board-input input {
+  flex: 1;
+  min-width: 0;
+  background: #2a2a2d;
+  border: 1px solid #3a3a3d;
+  border-radius: 10px;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  padding: 12px;
+  outline: none;
+}
+
+.board-input input:focus { border-color: var(--orange); }
+
+.board-input .board-post {
+  width: auto;
+  padding: 0 18px;
+  font-size: 22px;
+}
+
+/* ---------- Confetti ---------- */
+.confetti {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1000;
+  animation: confettiFly 0.9s ease-out forwards;
+}
+
+@keyframes confettiFly {
+  to { transform: translate(var(--dx), var(--dy)) rotate(360deg); opacity: 0; }
+}

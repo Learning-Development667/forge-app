@@ -41,6 +41,14 @@
 
   var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Really tough'];
 
+  var MOOD_EMOJI = {
+    'Crushed it': '💪',
+    'Felt good': '😊',
+    'Got through it': '😅',
+    'Struggled': '😬',
+    'Really tough': '😤'
+  };
+
   // Bonus spin pool — core & balance moves, separate from the 4 daily exercises.
   var BONUS_EXERCISES = [
     { name: 'Dead Bug', target: 'Hold for 30 seconds' },
@@ -197,6 +205,12 @@
   var completingSignIn = false; // suppress login screen while a magic link completes
 
   var state = { user: null, logs: [] };
+
+  // Message board real-time state.
+  var boardUnsubs = [];
+  var boardMessages = [];
+  var boardActivities = [];
+  var squadStatus = {}; // userId -> [logged exercise keys today]
 
   // ===================================================================
   // Screen helpers
@@ -725,11 +739,21 @@
         state.logs = logs;
         return refreshStats();
       })
-      .then(renderDashboard)
+      .then(enterHome)
       .catch(function (err) {
         console.error('Failed to enter app:', err);
-        renderDashboard();
+        enterHome();
       });
+  }
+
+  // Daily entry: warm-up first (if due), then the message board is home.
+  function enterHome() {
+    var routine = routineFor(new Date());
+    if (routine && !routineShownToday('warmup') && !hasLoggedTrainingToday()) {
+      showRoutine('warmup', routine.warmup);
+    } else {
+      openBoard();
+    }
   }
 
   // DEV_MODE only: skip the magic link and enter the app as Mark, loading his
@@ -812,8 +836,25 @@
       .then(function (ref) {
         entry._id = ref.id;
         state.logs.push(entry);
+        writeActivity(exKey, repsCompleted, mood);
         return refreshStats();
       });
+  }
+
+  // Auto-write a public activity entry to the message board feed.
+  function writeActivity(exKey, repsCompleted, mood) {
+    var ex = EXERCISES[exKey];
+    var displayName = ex ? ex.name : exKey; // bonus passes the move name
+    var detail = ex ? formatTarget(ex, Number(repsCompleted)) : String(repsCompleted);
+    db.collection('activities').add({
+      userId: state.user.id,
+      userName: state.user.name,
+      exercise: displayName,
+      repsCompleted: detail,
+      mood: mood,
+      reactions: [],
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function (err) { console.error('Failed to write activity:', err); });
   }
 
   // ===================================================================
@@ -824,16 +865,11 @@
     var day = challengeDay(today);
     var sched = scheduleFor(today);
 
-    // Auto-show the warm-up (before any training is logged) or the cool-down
-    // (once all due exercises are logged), unless already seen today.
+    // Auto-show the cool-down once all due exercises are logged (warm-up is
+    // handled at daily entry, before the message board).
     var routine = routineFor(today);
-    if (routine) {
-      if (!routineShownToday('warmup') && !hasLoggedTrainingToday()) {
-        return showRoutine('warmup', routine.warmup);
-      }
-      if (!routineShownToday('cooldown') && allDueLoggedToday(sched)) {
-        return showRoutine('cooldown', routine.cooldown);
-      }
+    if (routine && !routineShownToday('cooldown') && allDueLoggedToday(sched)) {
+      return showRoutine('cooldown', routine.cooldown);
     }
 
     var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
@@ -866,7 +902,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.17</span>' +
+          '<span class="topbar-version">v0.2.18</span>' +
         '</div>' +
       '</header>' +
 
@@ -981,7 +1017,7 @@
       btn.addEventListener('click', function () {
         var dest = btn.getAttribute('data-nav');
         if (dest === 'profile') openProfile();
-        else openPlaceholder(dest);
+        else if (dest === 'board') openBoard();
       });
     });
     var out = dashboardScreen.querySelector('[data-action="signout"]');
@@ -1212,7 +1248,10 @@
       '<button type="button" class="btn-link routine-skip">Skip</button>';
 
     function dismiss() {
-      markRoutineShown(type).then(renderDashboard);
+      // Warm-up leads into the message board (home); cool-down returns to the
+      // dashboard where it was triggered.
+      var next = isWarmup ? openBoard : renderDashboard;
+      markRoutineShown(type).then(next);
     }
     screen.querySelector('.routine-go').addEventListener('click', dismiss);
     screen.querySelector('.routine-skip').addEventListener('click', dismiss);
@@ -1380,25 +1419,227 @@
   }
 
   // ===================================================================
-  // Placeholder screens (profile, message board)
+  // Message board (home screen) — squad row, live feed, post input
   // ===================================================================
-  function openPlaceholder(which) {
-    var screen = ensureScreen(which + '-screen');
-    var title = which === 'profile' ? 'Profile' : 'Message Board';
+  function avatarMarkup(name, sizeCls) {
+    var photo = AVATARS[name];
+    if (photo) return '<img class="' + sizeCls + '" src="' + photo + '" alt="">';
+    return '<span class="' + sizeCls + ' avatar-ph">' +
+             esc((name || '?').charAt(0).toUpperCase()) + '</span>';
+  }
+
+  function isAdmin() {
+    return state.user && state.user.name === 'Mark';
+  }
+
+  function goDashboard() {
+    teardownBoard();
+    renderDashboard();
+  }
+
+  function teardownBoard() {
+    boardUnsubs.forEach(function (u) { try { u(); } catch (e) { /* no-op */ } });
+    boardUnsubs = [];
+  }
+
+  function openBoard() {
+    teardownBoard();
+    var screen = ensureScreen('board-screen');
     screen.innerHTML =
       '<header class="topbar">' +
         '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<span class="topbar-version">FORGE</span>' +
+        '<button type="button" class="btn-link board-to-dash">Today\'s Training →</button>' +
       '</header>' +
-      '<div class="placeholder">' +
-        '<h1 class="welcome">' + title + '</h1>' +
-        '<p class="dashboard-placeholder">' + title + ' coming soon</p>' +
+      '<p class="section-heading">Today\'s Squad</p>' +
+      '<div id="squad-row" class="squad-row"></div>' +
+      '<div id="board-feed" class="board-feed"></div>' +
+      '<div class="board-input">' +
+        '<input id="board-msg" type="text" maxlength="200" placeholder="Say something motivating..." />' +
+        '<button type="button" class="btn-forge board-post">Post</button>' +
       '</div>';
-    screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
+
+    screen.querySelector('.back-btn').addEventListener('click', goDashboard);
+    screen.querySelector('.board-to-dash').addEventListener('click', goDashboard);
+
+    var input = screen.querySelector('#board-msg');
+    var postBtn = screen.querySelector('.board-post');
+    function post() {
+      var text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      db.collection('messages').add({
+        userId: state.user.id,
+        userName: state.user.name,
+        message: text.slice(0, 200),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function (err) { console.error('Failed to post message:', err); });
+    }
+    postBtn.addEventListener('click', post);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') post(); });
+
+    renderSquad();
+    renderFeed();
+    listenBoard();
     showScreen(screen);
   }
 
+  function listenBoard() {
+    // Squad completion: all logs across users for today (one collection-group query).
+    boardUnsubs.push(
+      db.collectionGroup('logs').where('date', '==', dateKey(new Date()))
+        .onSnapshot(function (snap) {
+          var byUser = {};
+          snap.forEach(function (doc) {
+            var d = doc.data();
+            if (d.bonusExercise) return;
+            var uid = doc.ref.parent.parent.id;
+            (byUser[uid] = byUser[uid] || []).push(d.exercise);
+          });
+          squadStatus = byUser;
+          renderSquad();
+        }, function (err) { console.error('Squad listener failed:', err); })
+    );
+
+    boardUnsubs.push(
+      db.collection('messages').orderBy('timestamp', 'desc').limit(40)
+        .onSnapshot(function (snap) {
+          boardMessages = snap.docs.map(function (d) {
+            return Object.assign({ _id: d.id, _kind: 'message' }, d.data());
+          });
+          renderFeed();
+        }, function (err) { console.error('Messages listener failed:', err); })
+    );
+
+    boardUnsubs.push(
+      db.collection('activities').orderBy('timestamp', 'desc').limit(40)
+        .onSnapshot(function (snap) {
+          boardActivities = snap.docs.map(function (d) {
+            return Object.assign({ _id: d.id, _kind: 'activity' }, d.data());
+          });
+          renderFeed();
+        }, function (err) { console.error('Activities listener failed:', err); })
+    );
+  }
+
+  function renderSquad() {
+    var row = document.getElementById('squad-row');
+    if (!row) return;
+    var sched = scheduleFor(new Date());
+    var isRest = sched.type === 'rest';
+
+    row.innerHTML = TEAM.map(function (name) {
+      var user = registeredUser(name);
+      var ringClass, overlay = '';
+      if (isRest) {
+        ringClass = 'ring-rest';
+        overlay = '<span class="squad-moon">🌙</span>';
+      } else {
+        var done = user && squadStatus[user.id] &&
+          sched.active.every(function (k) { return squadStatus[user.id].indexOf(k) >= 0; });
+        ringClass = done ? 'ring-complete' : 'ring-incomplete';
+      }
+      return '<div class="squad-item">' +
+               '<div class="squad-ring ' + ringClass + '">' +
+                 avatarMarkup(name, 'squad-avatar') + overlay +
+               '</div>' +
+               '<span class="squad-name">' + esc(name) + '</span>' +
+             '</div>';
+    }).join('');
+  }
+
+  function feedTime(ts) {
+    if (!ts || !ts.toMillis) return 'now';
+    var diff = Date.now() - ts.toMillis();
+    var m = Math.floor(diff / 60000);
+    if (m < 1) return 'now';
+    if (m < 60) return m + 'm';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h';
+    return Math.floor(h / 24) + 'd';
+  }
+
+  function tsMillis(e) {
+    return e.timestamp && e.timestamp.toMillis ? e.timestamp.toMillis() : Date.now();
+  }
+
+  function renderFeed() {
+    var feed = document.getElementById('board-feed');
+    if (!feed) return;
+    var entries = boardMessages.concat(boardActivities).sort(function (a, b) {
+      return tsMillis(b) - tsMillis(a);
+    }).slice(0, 40);
+
+    feed.innerHTML = entries.map(function (e) {
+      var del = isAdmin()
+        ? '<button type="button" class="feed-del" data-del-kind="' + e._kind +
+          '" data-del-id="' + e._id + '" aria-label="Delete">×</button>'
+        : '';
+      if (e._kind === 'activity') {
+        var emoji = MOOD_EMOJI[e.mood] || '';
+        var reacts = (e.reactions || []).map(function (n) {
+          return avatarMarkup(n, 'react-avatar');
+        }).join('');
+        return '<div class="feed-card feed-activity">' +
+                 avatarMarkup(e.userName, 'mini-avatar') +
+                 '<div class="feed-body">' +
+                   '<p class="feed-text"><strong>' + esc(e.userName) + '</strong> completed ' +
+                     esc(e.exercise) + ' — ' + esc(e.repsCompleted || '') + ' ' + emoji + '</p>' +
+                   (reacts ? '<div class="feed-reactions">' + reacts + '</div>' : '') +
+                   '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
+                 '</div>' +
+                 '<button type="button" class="react-btn" data-react="' + e._id + '">🎉</button>' +
+                 del +
+               '</div>';
+      }
+      return '<div class="feed-card feed-message">' +
+               avatarMarkup(e.userName, 'mini-avatar') +
+               '<div class="feed-body">' +
+                 '<span class="feed-name">' + esc(e.userName) + '</span>' +
+                 '<p class="feed-text">' + esc(e.message || '') + '</p>' +
+                 '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
+               '</div>' + del +
+             '</div>';
+    }).join('') || '<p class="feed-empty">No activity yet — be the first to post!</p>';
+
+    Array.prototype.forEach.call(feed.querySelectorAll('[data-react]'), function (btn) {
+      btn.addEventListener('click', function () {
+        fireConfetti(btn);
+        addReaction(btn.getAttribute('data-react'));
+      });
+    });
+    Array.prototype.forEach.call(feed.querySelectorAll('[data-del-id]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var coll = btn.getAttribute('data-del-kind') === 'activity' ? 'activities' : 'messages';
+        db.collection(coll).doc(btn.getAttribute('data-del-id')).delete()
+          .catch(function (err) { console.error('Failed to delete:', err); });
+      });
+    });
+  }
+
+  function addReaction(activityId) {
+    db.collection('activities').doc(activityId).update({
+      reactions: firebase.firestore.FieldValue.arrayUnion(state.user.name)
+    }).catch(function (err) { console.error('Failed to react:', err); });
+  }
+
+  function fireConfetti(originEl) {
+    var rect = originEl.getBoundingClientRect();
+    var colors = ['#E8621A', '#F5F0E8', '#27AE60', '#ffffff'];
+    for (var i = 0; i < 18; i++) {
+      var p = document.createElement('div');
+      p.className = 'confetti';
+      p.style.left = (rect.left + rect.width / 2) + 'px';
+      p.style.top = (rect.top + rect.height / 2) + 'px';
+      p.style.background = colors[i % colors.length];
+      p.style.setProperty('--dx', ((Math.random() - 0.5) * 220) + 'px');
+      p.style.setProperty('--dy', (-(Math.random() * 180 + 60)) + 'px');
+      document.body.appendChild(p);
+      (function (el) { setTimeout(function () { el.remove(); }, 900); })(p);
+    }
+  }
+
   function onSignOut() {
+    teardownBoard();
     auth.signOut().then(function () {
       state.user = null;
       state.logs = [];
