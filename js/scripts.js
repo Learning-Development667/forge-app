@@ -455,11 +455,15 @@
     return card;
   }
 
-  // Position every card relative to the centred currentIndex: the active card
-  // sits centre/full-scale, neighbours compress and fade into the flanks.
+  // Position every card relative to the centred currentIndex using the shortest
+  // circular distance, so the carousel wraps seamlessly: the active card sits
+  // centre/full-scale, neighbours compress and fade into the flanks, and cards
+  // crossing the wrap point do so while hidden (opacity 0).
   function layout() {
+    var n = cards.length;
     cards.forEach(function (card, i) {
-      var off = i - currentIndex;
+      var off = ((i - currentIndex) % n + n) % n; // 0..n-1
+      if (off > n / 2) off -= n;                   // shift far side to negatives
       var abs = Math.abs(off);
       var x, scale, opacity, z;
       if (off === 0) { x = 0; scale = 1; opacity = 1; z = 30; }
@@ -486,7 +490,8 @@
   }
 
   function setIndex(i) {
-    currentIndex = Math.max(0, Math.min(i, cards.length - 1));
+    var n = cards.length;
+    currentIndex = ((i % n) + n) % n; // wrap around for infinite looping
     layout();
   }
 
@@ -848,7 +853,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.9</span>' +
+          '<span class="topbar-version">v0.2.10</span>' +
         '</div>' +
       '</header>' +
 
