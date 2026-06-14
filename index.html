@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1C1C1E" />
+  <title>Forge</title>
+
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ===================== LOGIN / USER SELECTION ===================== -->
+  <main id="login-screen" class="screen">
+    <header class="brand">
+      <h1 class="brand-name">FORGE</h1>
+      <p class="brand-tagline">Built together. Day by day.</p>
+    </header>
+
+    <!-- Slot-machine style user drum -->
+    <section class="drum-wrapper" aria-label="Select a user">
+      <div class="drum-overlay drum-overlay--top"></div>
+      <div class="drum-overlay drum-overlay--bottom"></div>
+      <div class="drum-selection-band" aria-hidden="true"></div>
+      <ul id="drum" class="drum" role="listbox" tabindex="0">
+        <!-- User items injected by scripts.js -->
+      </ul>
+    </section>
+
+    <button id="forge-btn" class="btn-forge" type="button">Let's Forge</button>
+
+    <p id="login-message" class="message" role="status" aria-live="polite"></p>
+  </main>
+
+  <!-- ===================== REGISTER FORM ===================== -->
+  <main id="register-screen" class="screen hidden">
+    <header class="brand brand--compact">
+      <h1 class="brand-name">FORGE</h1>
+      <p class="brand-tagline">Join the challenge.</p>
+    </header>
+
+    <form id="register-form" class="form" novalidate>
+      <label class="field">
+        <span class="field-label">Full name</span>
+        <input id="reg-name" name="name" type="text" autocomplete="name" required />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Email address</span>
+        <input id="reg-email" name="email" type="email" autocomplete="email" required />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Invite code</span>
+        <input id="reg-code" name="code" type="text" autocomplete="off" required />
+      </label>
+
+      <button type="submit" class="btn-forge">Create account</button>
+      <button type="button" id="register-back" class="btn-link">Back</button>
+      <p id="register-message" class="message" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <!-- ===================== DASHBOARD (placeholder) ===================== -->
+  <main id="dashboard-screen" class="screen hidden">
+    <header class="brand brand--compact">
+      <h1 class="brand-name">FORGE</h1>
+    </header>
+    <div class="dashboard">
+      <p class="dashboard-greeting">Welcome, <span id="dashboard-user-name">Forger</span></p>
+      <p class="dashboard-placeholder">Dashboard coming soon</p>
+      <button type="button" id="sign-out-btn" class="btn-link">Sign out</button>
+    </div>
+  </main>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- App config + logic -->
+  <script src="js/config.js"></script>
+  <script src="js/scripts.js"></script>
+</body>
+</html>
