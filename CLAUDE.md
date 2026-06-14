@@ -16,3 +16,9 @@ If an image file is referenced in code, assume it already exists in the repo.
 ## Deployment
 This app is hosted on GitHub Pages from the main branch.
 After committing, wait 60-90 seconds for deployment.
+
+## Versioning
+Every time changes are committed, increment the patch version number in index.html.
+The version is displayed on the login screen as v0.1.0, v0.1.1, v0.1.2 and so on.
+Find the version number in index.html and increment the last digit by 1 on every commit.
+Never reset the version number.
