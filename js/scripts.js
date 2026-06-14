@@ -724,7 +724,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.1.1</span>' +
+          '<span class="topbar-version">v0.2.0</span>' +
         '</div>' +
       '</header>' +
 
