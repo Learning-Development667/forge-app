@@ -96,7 +96,10 @@ body {
 
 #board-screen { background-image: url('../images/bg-social.png'); }
 
-#profile-screen { background-image: url('../images/bg-minimal.png'); }
+#profile-screen,
+#progress-screen,
+#plan-screen,
+#settings-screen { background-image: url('../images/bg-minimal.png'); }
 
 #spin-screen { background-image: url('../images/bg-training.png'); }
 
@@ -513,7 +516,10 @@ img.topbar-avatar,
 #board-screen,
 #warmup-screen,
 #cooldown-screen,
-#install-screen {
+#install-screen,
+#progress-screen,
+#plan-screen,
+#settings-screen {
   justify-content: flex-start;
   gap: 20px;
   width: 100%;
@@ -1556,3 +1562,147 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 }
 
 .ring-wrap .ring-label { z-index: 2; }
+
+/* ===================================================================
+   Top navigation bar
+   =================================================================== */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px 4px;
+  background: var(--charcoal);
+  border-bottom: 1px solid rgba(232, 98, 26, 0.3);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0 6px;
+  color: rgba(245, 240, 232, 0.5); /* inactive */
+  position: relative;
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+}
+
+.nav-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+}
+
+.nav-item.is-active {
+  color: var(--orange); /* active full opacity */
+}
+
+/* Active indicator dot. */
+.nav-item.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+/* ===================================================================
+   Settings screen
+   =================================================================== */
+.settings-title {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.set-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.set-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--cream);
+}
+
+.set-time {
+  background: #2a2a2d;
+  border: 1px solid #3a3a3d;
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  padding: 6px 10px;
+}
+
+.set-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--orange);
+}
+
+.set-note {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.6;
+}
+
+.set-signout {
+  align-self: flex-start;
+}
+
+/* Toggle switch */
+.toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  background: #3a3a3d;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.toggle.is-on { background: var(--orange); }
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+.toggle.is-on .toggle-knob {
+  transform: translateX(20px);
+}

@@ -269,6 +269,79 @@
   }
 
   // ===================================================================
+  // Top navigation bar (persistent across main screens)
+  // ===================================================================
+  var NAV_ITEMS = [
+    { key: 'board', label: 'Board',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H8l-3 2v-2H5a2 2 0 0 1-2-2z"/><path d="M11 13v1a2 2 0 0 0 2 2h4l2 2v-2a2 2 0 0 0 2-2v-3"/></svg>' },
+    { key: 'exercises', label: 'Exercises',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 2.7 3.5 3.8 3.5 7.2a3.5 3.5 0 0 1-7 0c0-1.4.6-2.3 1.4-3.1.2 1.6 1.6 1.7 1.6.2 0-1.3-.5-2.6.5-4.3z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></svg>' },
+    { key: 'progress', label: 'Progress',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/></svg>' },
+    { key: 'plan', label: 'Plan',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8.5" y1="8" x2="15.5" y2="8"/><line x1="8.5" y1="12" x2="15.5" y2="12"/><line x1="8.5" y1="16" x2="12.5" y2="16"/></svg>' },
+    { key: 'settings', label: 'Settings',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg>' }
+  ];
+
+  function navBarHTML(active) {
+    return '<nav class="topnav">' + NAV_ITEMS.map(function (it) {
+      return '<button type="button" class="nav-item' + (it.key === active ? ' is-active' : '') +
+               '" data-go="' + it.key + '">' + it.icon +
+               '<span class="nav-label">' + it.label + '</span></button>';
+    }).join('') + '</nav>';
+  }
+
+  function wireNav(screen) {
+    Array.prototype.forEach.call(screen.querySelectorAll('.nav-item'), function (btn) {
+      btn.addEventListener('click', function () { navGo(btn.getAttribute('data-go')); });
+    });
+  }
+
+  function navGo(dest) {
+    teardownBoard(); // leaving any live board listeners behind
+    if (dest === 'board') openBoard();
+    else if (dest === 'exercises') renderDashboard();
+    else if (dest === 'progress') openProgress();
+    else if (dest === 'plan') openPlan();
+    else if (dest === 'settings') openSettings();
+  }
+
+  // ===================================================================
+  // Countdown sounds (Web Audio API — generated, no audio files)
+  // ===================================================================
+  var audioCtx = null;
+
+  function ensureAudio() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { audioCtx = null; }
+    return audioCtx;
+  }
+
+  // Generate a tone that respects device volume (Web Audio routes through it).
+  function playTone(freq, durationSec, type, peak) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak || 0.5, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + durationSec);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + durationSec + 0.05);
+  }
+
+  function soundStart()  { playTone(150, 2.0, 'sine', 0.6); }   // deep forge bell
+  function soundStrike() { playTone(300, 0.8, 'triangle', 0.5); } // mid strike
+  function soundBeep()   { playTone(500, 0.1, 'square', 0.4); }  // sharp final beep
+
+  // ===================================================================
   // Date / progression / schedule maths
   // ===================================================================
   function atMidnight(d) {
@@ -951,11 +1024,13 @@
     }
 
     var html =
+      navBarHTML('exercises') +
+
       '<header class="topbar">' +
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.28</span>' +
+          '<span class="topbar-version">v0.2.29</span>' +
         '</div>' +
       '</header>' +
 
@@ -976,12 +1051,7 @@
 
       body +
 
-      bonusSpinHTML() +
-
-      '<div class="dash-footer">' +
-        '<button type="button" class="btn-link" data-nav="board">Message board</button>' +
-        '<button type="button" class="btn-link" data-action="signout">Sign out</button>' +
-      '</div>';
+      bonusSpinHTML();
 
     dashboardScreen.innerHTML = html;
     wireDashboard();
@@ -1058,6 +1128,7 @@
   }
 
   function wireDashboard() {
+    wireNav(dashboardScreen);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
         openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
@@ -1067,15 +1138,8 @@
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
     if (spin) spin.addEventListener('click', openSpin);
 
-    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-nav]'), function (btn) {
-      btn.addEventListener('click', function () {
-        var dest = btn.getAttribute('data-nav');
-        if (dest === 'profile') openProfile();
-        else if (dest === 'board') openBoard();
-      });
-    });
-    var out = dashboardScreen.querySelector('[data-action="signout"]');
-    if (out) out.addEventListener('click', onSignOut);
+    var prof = dashboardScreen.querySelector('[data-nav="profile"]');
+    if (prof) prof.addEventListener('click', openProfile);
   }
 
   // ===================================================================
@@ -1135,6 +1199,7 @@
         startBtn.disabled = true;
         var lbl = startBtn.querySelector('.btn-label');
         if (lbl) lbl.textContent = 'Go!';
+        soundStart(); // deep forge bell on start (user gesture unlocks audio)
         startCountdown(120, ringFg, ringLabel, timerFire, function () {
           ringLabel.textContent = 'Done!';
           flow.classList.remove('hidden');
@@ -1219,10 +1284,14 @@
       remaining--;
       labelEl.textContent = clock(Math.max(0, remaining));
       ringEl.style.strokeDashoffset = C * (1 - remaining / total);
+      // Halfway (60s) and 30s marks: mid strike tone.
+      if (remaining === 60 || remaining === 30) soundStrike();
       // Final 30s: double the fire animation speed for urgency.
       if (remaining === 30 && fireEl && fireEl.setSpeed) {
         fireEl.setSpeed(2);
       }
+      // Final 10 seconds: sharp beep each second.
+      if (remaining <= 10 && remaining >= 1) soundBeep();
       if (remaining <= 0) {
         clearInterval(iv);
         onDone();
@@ -1342,7 +1411,6 @@
       : '<span class="ucard-avatar ucard-avatar--placeholder profile-avatar">' +
           esc(name.charAt(0).toUpperCase()) + '</span>';
 
-    var pref = (state.user && state.user.plankPreference) || null;
     var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
     var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
 
@@ -1358,14 +1426,6 @@
       '</div>' +
 
       '<section class="profile-section">' +
-        '<p class="section-heading">Plank Preference</p>' +
-        '<div class="plank-opts">' +
-          plankOption('forward', 'Forward Plank', 'Classic core hold, face down', pref) +
-          plankOption('reverse', 'Reverse Plank', 'Posterior chain hold, face up', pref) +
-        '</div>' +
-      '</section>' +
-
-      '<section class="profile-section">' +
         '<p class="section-heading">Personal Stats</p>' +
         '<div class="profile-stats">' +
           statRow('Total points', state.user ? state.user.totalPoints : 0) +
@@ -1377,12 +1437,6 @@
       '</section>';
 
     screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
-    Array.prototype.forEach.call(screen.querySelectorAll('[data-plank]'), function (btn) {
-      btn.addEventListener('click', function () {
-        setPlankPreference(btn.getAttribute('data-plank'));
-      });
-    });
-
     showScreen(screen);
   }
 
@@ -1406,7 +1460,103 @@
     state.user.plankPreference = value;
     db.collection('users').doc(state.user.id).set({ plankPreference: value }, { merge: true })
       .catch(function (err) { console.error('Failed to save plank preference:', err); });
-    openProfile(); // re-render to update the highlighted option
+    openSettings(); // re-render to update the highlighted option
+  }
+
+  // ===================================================================
+  // Progress / Plan placeholders + Settings
+  // ===================================================================
+  function openProgress() {
+    var screen = ensureScreen('progress-screen');
+    screen.innerHTML =
+      navBarHTML('progress') +
+      '<h1 class="welcome">Progress</h1>' +
+      '<p class="dashboard-placeholder">Charts and milestones coming soon.</p>';
+    wireNav(screen);
+    showScreen(screen);
+  }
+
+  function openPlan() {
+    var screen = ensureScreen('plan-screen');
+    screen.innerHTML =
+      navBarHTML('plan') +
+      '<h1 class="welcome">The Plan</h1>' +
+      '<p class="dashboard-placeholder">The full 90-day plan coming soon.</p>';
+    wireNav(screen);
+    showScreen(screen);
+  }
+
+  function openSettings() {
+    var screen = ensureScreen('settings-screen');
+    var u = state.user || {};
+    var pref = u.plankPreference || null;
+    var reminderOn = !!u.reminderEnabled;
+    var reminderTime = u.reminderTime || '07:00';
+
+    screen.innerHTML =
+      navBarHTML('settings') +
+      '<h1 class="settings-title">SETTINGS</h1>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Reminders</p>' +
+        '<div class="set-row">' +
+          '<span class="set-label">Daily reminder</span>' +
+          '<button type="button" class="toggle' + (reminderOn ? ' is-on' : '') +
+            '" id="reminder-toggle" role="switch" aria-checked="' + reminderOn +
+            '"><span class="toggle-knob"></span></button>' +
+        '</div>' +
+        '<label class="set-row">' +
+          '<span class="set-label">Reminder time</span>' +
+          '<input type="time" id="reminder-time" class="set-time" value="' + esc(reminderTime) + '" />' +
+        '</label>' +
+        '<button type="button" class="btn-forge" id="save-reminders">Save</button>' +
+        '<p class="set-note">Reminders require the app to be installed on your home screen</p>' +
+      '</section>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Plank Preference</p>' +
+        '<div class="plank-opts">' +
+          plankOption('forward', 'Forward Plank', 'Classic core hold, face down', pref) +
+          plankOption('reverse', 'Reverse Plank', 'Posterior chain hold, face up', pref) +
+        '</div>' +
+      '</section>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Account</p>' +
+        '<div class="profile-stat"><span class="profile-stat-label">Name</span>' +
+          '<span class="set-value">' + esc(u.name || '') + '</span></div>' +
+        '<div class="profile-stat"><span class="profile-stat-label">Email</span>' +
+          '<span class="set-value">' + esc(u.email || '') + '</span></div>' +
+        '<button type="button" class="btn-link set-signout">Sign out</button>' +
+      '</section>' +
+      '<p class="message set-msg" role="status" aria-live="polite"></p>';
+
+    wireNav(screen);
+
+    var toggle = screen.querySelector('#reminder-toggle');
+    toggle.addEventListener('click', function () {
+      toggle.classList.toggle('is-on');
+      toggle.setAttribute('aria-checked', toggle.classList.contains('is-on'));
+    });
+
+    screen.querySelector('#save-reminders').addEventListener('click', function () {
+      var on = toggle.classList.contains('is-on');
+      var time = screen.querySelector('#reminder-time').value || '07:00';
+      state.user.reminderEnabled = on;
+      state.user.reminderTime = time;
+      db.collection('users').doc(state.user.id)
+        .set({ reminderEnabled: on, reminderTime: time }, { merge: true })
+        .then(function () { setMessage(screen.querySelector('.set-msg'), 'Reminders saved.'); })
+        .catch(function (err) { setMessage(screen.querySelector('.set-msg'), friendlyError(err), true); });
+    });
+
+    Array.prototype.forEach.call(screen.querySelectorAll('[data-plank]'), function (btn) {
+      btn.addEventListener('click', function () { setPlankPreference(btn.getAttribute('data-plank')); });
+    });
+
+    screen.querySelector('.set-signout').addEventListener('click', onSignOut);
+
+    showScreen(screen);
   }
 
   // ===================================================================
@@ -1517,10 +1667,7 @@
     teardownBoard();
     var screen = ensureScreen('board-screen');
     screen.innerHTML =
-      '<header class="topbar">' +
-        '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<button type="button" class="btn-link board-to-dash">Today\'s Training →</button>' +
-      '</header>' +
+      navBarHTML('board') +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
       '<div id="board-feed" class="board-feed"></div>' +
@@ -1529,8 +1676,7 @@
         '<button type="button" class="btn-forge board-post">Post</button>' +
       '</div>';
 
-    screen.querySelector('.back-btn').addEventListener('click', goDashboard);
-    screen.querySelector('.board-to-dash').addEventListener('click', goDashboard);
+    wireNav(screen);
 
     var input = screen.querySelector('#board-msg');
     var postBtn = screen.querySelector('.board-post');
@@ -1549,7 +1695,6 @@
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') post(); });
 
     addFire(postBtn);
-    addFire(screen.querySelector('.board-to-dash'));
 
     renderSquad();
     renderFeed();
