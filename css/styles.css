@@ -284,6 +284,21 @@ body {
   cursor: not-allowed;
 }
 
+/* Subtle developer-only login shortcut — clearly not part of the real UI. */
+.dev-login {
+  align-self: center;
+  background: none;
+  border: 1px solid rgba(245, 240, 232, 0.2);
+  border-radius: 6px;
+  color: #888;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  opacity: 0.4;
+  cursor: pointer;
+}
+
 .btn-link {
   background: none;
   border: none;

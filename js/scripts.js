@@ -9,6 +9,12 @@
 (function () {
   'use strict';
 
+  // ---- Developer mode ----------------------------------------------
+  // When true, shows a subtle "Dev Login" button that bypasses the magic-link
+  // flow and signs straight in as Mark. Set to false for production — never
+  // remove this constant.
+  const DEV_MODE = true;
+
   // ---- Constants ----------------------------------------------------
   var INVITE_CODE = 'FORGE2026';
   var MAX_USERS = 10;
@@ -152,6 +158,7 @@
   var carouselPrev = document.getElementById('carousel-prev');
   var carouselNext = document.getElementById('carousel-next');
   var forgeBtn = document.getElementById('forge-btn');
+  var devLoginBtn = document.getElementById('dev-login-btn');
   var loginMessage = document.getElementById('login-message');
 
   var confirmScreen = document.getElementById('confirm-screen');
@@ -686,6 +693,13 @@
       });
   }
 
+  // DEV_MODE only: skip the magic link and enter the app as Mark, loading his
+  // real Firestore data via the normal enterApp path.
+  function devLogin() {
+    if (!DEV_MODE) return;
+    enterApp({ email: 'markbrown667@gmail.com', displayName: 'Mark' });
+  }
+
   function refreshStats() {
     var stats = computeStats(state.logs);
     state.user.totalPoints = stats.totalPoints;
@@ -813,7 +827,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.4</span>' +
+          '<span class="topbar-version">v0.2.5</span>' +
         '</div>' +
       '</header>' +
 
@@ -1196,6 +1210,11 @@
   function init() {
     showRandomQuote();
     forgeBtn.addEventListener('click', onForge);
+
+    if (DEV_MODE && devLoginBtn) {
+      devLoginBtn.classList.remove('hidden');
+      devLoginBtn.addEventListener('click', devLogin);
+    }
 
     carouselPrev.addEventListener('click', function () { carouselGo(-1); });
     carouselNext.addEventListener('click', function () { carouselGo(1); });
