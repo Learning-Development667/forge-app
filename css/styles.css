@@ -74,6 +74,15 @@ body {
   color: var(--orange);
 }
 
+.brand-version {
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  opacity: 0.35;
+}
+
 .brand--compact .brand-name {
   font-size: clamp(48px, 14vw, 72px);
 }
