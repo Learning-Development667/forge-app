@@ -864,8 +864,8 @@
       '<header class="topbar">' +
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
-          '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.12</span>' +
+          topbarAvatarHTML() +
+          '<span class="topbar-version">v0.2.13</span>' +
         '</div>' +
       '</header>' +
 
@@ -903,6 +903,19 @@
              '<div class="stat-value">' + value + '</div>' +
              '<div class="stat-label">' + label + '</div>' +
            '</div>';
+  }
+
+  // Topbar profile button shows the user's avatar (photo or initial placeholder),
+  // matching the carousel and profile screen.
+  function topbarAvatarHTML() {
+    var name = state.user ? state.user.name : 'Forger';
+    var photo = AVATARS[name];
+    if (photo) {
+      return '<button type="button" class="icon-btn icon-btn--photo" data-nav="profile" ' +
+               'aria-label="Profile"><img class="topbar-avatar" src="' + photo + '" alt=""></button>';
+    }
+    return '<button type="button" class="icon-btn icon-btn--placeholder" data-nav="profile" ' +
+             'aria-label="Profile">' + esc(name.charAt(0).toUpperCase()) + '</button>';
   }
 
   // Bonus spin is once per day: show the button, or a completed confirmation

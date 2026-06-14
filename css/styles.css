@@ -458,6 +458,30 @@ body {
   justify-content: center;
 }
 
+/* Profile button showing a photo avatar — image fills the circle. */
+.icon-btn--photo {
+  padding: 0;
+  overflow: hidden;
+}
+
+.topbar-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* Profile button showing an initial placeholder. */
+.icon-btn--placeholder {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+}
+
 /* ---------- Welcome + banner ---------- */
 .welcome {
   width: 100%;
