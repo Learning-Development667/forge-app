@@ -1153,25 +1153,22 @@ img.ucard-avatar {
 }
 
 /* ---------- Squad row (Instagram-stories style) ---------- */
+/* Fixed two-row grid: 4 members per row, all 8 visible, no horizontal scroll. */
 .squad-row {
   width: 100%;
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 6px;
+  justify-items: center;
   flex-shrink: 0;
-  padding-bottom: 4px;
-  scrollbar-width: none;
 }
-
-.squad-row::-webkit-scrollbar { display: none; }
 
 .squad-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  width: 72px;
+  gap: 5px;
+  width: 100%;
 }
 
 .squad-ring {
@@ -1210,7 +1207,7 @@ img.ucard-avatar {
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   color: var(--cream);
-  max-width: 72px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1372,4 +1369,57 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 
 @keyframes confettiFly {
   to { transform: translate(var(--dx), var(--dy)) rotate(360deg); opacity: 0; }
+}
+
+/* ===================================================================
+   Flame border effect (pure CSS) — primary buttons + countdown ring
+   =================================================================== */
+.flame-border {
+  position: relative;
+  z-index: 0;
+}
+
+/* Two blurred gradient layers behind the element flicker at different rates
+   to read like dancing flames. Only opacity/transform animate (GPU-friendly). */
+.flame-border::before,
+.flame-border::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.flame-border::before {
+  background: linear-gradient(180deg, #E8621A, #ff8a3d, #E8621A);
+  filter: blur(7px);
+  animation: flameA 0.5s ease-in-out infinite alternate;
+}
+
+.flame-border::after {
+  background: linear-gradient(180deg, #F5F0E8, #E8621A, #F5F0E8);
+  filter: blur(4px);
+  opacity: 0.7;
+  animation: flameB 0.36s ease-in-out infinite alternate;
+}
+
+@keyframes flameA {
+  0%   { opacity: 0.55; transform: scale(1) translateY(0); }
+  100% { opacity: 1;    transform: scale(1.04) translateY(-1px); }
+}
+
+@keyframes flameB {
+  0%   { opacity: 0.35; transform: scale(1.03) translateY(1px); }
+  100% { opacity: 0.85; transform: scale(0.98) translateY(-1px); }
+}
+
+/* Circular flame for the countdown ring. */
+.ring-wrap.flame-border {
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame-border::before,
+  .flame-border::after { animation: none; }
 }

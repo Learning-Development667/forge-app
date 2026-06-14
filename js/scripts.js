@@ -928,7 +928,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           topbarAvatarHTML() +
-          '<span class="topbar-version">v0.2.19</span>' +
+          '<span class="topbar-version">v0.2.20</span>' +
         '</div>' +
       '</header>' +
 
@@ -1072,7 +1072,7 @@
       '<p class="log-target">' + targetText + '</p>' +
       (isBestEffort
         ? '<div class="timer-zone">' +
-            '<div class="ring-wrap">' +
+            '<div class="ring-wrap flame-border">' +
               '<svg class="ring" viewBox="0 0 120 120">' +
                 '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
                 '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
@@ -1474,7 +1474,7 @@
     screen.innerHTML =
       '<header class="topbar">' +
         '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<button type="button" class="btn-link board-to-dash">Today\'s Training →</button>' +
+        '<button type="button" class="btn-link board-to-dash flame-border">Today\'s Training →</button>' +
       '</header>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
