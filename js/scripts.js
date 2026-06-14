@@ -865,7 +865,7 @@
         '<span class="topbar-brand">FORGE</span>' +
         '<div class="topbar-right">' +
           '<button type="button" class="icon-btn" data-nav="profile" aria-label="Profile">👤</button>' +
-          '<span class="topbar-version">v0.2.11</span>' +
+          '<span class="topbar-version">v0.2.12</span>' +
         '</div>' +
       '</header>' +
 
@@ -964,7 +964,11 @@
     if (spin) spin.addEventListener('click', openSpin);
 
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-nav]'), function (btn) {
-      btn.addEventListener('click', function () { openPlaceholder(btn.getAttribute('data-nav')); });
+      btn.addEventListener('click', function () {
+        var dest = btn.getAttribute('data-nav');
+        if (dest === 'profile') openProfile();
+        else openPlaceholder(dest);
+      });
     });
     var out = dashboardScreen.querySelector('[data-action="signout"]');
     if (out) out.addEventListener('click', onSignOut);
@@ -1200,6 +1204,85 @@
     screen.querySelector('.routine-skip').addEventListener('click', dismiss);
 
     showScreen(screen);
+  }
+
+  // ===================================================================
+  // Profile screen
+  // ===================================================================
+  function openProfile() {
+    var screen = ensureScreen('profile-screen');
+    var name = state.user ? state.user.name : 'Forger';
+    var photo = AVATARS[name];
+    var avatarHTML = photo
+      ? '<img class="ucard-avatar profile-avatar" src="' + photo + '" alt="">'
+      : '<span class="ucard-avatar ucard-avatar--placeholder profile-avatar">' +
+          esc(name.charAt(0).toUpperCase()) + '</span>';
+
+    var pref = (state.user && state.user.plankPreference) || null;
+    var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
+    var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
+
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">PROFILE</span>' +
+      '</header>' +
+
+      '<div class="profile-head">' +
+        avatarHTML +
+        '<h1 class="profile-name">' + esc(name) + '</h1>' +
+      '</div>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Plank Preference</p>' +
+        '<div class="plank-opts">' +
+          plankOption('forward', 'Forward Plank', 'Classic core hold, face down', pref) +
+          plankOption('reverse', 'Reverse Plank', 'Posterior chain hold, face up', pref) +
+        '</div>' +
+      '</section>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Personal Stats</p>' +
+        '<div class="profile-stats">' +
+          statRow('Total points', state.user ? state.user.totalPoints : 0) +
+          statRow('Current streak', state.user ? state.user.currentStreak : 0) +
+          statRow('Longest streak', state.user ? state.user.longestStreak : 0) +
+          statRow('Exercises logged', totalExercises) +
+          statRow('Bonus exercises', totalBonus) +
+        '</div>' +
+      '</section>';
+
+    screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
+    Array.prototype.forEach.call(screen.querySelectorAll('[data-plank]'), function (btn) {
+      btn.addEventListener('click', function () {
+        setPlankPreference(btn.getAttribute('data-plank'));
+      });
+    });
+
+    showScreen(screen);
+  }
+
+  function plankOption(value, title, desc, current) {
+    return '<button type="button" class="plank-opt' + (current === value ? ' is-selected' : '') +
+             '" data-plank="' + value + '">' +
+             '<span class="plank-title">' + title + '</span>' +
+             '<span class="plank-desc">' + desc + '</span>' +
+           '</button>';
+  }
+
+  function statRow(label, value) {
+    return '<div class="profile-stat">' +
+             '<span class="profile-stat-label">' + label + '</span>' +
+             '<span class="profile-stat-value">' + value + '</span>' +
+           '</div>';
+  }
+
+  function setPlankPreference(value) {
+    if (!state.user) return;
+    state.user.plankPreference = value;
+    db.collection('users').doc(state.user.id).set({ plankPreference: value }, { merge: true })
+      .catch(function (err) { console.error('Failed to save plank preference:', err); });
+    openProfile(); // re-render to update the highlighted option
   }
 
   // ===================================================================

@@ -908,3 +908,110 @@ body {
 .routine-skip {
   align-self: center;
 }
+
+/* ---------- Profile screen ---------- */
+.profile-head {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+}
+
+.profile-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 44px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.profile-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-heading {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.plank-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plank-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+}
+
+.plank-opt.is-selected {
+  border-color: var(--orange);
+  background: rgba(232, 98, 26, 0.12);
+}
+
+.plank-title {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--cream);
+}
+
+.plank-opt.is-selected .plank-title {
+  color: var(--orange);
+}
+
+.plank-desc {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.6;
+}
+
+.profile-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 18px;
+}
+
+.profile-stat-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--cream);
+}
+
+.profile-stat-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 18px;
+  color: var(--orange);
+}
