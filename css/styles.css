@@ -2126,12 +2126,17 @@ button:focus { outline: none; }
 }
 
 /* ---------- iOS copy-code sign-in ---------- */
-/* Code entry on the login screen (iOS only). */
+/* Code entry on the login screen. Hidden by default on every platform; only
+   shown when init adds .code-signin--ios (i.e. when IS_IOS is true). */
 .code-signin {
   width: 100%;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 12px;
+}
+
+.code-signin--ios {
+  display: flex;
 }
 
 .code-input {

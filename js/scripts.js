@@ -2624,9 +2624,11 @@
 
     // iOS: relabel the magic-link button and reveal the copy-code sign-in. Set
     // the label before addFire wraps the button text in its .btn-label span.
+    // Non-iOS keeps the standard carousel + "Let's Forge" (magic-link) flow and
+    // never sees the code UI (it stays display:none).
     if (IS_IOS) {
       forgeBtn.textContent = 'Get sign-in code';
-      if (codeSignin) codeSignin.classList.remove('hidden');
+      if (codeSignin) codeSignin.classList.add('code-signin--ios');
       if (codeSigninBtn) codeSigninBtn.addEventListener('click', onCodeSignIn);
       if (codeInput) {
         codeInput.addEventListener('keydown', function (e) {
