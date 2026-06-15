@@ -1088,7 +1088,7 @@
       '</div>';
     showScreen(screen);
 
-    db.collection('signInCodes').add({
+    db.collection('signInCodes').doc(code).set({
       code: code,
       email: email,
       link: link,
@@ -1110,11 +1110,13 @@
       return;
     }
     codeSigninBtn.disabled = true;
-    db.collection('signInCodes').where('code', '==', code).limit(1).get()
+    // The code is the document ID, so this is a get-by-id (not a list query) —
+    // which is all the Firestore security rules permit.
+    var ref = db.collection('signInCodes').doc(code);
+    ref.get()
       .then(function (snap) {
-        if (snap.empty) { throw new Error('That code is not valid.'); }
-        var doc = snap.docs[0];
-        var data = doc.data() || {};
+        if (!snap.exists) { throw new Error('That code is not valid.'); }
+        var data = snap.data() || {};
         if (data.used) { throw new Error('That code has already been used.'); }
         var created = data.createdAt && data.createdAt.toDate
           ? data.createdAt.toDate().getTime() : 0;
@@ -1123,7 +1125,7 @@
         }
         completingSignIn = true;
         return auth.signInWithEmailLink(data.email, data.link)
-          .then(function () { return doc.ref.update({ used: true }); })
+          .then(function () { return ref.update({ used: true }); })
           .then(function () { window.localStorage.removeItem(EMAIL_STORAGE_KEY); });
         // onAuthStateChanged routes on to the dashboard.
       })
