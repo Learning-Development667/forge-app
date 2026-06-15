@@ -19,6 +19,10 @@
   var INVITE_CODE = 'FORGE2026';
   var MAX_USERS = 10;
   var EMAIL_STORAGE_KEY = 'forgeEmailForSignIn';
+  // Name typed at registration, stashed so it survives the magic-link round-trip
+  // and can seed the profile doc once auth completes (the write can't happen
+  // pre-auth — the security rules reject it).
+  var PENDING_NAME_KEY = 'forgePendingName';
   // Canonical app URL the magic link must return to so sign-in completes inside
   // the Forge app (and, on iOS, the installed PWA) rather than an external browser.
   var APP_URL = 'https://learning-development667.github.io/forge-app/';
@@ -986,16 +990,13 @@
     var submitBtn = registerForm.querySelector('button[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
-    db.collection('users').add({
-      name: name,
-      email: email,
-      avatar: null,
-      totalPoints: 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    })
-      .then(function () { return sendMagicLink(email, 'register-form'); })
+    // No Firestore write here — that would run pre-auth and the security rules
+    // reject it ("missing or insufficient permissions"). Stash the name so it
+    // survives the magic-link round-trip; ensureUserDoc creates the profile
+    // after onAuthStateChanged confirms the user is authenticated.
+    window.localStorage.setItem(PENDING_NAME_KEY, name);
+
+    sendMagicLink(email, 'register-form')
       .then(function () {
         setMessage(registerMessage, 'Account created! A magic link is on its way to ' + email + '.');
         registerJunk.classList.remove('hidden');
@@ -1197,9 +1198,12 @@
           }
           return { id: doc.id, data: data };
         }
+        // First sign-in for this email: create the profile now that auth is
+        // complete. Prefer the name typed at registration (stashed pre-redirect).
+        var pendingName = window.localStorage.getItem(PENDING_NAME_KEY);
         var ref = db.collection('users').doc();
         var data = {
-          name: fbUser.displayName || localPart || 'Forger',
+          name: pendingName || fbUser.displayName || localPart || 'Forger',
           email: email,
           avatar: null,
           totalPoints: 0,
@@ -1207,7 +1211,10 @@
           longestStreak: 0,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        return ref.set(data).then(function () { return { id: ref.id, data: data }; });
+        return ref.set(data).then(function () {
+          window.localStorage.removeItem(PENDING_NAME_KEY);
+          return { id: ref.id, data: data };
+        });
       });
   }
 
