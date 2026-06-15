@@ -897,22 +897,45 @@
     var existing = registeredUser(name);
     if (existing) {
       // Registered already — send a magic link to their saved email.
-      sendMagicLink(existing.email)
+      forgeBtn.disabled = true;
+      sendMagicLink(existing.email, 'forge-button')
         .then(function () {
           setMessage(loginMessage, 'Magic link sent to ' + existing.email + '. Check your inbox.');
           loginJunk.classList.remove('hidden');
+          forgeBtn.disabled = false;
         })
-        .catch(function (err) { setMessage(loginMessage, friendlyError(err), true); });
+        .catch(function (err) {
+          setMessage(loginMessage, friendlyError(err), true);
+          forgeBtn.disabled = false;
+        });
     } else {
       // Not registered yet — open the form with their name pre-filled.
       openRegister(name);
     }
   }
 
-  function sendMagicLink(email) {
-    return auth.sendSignInLinkToEmail(email, actionCodeSettings).then(function () {
-      window.localStorage.setItem(EMAIL_STORAGE_KEY, email);
-    });
+  // Magic links are only ever sent from a deliberate user action (Let's Forge
+  // click or register submit). A pending-send guard collapses any rapid repeat
+  // calls (double-tap / double-submit) into the single in-flight send.
+  var pendingSend = null;
+
+  function sendMagicLink(email, trigger) {
+    console.log('[FORGE auth] sendSignInLinkToEmail requested',
+      { email: email, at: new Date().toISOString(), trigger: trigger || 'unknown' });
+    if (pendingSend) {
+      console.warn('[FORGE auth] duplicate send ignored (one already in flight)', trigger);
+      return pendingSend;
+    }
+    pendingSend = auth.sendSignInLinkToEmail(email, actionCodeSettings)
+      .then(function () {
+        window.localStorage.setItem(EMAIL_STORAGE_KEY, email);
+        console.log('[FORGE auth] magic link sent', email);
+        pendingSend = null;
+      }, function (err) {
+        pendingSend = null;
+        throw err;
+      });
+    return pendingSend;
   }
 
   function onRegisterSubmit(e) {
@@ -937,6 +960,9 @@
       return;
     }
 
+    var submitBtn = registerForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
     db.collection('users').add({
       name: name,
       email: email,
@@ -946,13 +972,17 @@
       longestStreak: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     })
-      .then(function () { return sendMagicLink(email); })
+      .then(function () { return sendMagicLink(email, 'register-form'); })
       .then(function () {
         setMessage(registerMessage, 'Account created! A magic link is on its way to ' + email + '.');
         registerJunk.classList.remove('hidden');
         registerForm.reset();
+        if (submitBtn) submitBtn.disabled = false;
       })
-      .catch(function (err) { setMessage(registerMessage, friendlyError(err), true); });
+      .catch(function (err) {
+        setMessage(registerMessage, friendlyError(err), true);
+        if (submitBtn) submitBtn.disabled = false;
+      });
   }
 
   function completeSignInIfPresent() {
@@ -973,6 +1003,8 @@
   }
 
   function finishSignIn(email) {
+    // Completing a magic link — this consumes the link, it never sends a new one.
+    console.log('[FORGE auth] signInWithEmailLink (completing, no send)', email);
     return auth.signInWithEmailLink(email, window.location.href)
       .then(function () {
         window.localStorage.removeItem(EMAIL_STORAGE_KEY);
