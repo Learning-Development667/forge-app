@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.64</p>
+      <p class="brand-version">v0.2.65</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -73,6 +73,16 @@
 
     <p id="login-message" class="message" role="status" aria-live="polite"></p>
     <p id="login-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
+  </main>
+
+  <!-- ===== iOS RETURNING USER (minimal) — shown by scripts.js when a stored email exists ===== -->
+  <main id="returning-screen" class="screen hidden">
+    <header class="brand">
+      <h1 class="brand-name">FORGE</h1>
+    </header>
+    <button id="returning-signin" class="btn-forge" type="button">Sign In</button>
+    <button id="returning-switch" class="btn-link" type="button">Not you? Sign in with a different account</button>
+    <p id="returning-message" class="message" role="status" aria-live="polite"></p>
   </main>
 
   <!-- ===================== REGISTER FORM ===================== -->

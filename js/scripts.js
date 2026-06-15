@@ -369,6 +369,10 @@
   var loginEmail = document.getElementById('login-email');
   var registerLink = document.getElementById('register-link');
   var iosSentNote = document.getElementById('ios-sent-note');
+  var returningScreen = document.getElementById('returning-screen');
+  var returningSignin = document.getElementById('returning-signin');
+  var returningSwitch = document.getElementById('returning-switch');
+  var returningMessage = document.getElementById('returning-message');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
@@ -1022,6 +1026,58 @@
     if (isRegisterSelected()) return;
     loginEmail.value = '';
     loginEmail.focus();
+  }
+
+  // ---- iOS returning user -------------------------------------------
+  // A returning iOS user has a stored email (forgeEmailForSignIn, or the
+  // persistent forgeLastEmail) — they've signed in here before.
+  function returningEmail() {
+    return window.localStorage.getItem(EMAIL_STORAGE_KEY) ||
+           window.localStorage.getItem(LAST_EMAIL_KEY) || '';
+  }
+  function isReturningIos() {
+    return IS_IOS && (!!returningEmail() || !!auth.currentUser);
+  }
+
+  // Choose the right entry screen for a signed-out user: the minimal returning
+  // screen on iOS when an email is known, otherwise the full login screen.
+  function showLoginEntry() {
+    if (isReturningIos()) {
+      showScreen(returningScreen);
+    } else {
+      showScreen(loginScreen);
+    }
+  }
+
+  // Returning screen "Sign In": auto-send the magic link to the stored email,
+  // then hand off to the login screen for code entry (iOS needs the code input,
+  // which must not live on the minimal returning screen).
+  function onReturningSignIn() {
+    var email = returningEmail();
+    if (!email) { showScreen(loginScreen); return; } // nothing stored — fall back
+    setMessage(returningMessage, '');
+    returningSignin.disabled = true;
+    sendMagicLink(email, 'returning-signin')
+      .then(function () {
+        if (loginEmail) loginEmail.value = email;
+        showScreen(loginScreen);
+        revealCodeInput();
+        if (iosSentNote) iosSentNote.classList.remove('hidden');
+        returningSignin.disabled = false;
+      })
+      .catch(function (err) {
+        setMessage(returningMessage, friendlyError(err), true);
+        returningSignin.disabled = false;
+      });
+  }
+
+  // "Not you?" — forget the stored account and show the full standard login.
+  function onReturningSwitch() {
+    window.localStorage.removeItem(EMAIL_STORAGE_KEY);
+    window.localStorage.removeItem(LAST_EMAIL_KEY);
+    if (loginEmail) loginEmail.value = '';
+    setMessage(returningMessage, '');
+    showScreen(loginScreen);
   }
 
   function onCarouselKey(e) {
@@ -2834,7 +2890,7 @@
     auth.signOut().then(function () {
       state.user = null;
       state.logs = [];
-      showScreen(loginScreen);
+      showLoginEntry();
     });
   }
 
@@ -2872,6 +2928,13 @@
     // "Create account" is available on every device and is never hidden by any
     // iOS-specific logic — it always routes to the register screen.
     if (registerLink) registerLink.addEventListener('click', function () { openRegister(''); });
+
+    // iOS returning-user minimal screen controls.
+    if (returningSignin) {
+      returningSignin.addEventListener('click', onReturningSignIn);
+      addFire(returningSignin);
+    }
+    if (returningSwitch) returningSwitch.addEventListener('click', onReturningSwitch);
 
     // iOS: keep the carousel (restored — it works the same as everywhere else),
     // and add the typed-email flow beneath it. Relabel the button to "Get sign-in
@@ -2928,6 +2991,9 @@
     confirmBtn.addEventListener('click', onConfirmEmail);
 
     completeSignInIfPresent();
+    // Pick the entry screen up front (reduces flicker): returning iOS users get
+    // the minimal returning screen, everyone else the standard login screen.
+    if (!completingSignIn) showLoginEntry();
 
     auth.onAuthStateChanged(function (firebaseUser) {
       // On the iOS Safari code-landing page, do nothing: only ever show the code
@@ -2938,7 +3004,7 @@
         if (firebaseUser) {
           enterApp(firebaseUser);
         } else if (!completingSignIn) {
-          showScreen(loginScreen);
+          showLoginEntry();
         }
       });
     });
