@@ -1535,7 +1535,12 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
    Canvas particle-fire on buttons + countdown timer
    =================================================================== */
 /* A button carrying fire becomes the positioning context; its text sits above
-   the flames via the label span; the flame layer never blocks clicks. */
+   the flames via the label span; the flame layer never blocks clicks. Text is
+   forced to cream so it stays readable above the orange fire glow. */
+.has-fire,
+.has-fire .btn-label {
+  color: var(--cream);
+}
 .has-fire {
   position: relative;
   overflow: hidden;
@@ -1554,6 +1559,13 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   background: transparent;
   pointer-events: none;
   z-index: 0;
+}
+
+/* Slim fire strip for small buttons (Post, exercise-card Log buttons) so the
+   flames don't swallow the label/icon — applied by startFire when the button is
+   under 48px tall or under 120px wide. */
+.btn-fire--slim {
+  height: 16px;
 }
 
 .btn-label {

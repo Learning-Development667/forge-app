@@ -484,6 +484,13 @@
     var W = 0, H = 0;
 
     function resize() {
+      // Small buttons (under 48px tall OR under 120px wide) get a slim 16px fire
+      // strip so the text/icon stays visible; standard buttons keep full height.
+      var host = canvas.parentNode;
+      if (host && host.clientWidth && host.clientHeight) {
+        canvas.classList.toggle('btn-fire--slim',
+          host.clientHeight < 48 || host.clientWidth < 120);
+      }
       W = canvas.clientWidth || 0;
       H = canvas.clientHeight || 0;
       canvas.width = Math.max(1, Math.round(W * dpr));
