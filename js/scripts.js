@@ -473,6 +473,13 @@
     }
   }
 
+  // Buttons that must never carry the laser border — its 3px border + glow
+  // overrides their borderless look. Class-based so it works even while the
+  // button is hidden (clientWidth 0) and unmeasurable.
+  function laserExempt(el) {
+    return !!el && (el.classList.contains('btn-log') || el.classList.contains('board-post'));
+  }
+
   // Wrap a button's text in a label span, add the rotating laser border, and a
   // canvas particle-fire layer along the bottom. The flames sit behind the text
   // and never block clicks.
@@ -480,10 +487,11 @@
     if (!btn || btn.classList.contains('has-fire')) return;
     btn.classList.add('has-fire');
     // Only large buttons get the laser border — its 3px border + glow overwhelms
-    // small buttons (e.g. Log, Post) and overrides their borderless look. Decided
-    // here when the button is measurable; startFire's resize() re-checks buttons
-    // that are still hidden (width 0) at creation time.
-    if (btn.clientWidth >= 120 && btn.clientHeight >= 48) {
+    // small buttons (e.g. Log, Post) and overrides their borderless look. Never
+    // applied to Log/Post (class-based — reliable even while hidden); otherwise
+    // added when the button is measurably large (startFire's resize() re-checks
+    // buttons that are still hidden at creation time).
+    if (!laserExempt(btn) && btn.clientWidth >= 120 && btn.clientHeight >= 48) {
       btn.classList.add('forge-laser');
       staggerLaser(btn);
     }
@@ -514,14 +522,18 @@
       // Small buttons (under 48px tall OR under 120px wide) get a slim 16px fire
       // strip and never the laser border; large ones keep full height + laser.
       var host = canvas.parentNode;
-      if (canvas.classList.contains('btn-fire') && host && host.clientWidth && host.clientHeight) {
-        var small = host.clientHeight < 48 || host.clientWidth < 120;
-        canvas.classList.toggle('btn-fire--slim', small);
-        if (small) {
-          host.classList.remove('forge-laser');
-        } else if (!host.classList.contains('forge-laser')) {
-          host.classList.add('forge-laser'); // large button revealed after a hidden start
-          staggerLaser(host);
+      if (canvas.classList.contains('btn-fire') && host) {
+        var exempt = laserExempt(host);
+        if (exempt) host.classList.remove('forge-laser'); // never on Log/Post, even while hidden
+        if (host.clientWidth && host.clientHeight) {
+          var small = host.clientHeight < 48 || host.clientWidth < 120;
+          canvas.classList.toggle('btn-fire--slim', small);
+          if (small || exempt) {
+            host.classList.remove('forge-laser');
+          } else if (!host.classList.contains('forge-laser')) {
+            host.classList.add('forge-laser'); // large button revealed after a hidden start
+            staggerLaser(host);
+          }
         }
       }
       W = canvas.clientWidth || 0;
