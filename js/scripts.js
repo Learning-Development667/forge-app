@@ -311,14 +311,27 @@
     console.error('Failed to set auth persistence:', err);
   });
 
-  var actionCodeSettings = {
-    // `url` is the field Firebase actually honours; `emailRedirectTo` mirrors it
-    // for clarity. Both point at the app URL so the link returns to Forge (and
-    // the installed PWA on iOS) instead of completing in an external browser.
-    url: APP_URL,
-    emailRedirectTo: APP_URL,
-    handleCodeInApp: true
-  };
+  // Build the magic-link settings for a given email. The email is carried in the
+  // continue URL (?fe=...) so the Safari landing page can recover it even when
+  // its localStorage differs from where the link was requested — on iOS the
+  // installed PWA and Safari do NOT share storage, so a link requested in the
+  // PWA opens in Safari with an empty localStorage.
+  function buildActionCodeSettings(email) {
+    return {
+      url: APP_URL + '?fe=' + encodeURIComponent(email),
+      handleCodeInApp: true
+    };
+  }
+
+  // Recover the email Firebase round-tripped in the continue URL (?fe=...).
+  function emailFromUrl() {
+    try {
+      var fe = new URLSearchParams(window.location.search).get('fe');
+      return fe ? fe.trim().toLowerCase() : '';
+    } catch (e) {
+      return '';
+    }
+  }
 
   // ---- DOM references (login screens live in index.html) -----------
   var loginScreen = document.getElementById('login-screen');
@@ -995,7 +1008,7 @@
       console.warn('[FORGE auth] duplicate send ignored (one already in flight)', trigger);
       return pendingSend;
     }
-    pendingSend = auth.sendSignInLinkToEmail(email, actionCodeSettings)
+    pendingSend = auth.sendSignInLinkToEmail(email, buildActionCodeSettings(email))
       .then(function () {
         window.localStorage.setItem(EMAIL_STORAGE_KEY, email);
         console.log('[FORGE auth] magic link sent', email);
@@ -1060,7 +1073,7 @@
       showSignInCode();
       return;
     }
-    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY) || emailFromUrl();
     if (email) {
       finishSignIn(email);
     } else {
@@ -1124,7 +1137,10 @@
   // PWA can complete sign-in with signInWithEmailLink.
   function showSignInCode() {
     var screen = ensureScreen('code-screen');
-    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+    // Prefer localStorage, but fall back to the email carried in the URL — in
+    // Safari (where the link opens) localStorage is often empty because the link
+    // was requested in the PWA's separate storage context.
+    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY) || emailFromUrl();
     var link = window.location.href;
 
     if (!email) {
