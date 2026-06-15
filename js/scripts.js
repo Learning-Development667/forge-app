@@ -398,6 +398,7 @@
   var currentIndex = 0;     // centred carousel card
   var touchStartX = null;   // swipe tracking
   var completingSignIn = false; // suppress login screen while a magic link completes
+  var iosCodeLanding = false;   // iOS Safari landing only shows the code — never auth/route
 
   var state = { user: null, logs: [] };
 
@@ -1091,7 +1092,11 @@
     completingSignIn = true; // keep the login carousel hidden while we finish
     // iOS: the link opens in Safari, which can't hand its session to the PWA.
     // Instead of completing here, mint a short code the user copies into the app.
+    // This page is terminal — it must never sign in or route to the dashboard,
+    // even if Safari happens to hold a persisted Firebase session (see the
+    // onAuthStateChanged guard). Authentication only completes in the PWA.
     if (IS_IOS) {
+      iosCodeLanding = true;
       showSignInCode();
       return;
     }
@@ -2797,6 +2802,10 @@
     completeSignInIfPresent();
 
     auth.onAuthStateChanged(function (firebaseUser) {
+      // On the iOS Safari code-landing page, do nothing: only ever show the code
+      // and its instruction — never sign in or route to the dashboard, even if a
+      // persisted session exists in Safari.
+      if (iosCodeLanding) return;
       loadUsers().then(function () {
         if (firebaseUser) {
           enterApp(firebaseUser);
