@@ -345,6 +345,7 @@
 
   // Message board real-time state.
   var boardUnsubs = [];
+  var boardSubscribed = false; // listeners attached once, kept alive for session
   var boardMessages = [];
   var boardActivities = [];
   var squadStatus = {}; // userId -> [logged exercise keys today]
@@ -483,7 +484,8 @@
   }
 
   function navGo(dest) {
-    teardownBoard(); // leaving any live board listeners behind
+    // Board listeners persist across navigation (subscribed once) to avoid
+    // re-reading on every visit.
     if (dest === 'board') openBoard();
     else if (dest === 'exercises') renderDashboard();
     else if (dest === 'progress') openProgress();
@@ -856,9 +858,12 @@
   // ===================================================================
   // Users / login
   // ===================================================================
-  // Load registered users (used to decide registered vs. not, and by enterApp).
-  // The carousel itself is the static TEAM list, so it does not depend on this.
+  // Load registered users once per session (onAuthStateChanged can fire several
+  // times; we must not re-read the collection each time).
+  var usersLoaded = false;
+
   function loadUsers() {
+    if (usersLoaded) return Promise.resolve();
     return db.collection('users').orderBy('createdAt', 'asc').limit(MAX_USERS).get()
       .then(function (snap) {
         users = [];
@@ -866,6 +871,7 @@
           var data = doc.data();
           users.push({ id: doc.id, name: data.name, email: data.email, avatar: data.avatar || null });
         });
+        usersLoaded = true;
       })
       .catch(function (err) {
         users = [];
@@ -1805,6 +1811,9 @@
   // Progress / Plan placeholders + Settings
   // ===================================================================
   var progressCharts = [];
+  var progressGroupCache = null;       // cached cross-user best-effort logs
+  var progressGroupAt = 0;
+  var PROGRESS_GROUP_TTL = 5 * 60 * 1000; // 5 minutes
 
   function moodScore(label) {
     var i = MOODS.indexOf(label);
@@ -1868,15 +1877,28 @@
     container.innerHTML = '';
 
     var userBE = state.logs.filter(function (l) { return l.isBestEffort; });
+
+    function draw(groupBE) {
+      ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, groupBE); });
+    }
+
+    // Cache the cross-user best-effort query (TTL) — avoids re-reading every
+    // best-effort log each time the Progress tab is opened.
+    if (progressGroupCache && (Date.now() - progressGroupAt) < PROGRESS_GROUP_TTL) {
+      draw(progressGroupCache);
+      return;
+    }
     db.collectionGroup('logs').where('isBestEffort', '==', true).get()
       .then(function (snap) {
         var groupBE = [];
         snap.forEach(function (doc) { groupBE.push(doc.data()); });
-        ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, groupBE); });
+        progressGroupCache = groupBE;
+        progressGroupAt = Date.now();
+        draw(groupBE);
       })
       .catch(function (err) {
         console.error('Group best-effort load failed:', err);
-        ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, []); });
+        draw(progressGroupCache || []);
       });
   }
 
@@ -2125,17 +2147,17 @@
   }
 
   function goDashboard() {
-    teardownBoard();
     renderDashboard();
   }
 
+  // Detach board listeners — only on sign-out, never on normal navigation.
   function teardownBoard() {
     boardUnsubs.forEach(function (u) { try { u(); } catch (e) { /* no-op */ } });
     boardUnsubs = [];
+    boardSubscribed = false;
   }
 
   function openBoard() {
-    teardownBoard();
     var screen = ensureScreen('board-screen');
     screen.innerHTML =
       '<h1 class="welcome">Welcome back, ' + esc(state.user ? state.user.name : 'Forger') + '</h1>' +
@@ -2173,6 +2195,10 @@
   }
 
   function listenBoard() {
+    // Subscribe only once per session — these live listeners persist across
+    // screen changes so navigating back to the board does NOT re-read.
+    if (boardSubscribed) return;
+    boardSubscribed = true;
     // Squad completion: all logs across users for today (one collection-group query).
     boardUnsubs.push(
       db.collectionGroup('logs').where('date', '==', dateKey(new Date()))
