@@ -23,6 +23,9 @@
   // and can seed the profile doc once auth completes (the write can't happen
   // pre-auth — the security rules reject it).
   var PENDING_NAME_KEY = 'forgePendingName';
+  // Last email a magic link was sent to / signed in with. Unlike EMAIL_STORAGE_KEY
+  // this is NOT cleared on sign-in, so it flags a returning user on later visits.
+  var LAST_EMAIL_KEY = 'forgeLastEmail';
   // Canonical app URL the magic link must return to so sign-in completes inside
   // the Forge app (and, on iOS, the installed PWA) rather than an external browser.
   var APP_URL = 'https://learning-development667.github.io/forge-app/';
@@ -447,6 +450,18 @@
     });
   }
 
+  // Resolve a user's display name. Prefer a real name; if it's missing, empty,
+  // or actually an email address, fall back to the email local part capitalised
+  // — never show a full email address as a name. `email` is optional; if absent,
+  // an email-looking name is used as the source.
+  function cleanName(name, email) {
+    var n = (name == null ? '' : String(name)).trim();
+    if (n && n.indexOf('@') < 0) return n;
+    var src = (email && String(email).indexOf('@') >= 0) ? String(email) : n;
+    var local = (src.split('@')[0] || '').trim();
+    return local ? local.charAt(0).toUpperCase() + local.slice(1) : 'Forger';
+  }
+
   // Give a forge-laser element a random start point so they don't sweep in sync.
   function staggerLaser(el) {
     if (el && !el.style.getPropertyValue('--laser-delay')) {
@@ -497,7 +512,13 @@
       canvas.height = Math.max(1, Math.round(H * dpr));
     }
     resize();
-    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+    // Observe the host button (not the canvas): its size is stable, so toggling
+    // the canvas height doesn't re-trigger us, and it reliably fires when a
+    // previously-hidden screen (e.g. the dashboard) becomes visible.
+    if (window.ResizeObserver) {
+      var host = canvas.parentNode;
+      if (host) new ResizeObserver(resize).observe(host);
+    }
 
     var flames = [];
     var sparks = [];
@@ -1042,7 +1063,7 @@
         users = [];
         snap.forEach(function (doc) {
           var data = doc.data();
-          users.push({ id: doc.id, name: data.name, email: data.email, avatar: data.avatar || null });
+          users.push({ id: doc.id, name: cleanName(data.name, data.email), email: data.email, avatar: data.avatar || null });
         });
         usersLoaded = true;
       })
@@ -1132,6 +1153,7 @@
     pendingSend = auth.sendSignInLinkToEmail(email, buildActionCodeSettings(email))
       .then(function () {
         window.localStorage.setItem(EMAIL_STORAGE_KEY, email);
+        window.localStorage.setItem(LAST_EMAIL_KEY, email); // persists for returning-user detection
         console.log('[FORGE auth] magic link sent', email);
         pendingSend = null;
       }, function (err) {
@@ -1435,6 +1457,9 @@
     ensureUserDoc(fbUser)
       .then(function (res) {
         state.user = Object.assign({ id: res.id }, res.data);
+        // Never let an email-looking / missing name surface as the display name.
+        state.user.name = cleanName(state.user.name, state.user.email);
+        if (state.user.email) window.localStorage.setItem(LAST_EMAIL_KEY, state.user.email);
         return loadLogs(res.id);
       })
       .then(function (logs) {
@@ -2739,13 +2764,14 @@
         : '';
       if (e._kind === 'activity') {
         var emoji = MOOD_EMOJI[e.mood] || '';
+        var feedName = cleanName(e.userName);
         var reacts = (e.reactions || []).map(function (n) {
-          return avatarMarkup(n, 'react-avatar');
+          return avatarMarkup(cleanName(n), 'react-avatar');
         }).join('');
         return '<div class="feed-card feed-activity">' +
-                 avatarMarkup(e.userName, 'mini-avatar') +
+                 avatarMarkup(feedName, 'mini-avatar') +
                  '<div class="feed-body">' +
-                   '<p class="feed-text"><strong>' + esc(e.userName) + '</strong> completed ' +
+                   '<p class="feed-text"><strong>' + esc(feedName) + '</strong> completed ' +
                      esc(e.exercise) + ' — ' + esc(e.repsCompleted || '') + ' ' + emoji + '</p>' +
                    (reacts ? '<div class="feed-reactions">' + reacts + '</div>' : '') +
                    '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
@@ -2754,10 +2780,11 @@
                  del +
                '</div>';
       }
+      var msgName = cleanName(e.userName);
       return '<div class="feed-card feed-message">' +
-               avatarMarkup(e.userName, 'mini-avatar') +
+               avatarMarkup(msgName, 'mini-avatar') +
                '<div class="feed-body">' +
-                 '<span class="feed-name">' + esc(e.userName) + '</span>' +
+                 '<span class="feed-name">' + esc(msgName) + '</span>' +
                  '<p class="feed-text">' + esc(e.message || '') + '</p>' +
                  '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
                '</div>' + del +
@@ -2852,12 +2879,17 @@
     // code-entry controls. The code section stays hidden until a magic link has
     // been sent (maybeShowCodeInput / revealCodeInput).
     if (IS_IOS) {
-      forgeBtn.textContent = 'Get sign-in code';
       if (loginEmailField) loginEmailField.classList.remove('hidden');
+      // Returning user? A stored email (pending or previously used) or an existing
+      // session means they've signed in before — present a clear "Sign In" rather
+      // than the new-user "Get sign-in code". The Create account link stays visible.
+      var knownEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY) ||
+                       window.localStorage.getItem(LAST_EMAIL_KEY) || '';
+      var returningUser = !!knownEmail || !!auth.currentUser;
+      forgeBtn.textContent = returningUser ? 'Sign In' : 'Get sign-in code';
       // Prefill with the address from a pending/previous sign-in, if any.
       if (loginEmail) {
-        var storedEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY);
-        if (storedEmail) loginEmail.value = storedEmail;
+        if (knownEmail) loginEmail.value = knownEmail;
         loginEmail.addEventListener('keydown', function (e) {
           if (e.key === 'Enter') { e.preventDefault(); onForge(); }
         });

@@ -1535,12 +1535,10 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
    Canvas particle-fire on buttons + countdown timer
    =================================================================== */
 /* A button carrying fire becomes the positioning context; its text sits above
-   the flames via the label span; the flame layer never blocks clicks. Text is
-   forced to cream so it stays readable above the orange fire glow. */
-.has-fire,
-.has-fire .btn-label {
-  color: var(--cream);
-}
+   the flames via the label span; the flame layer never blocks clicks. We only
+   set position/overflow here — background, border, padding and any explicit
+   text colour are left untouched so each button keeps its own appearance. Text
+   with no explicit colour already inherits cream from <body>. */
 .has-fire {
   position: relative;
   overflow: hidden;
