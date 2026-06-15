@@ -1926,3 +1926,201 @@ button:focus { outline: none; }
   color: var(--dim);
   padding: 8px 0 4px;
 }
+
+/* ===================================================================
+   Plan screen
+   =================================================================== */
+.plan-sub {
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--cream);
+  opacity: 0.8;
+  margin-top: -12px;
+}
+
+.plan-card {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Overview rows */
+.plan-ov-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--cream);
+}
+
+.plan-ov-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--cream);
+  opacity: 0.85;
+}
+
+.plan-ov-current {
+  font-family: 'DM Mono', monospace;
+  font-size: 18px;
+  color: var(--orange);
+}
+
+/* Weekly structure day cards */
+.day-cards {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.day-icon { width: 26px; height: 26px; flex-shrink: 0; }
+
+.day-body { display: flex; flex-direction: column; gap: 2px; }
+
+.day-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 1px;
+  color: var(--cream);
+}
+
+.day-detail {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.75;
+}
+
+.day-active { color: var(--orange); opacity: 1; }
+
+/* Friday — dramatic */
+.day-best {
+  border-color: var(--orange);
+  background: rgba(232, 98, 26, 0.14);
+  box-shadow: 0 0 18px rgba(232, 98, 26, 0.35);
+  color: var(--orange);
+}
+.day-best .day-name { color: var(--orange); }
+.day-best .day-detail { color: var(--cream); opacity: 0.9; }
+
+/* Saturday — calm/muted */
+.day-restday {
+  background: #202022;
+  border-color: #3a3a3d;
+  color: #8a8a8e;
+}
+.day-restday .day-name { color: rgba(245, 240, 232, 0.6); }
+.day-restday .day-detail { color: var(--dim); }
+
+/* Progression milestone ladders */
+.prog-row { display: flex; flex-direction: column; gap: 8px; }
+
+.prog-ex-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--cream);
+}
+
+.prog-track {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Connecting line behind the dots. */
+.prog-track::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: rgba(232, 98, 26, 0.4);
+  z-index: 0;
+}
+
+.prog-step {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.prog-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--orange);
+  border: 2px solid var(--charcoal);
+}
+
+.prog-when {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  color: var(--dim);
+}
+
+.prog-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--cream);
+  line-height: 1.2;
+}
+
+/* Bonus list */
+.plan-bonus {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.plan-bonus-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--cream);
+}
+
+.plan-bonus-target {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--orange);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Points system */
+.plan-points-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plan-pts {
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  color: var(--orange);
+}

@@ -1986,9 +1986,92 @@
 
   function openPlan() {
     var screen = ensureScreen('plan-screen');
+    var day = challengeDay(new Date());
+    var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
+
+    var flame = '<svg class="day-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.3 3.7 4.7 4.7 4.7 8.6a4.7 4.7 0 0 1-9.4 0c0-1.7.6-2.8 1.6-3.7.3 2 1.7 2 1.7.2 0-1.7-.6-2.7 1.4-5.3z"/></svg>';
+    var moon = '<svg class="day-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 12.5A7 7 0 0 1 8 5a7 7 0 1 0 7.5 7.5z"/></svg>';
+
+    var WEEK = [
+      { d: 'Monday', a: 'Press-ups, Sit-ups, Plank', r: 'Lunges' },
+      { d: 'Tuesday', a: 'Press-ups, Sit-ups, Lunges', r: 'Plank' },
+      { d: 'Wednesday', a: 'Sit-ups, Plank, Lunges', r: 'Press-ups' },
+      { d: 'Thursday', a: 'Press-ups, Plank, Lunges', r: 'Sit-ups' },
+      { d: 'Friday', t: 'best' },
+      { d: 'Saturday', t: 'rest' },
+      { d: 'Sunday', a: 'Press-ups, Sit-ups, Plank', r: 'Lunges' }
+    ];
+    var weekHTML = WEEK.map(function (w) {
+      if (w.t === 'best') {
+        return '<div class="day-card day-best">' + flame +
+                 '<div class="day-body"><span class="day-name">Friday</span>' +
+                 '<span class="day-detail">BEST EFFORT — all 4 exercises · 2 min timer each</span></div></div>';
+      }
+      if (w.t === 'rest') {
+        return '<div class="day-card day-restday">' + moon +
+                 '<div class="day-body"><span class="day-name">Saturday</span>' +
+                 '<span class="day-detail">FULL REST</span></div></div>';
+      }
+      return '<div class="day-card"><div class="day-body"><span class="day-name">' + w.d + '</span>' +
+               '<span class="day-detail"><span class="day-active">' + w.a + '</span> · rest: ' + w.r + '</span></div></div>';
+    }).join('');
+
+    var PROG = [
+      { name: 'Press-ups', steps: ['Day 1: 5 reps', 'Week 4: 16 reps', 'Week 7: 28 reps', 'Week 10: 39 reps', 'Day 90: 50 reps'] },
+      { name: 'Sit-ups', steps: ['Day 1: 10 reps', 'Week 4: 33 reps', 'Week 7: 56 reps', 'Week 10: 79 reps', 'Day 90: 100 reps'] },
+      { name: 'Plank', steps: ['Day 1: 20 sec', 'Week 4: 1 min', 'Week 7: 1 min 45 sec', 'Week 10: 2 min 30 sec', 'Day 90: 3 min'] },
+      { name: 'Lunges', steps: ['Day 1: 5 each leg', 'Week 4: 9 each leg', 'Week 7: 13 each leg', 'Week 10: 17 each leg', 'Day 90: 20 each leg'] }
+    ];
+    var progHTML = PROG.map(function (p) {
+      var steps = p.steps.map(function (s) {
+        var parts = s.split(': ');
+        return '<div class="prog-step"><span class="prog-dot"></span>' +
+                 '<span class="prog-when">' + esc(parts[0]) + '</span>' +
+                 '<span class="prog-val">' + esc(parts[1] || '') + '</span></div>';
+      }).join('');
+      return '<div class="prog-row"><p class="prog-ex-name">' + esc(p.name) + '</p>' +
+               '<div class="prog-track">' + steps + '</div></div>';
+    }).join('');
+
+    var bonusHTML = BONUS_EXERCISES.map(function (b, i) {
+      return '<div class="plan-bonus"><span class="plan-bonus-name">' + (i + 1) + '. ' + esc(b.name) + '</span>' +
+               '<span class="plan-bonus-target">' + esc(b.target) + '</span></div>';
+    }).join('');
+
+    var POINTS = [
+      ['Log any exercise', 10], ['All exercises due that day', 25],
+      ['Friday best effort (all 4)', 50], ['7-day streak', 100],
+      ['30-day streak', 500], ['Bonus exercise', 20]
+    ];
+    var pointsHTML = POINTS.map(function (p) {
+      return '<div class="plan-points-row"><span class="set-label">' + esc(p[0]) + '</span>' +
+               '<span class="plan-pts">+' + p[1] + '</span></div>';
+    }).join('');
+
     screen.innerHTML =
-      '<h1 class="welcome">The Plan</h1>' +
-      '<p class="dashboard-placeholder">The full 90-day plan coming soon.</p>';
+      '<h1 class="settings-title">THE PLAN</h1>' +
+      '<p class="plan-sub">90 days. Built together.</p>' +
+
+      '<p class="section-heading">Challenge overview</p>' +
+      '<div class="plan-card">' +
+        '<div class="plan-ov-row"><span>Start</span><span class="plan-ov-val">Tue 23 June 2026</span></div>' +
+        '<div class="plan-ov-row"><span>End</span><span class="plan-ov-val">Sun 20 September 2026</span></div>' +
+        '<div class="plan-ov-row"><span>Total days</span><span class="plan-ov-val">90</span></div>' +
+        '<div class="plan-ov-row"><span>Current day</span><span class="plan-ov-current">' + dayLabel + ' / 90</span></div>' +
+      '</div>' +
+
+      '<p class="section-heading">Weekly structure</p>' +
+      '<div class="day-cards">' + weekHTML + '</div>' +
+
+      '<p class="section-heading">Progression targets</p>' +
+      '<div class="plan-card">' + progHTML + '</div>' +
+
+      '<p class="section-heading">Bonus exercises</p>' +
+      '<div class="plan-card">' + bonusHTML + '</div>' +
+
+      '<p class="section-heading">Points system</p>' +
+      '<div class="plan-card">' + pointsHTML + '</div>';
+
     showScreen(screen);
     showNav('plan');
   }
