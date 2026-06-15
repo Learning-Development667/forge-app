@@ -478,8 +478,15 @@
   // and never block clicks.
   function addFire(btn) {
     if (!btn || btn.classList.contains('has-fire')) return;
-    btn.classList.add('has-fire', 'forge-laser');
-    staggerLaser(btn);
+    btn.classList.add('has-fire');
+    // Only large buttons get the laser border — its 3px border + glow overwhelms
+    // small buttons (e.g. Log, Post) and overrides their borderless look. Decided
+    // here when the button is measurable; startFire's resize() re-checks buttons
+    // that are still hidden (width 0) at creation time.
+    if (btn.clientWidth >= 120 && btn.clientHeight >= 48) {
+      btn.classList.add('forge-laser');
+      staggerLaser(btn);
+    }
     var label = document.createElement('span');
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
@@ -503,12 +510,19 @@
     var W = 0, H = 0;
 
     function resize() {
+      // Button fire only (the timer 'ring-fire' is laid out by its own CSS).
       // Small buttons (under 48px tall OR under 120px wide) get a slim 16px fire
-      // strip so the text/icon stays visible; standard buttons keep full height.
+      // strip and never the laser border; large ones keep full height + laser.
       var host = canvas.parentNode;
-      if (host && host.clientWidth && host.clientHeight) {
-        canvas.classList.toggle('btn-fire--slim',
-          host.clientHeight < 48 || host.clientWidth < 120);
+      if (canvas.classList.contains('btn-fire') && host && host.clientWidth && host.clientHeight) {
+        var small = host.clientHeight < 48 || host.clientWidth < 120;
+        canvas.classList.toggle('btn-fire--slim', small);
+        if (small) {
+          host.classList.remove('forge-laser');
+        } else if (!host.classList.contains('forge-laser')) {
+          host.classList.add('forge-laser'); // large button revealed after a hidden start
+          staggerLaser(host);
+        }
       }
       W = canvas.clientWidth || 0;
       H = canvas.clientHeight || 0;
@@ -536,7 +550,7 @@
     }
 
     function spawnFlame(p) {
-      p.x = W / 2 + rand(-40, 40); // base centre, 80px spread
+      p.x = Math.random() * W;     // spawn across the full button width
       p.y = H;
       p.vx = rand(-0.2, 0.2);
       p.vy = rand(-1.7, -0.9);     // rises
@@ -546,7 +560,7 @@
       return p;
     }
     function spawnSpark(p) {
-      p.x = W / 2 + rand(-30, 30);
+      p.x = Math.random() * W;     // spawn across the full button width
       p.y = H;
       p.vx = rand(-0.7, 0.7);
       p.vy = rand(-3.6, -2.2);     // high upward velocity
@@ -556,9 +570,12 @@
       return p;
     }
 
+    // Lazily initialised: created "dead" (life 0) and first spawned by the draw
+    // loop, by which point the ResizeObserver has set W to the real (visible)
+    // button width — so particles never spawn against a stale W=0.
     var i;
-    for (i = 0; i < 120; i++) flames.push(spawnFlame({}));
-    for (i = 0; i < 30; i++) sparks.push(spawnSpark({}));
+    for (i = 0; i < 120; i++) flames.push({ life: 0 });
+    for (i = 0; i < 30; i++) sparks.push({ life: 0 });
 
     // Colour by life stage.
     function flameColor(life) {
@@ -579,12 +596,14 @@
 
         for (var f = 0; f < flames.length; f++) {
           var p = flames[f];
+          // (Re)spawn dead / uninitialised particles first, so a lazy life:0
+          // particle is fully populated (against the current W) before any use.
+          if (p.life <= 0 || p.size < 0.6 || p.y < -10) spawnFlame(p);
           p.vx += noise(p.x, p.y) * 0.05; // noise-based turbulence drift
           p.x += p.vx;
           p.y += p.vy;
           p.life -= p.decay;
           p.size *= 0.985;                // size decays over lifetime
-          if (p.life <= 0 || p.size < 0.6 || p.y < -10) { spawnFlame(p); continue; }
           var rgb = flameColor(p.life);
           var a = Math.min(1, p.life) * 0.9;
           var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
@@ -598,11 +617,11 @@
 
         for (var s = 0; s < sparks.length; s++) {
           var q = sparks[s];
+          if (q.life <= 0 || q.y > H + 6) spawnSpark(q);
           q.vy += 0.05;                   // gravity pulls sparks back down
           q.x += q.vx;
           q.y += q.vy;
           q.life -= q.decay;
-          if (q.life <= 0 || q.y > H + 6) { spawnSpark(q); continue; }
           // Fade orange to transparent over life.
           ctx.fillStyle = 'rgba(255,' + (130 + Math.round(70 * q.life)) + ',40,' + Math.min(1, q.life) + ')';
           ctx.beginPath();
