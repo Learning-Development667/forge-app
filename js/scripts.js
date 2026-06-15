@@ -2681,14 +2681,13 @@
     // iOS-specific logic — it always routes to the register screen.
     if (registerLink) registerLink.addEventListener('click', function () { openRegister(''); });
 
-    // iOS: the carousel is replaced by a typed-email flow. Relabel the button to
-    // "Get sign-in code" (before addFire wraps its text), show the email input,
-    // and wire the code-entry controls. The code section itself stays hidden
-    // until a magic link has been sent (maybeShowCodeInput / revealCodeInput).
-    // Non-iOS keeps the standard carousel + "Let's Forge" flow unchanged.
+    // iOS: keep the carousel (restored — it works the same as everywhere else),
+    // and add the typed-email flow beneath it. Relabel the button to "Get sign-in
+    // code" (before addFire wraps its text), show the email input, and wire the
+    // code-entry controls. The code section stays hidden until a magic link has
+    // been sent (maybeShowCodeInput / revealCodeInput).
     if (IS_IOS) {
       forgeBtn.textContent = 'Get sign-in code';
-      if (loginCarousel) loginCarousel.classList.add('hidden');
       if (loginEmailField) loginEmailField.classList.remove('hidden');
       // Prefill with the address from a pending/previous sign-in, if any.
       if (loginEmail) {
