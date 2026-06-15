@@ -2231,13 +2231,21 @@ button:focus { outline: none; }
   color: var(--dim);
 }
 
-/* Contain the fire glow on Log buttons so it doesn't bleed past the edges. */
-.btn-log.has-fire {
+/* Contain the fire glow on Log/Post buttons so it doesn't bleed past the edges. */
+.btn-log.has-fire,
+.board-post.has-fire {
   overflow: hidden;
 }
 
 .btn-log .btn-fire {
   height: 30px;
+  bottom: 0;
+  opacity: 0.7;
+}
+
+/* Post is smaller than Log, so its strip stays at 16px. */
+.board-post .btn-fire {
+  height: 16px;
   bottom: 0;
   opacity: 0.7;
 }

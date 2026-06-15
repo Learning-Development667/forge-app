@@ -516,10 +516,11 @@
     if (!ctx) return;
     var dpr = window.devicePixelRatio || 1;
     var W = 0, H = 0;
-    // Log buttons use a short 30px strip — cap flame size so the radial glow
+    // Log and Post buttons use a short strip — cap flame size so the radial glow
     // stays within the canvas and doesn't bleed around the button edges.
     var isLog = !!(canvas.parentNode && canvas.parentNode.classList &&
-                   canvas.parentNode.classList.contains('btn-log'));
+                   (canvas.parentNode.classList.contains('btn-log') ||
+                    canvas.parentNode.classList.contains('board-post')));
 
     function resize() {
       // Button fire only (the timer 'ring-fire' is laid out by its own CSS).
