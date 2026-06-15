@@ -1440,28 +1440,40 @@
 
   function openFormGuide(displayName, exKey, onProceed, backFn) {
     var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
+    // Video area only for the 4 main exercises; bonus moves are text-only.
+    var isMain = !!EXERCISES[exKey];
     var video = FORM_VIDEOS[exKey];
     var screen = ensureScreen('form-screen');
-    screen.innerHTML =
-      '<header class="topbar">' +
-        '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<span class="topbar-version">FORM GUIDE</span>' +
-      '</header>' +
-      '<h1 class="log-title">' + esc(displayName) + '</h1>' +
+
+    var mediaHTML = !isMain ? '' :
       (video
         ? '<video class="form-video-el" src="' + video + '" autoplay loop muted playsinline></video>'
         : '<div class="form-video">' +
             '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
               '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
             '<span class="form-video-label">Video coming soon</span>' +
-          '</div>') +
+          '</div>');
+
+    var pointsHTML =
       '<p class="section-heading">Key points</p>' +
       '<ul class="form-points">' + guide.points.map(function (p) {
         return '<li>' + esc(p) + '</li>';
       }).join('') + '</ul>' +
       (guide.mistakes
         ? '<p class="form-mistakes"><strong>Common mistakes:</strong> ' + esc(guide.mistakes) + '</p>'
-        : '') +
+        : '');
+
+    // Bonus guides wrap the text in a styled card (no video area).
+    var contentHTML = isMain ? pointsHTML : '<div class="form-card">' + pointsHTML + '</div>';
+
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">FORM GUIDE</span>' +
+      '</header>' +
+      '<h1 class="log-title">' + esc(displayName) + '</h1>' +
+      mediaHTML +
+      contentHTML +
       '<button type="button" class="btn-forge form-ok">I understand good form</button>' +
       '<button type="button" class="btn-link form-skip">Skip for now</button>';
 

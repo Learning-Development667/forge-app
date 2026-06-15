@@ -1845,6 +1845,22 @@ button:focus { outline: none; }
   opacity: 0.7;
 }
 
+/* Bonus form guide: clean text-only card (no video). */
+.form-card {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--orange);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-card .section-heading { margin-top: 0; }
+.form-card .form-points { padding-left: 22px; }
+
 .form-points {
   width: 100%;
   margin: 0;
