@@ -1839,6 +1839,16 @@ button:focus { outline: none; }
   background: #141414;
 }
 
+/* Full-width demonstration image (e.g. the two plank variants). */
+.form-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: #141414;
+}
+
 .form-video-label {
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;

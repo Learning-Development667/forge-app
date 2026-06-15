@@ -76,8 +76,30 @@
 
   // Real form videos keyed by exercise (others fall back to the placeholder).
   var FORM_VIDEOS = {
-    pressups: 'images/form-pressup.mp4'
+    pressups: 'images/form-pressup.mp4',
+    situps: 'images/form-situp.mp4'
   };
+
+  // Plank form guide shows both variants — each image full width with its own
+  // coaching points beneath (not preference-gated like the rest of the guides).
+  var PLANK_GUIDE = [
+    { title: 'Standard Plank', image: 'images/form-plankdown.png', points: [
+      'Keep your body in a straight line from head to heels',
+      'Hips level — do not let them sag or rise',
+      'Arms straight, hands directly below shoulders',
+      'Core and glutes engaged throughout',
+      'Head neutral, gaze toward the floor',
+      'Breathe steadily — do not hold your breath'
+    ] },
+    { title: 'Reverse Plank', image: 'images/form-plankreverse.png', points: [
+      'Hands behind hips, fingers pointing toward your feet',
+      'Push through your heels and hands to lift your hips',
+      'Keep your body in a straight line from shoulders to heels',
+      'Squeeze your glutes and core to hold the position',
+      'Head neutral or gently tilted back',
+      'Breathe steadily throughout the hold'
+    ] }
+  ];
 
   // Form guides keyed by exercise (plank has forward/reverse variants; bonus
   // moves keyed by their display name).
@@ -107,12 +129,12 @@
       'Hold steady, keep breathing'
     ], mistakes: 'hips sagging, elbows bending, looking straight up straining the neck' },
     situps: { points: [
-      'Lie on your back with knees bent and feet flat on the floor',
-      'Place hands behind your head or crossed on your chest',
-      'Engage your core and lift your upper body toward your knees',
-      'Lower back down with control — do not crash down',
-      'Keep feet flat throughout',
-      'Breathe out on the way up, in on the way down'
+      'Keep your feet flat on the floor throughout the movement',
+      'Knees bent at 90 degrees',
+      'Arms crossed flat against your chest, hands on opposite shoulders',
+      'Engage your core to lift your upper body toward your knees',
+      'Lower back down with control — do not drop',
+      'Breathe out on the way up, breathe in on the way down'
     ], mistakes: 'pulling on neck with hands, using momentum, not lowering fully' },
     lunges: { points: [
       'Stand tall with feet hip width apart',
@@ -1655,32 +1677,46 @@
   }
 
   function openFormGuide(displayName, exKey, onProceed, backFn) {
-    var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
-    // Video area only for the 4 main exercises; bonus moves are text-only.
-    var isMain = !!EXERCISES[exKey];
-    var video = FORM_VIDEOS[exKey];
     var screen = ensureScreen('form-screen');
+    var mediaHTML = '';
+    var contentHTML;
 
-    var mediaHTML = !isMain ? '' :
-      (video
-        ? '<video class="form-video-el" src="' + video + '" autoplay loop muted playsinline></video>'
-        : '<div class="form-video">' +
-            '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
-              '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
-            '<span class="form-video-label">Video coming soon</span>' +
-          '</div>');
+    if (exKey === 'plank') {
+      // Plank shows both variants: each image full width with points beneath it.
+      contentHTML = PLANK_GUIDE.map(function (sec) {
+        return '<p class="section-heading">' + esc(sec.title) + '</p>' +
+          '<img class="form-image" src="' + sec.image + '" alt="' + esc(sec.title) + ' demonstration" />' +
+          '<ul class="form-points">' + sec.points.map(function (p) {
+            return '<li>' + esc(p) + '</li>';
+          }).join('') + '</ul>';
+      }).join('');
+    } else {
+      var guide = FORM_GUIDES[guideKeyFor(exKey)] || { points: [], mistakes: '' };
+      // Video area only for the 4 main exercises; bonus moves are text-only.
+      var isMain = !!EXERCISES[exKey];
+      var video = FORM_VIDEOS[exKey];
 
-    var pointsHTML =
-      '<p class="section-heading">Key points</p>' +
-      '<ul class="form-points">' + guide.points.map(function (p) {
-        return '<li>' + esc(p) + '</li>';
-      }).join('') + '</ul>' +
-      (guide.mistakes
-        ? '<p class="form-mistakes"><strong>Common mistakes:</strong> ' + esc(guide.mistakes) + '</p>'
-        : '');
+      mediaHTML = !isMain ? '' :
+        (video
+          ? '<video class="form-video-el" src="' + video + '" autoplay loop muted playsinline></video>'
+          : '<div class="form-video">' +
+              '<svg class="form-play" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3">' +
+                '<circle cx="32" cy="32" r="26"/><path d="M27 23l16 9-16 9z" fill="currentColor" stroke="none"/></svg>' +
+              '<span class="form-video-label">Video coming soon</span>' +
+            '</div>');
 
-    // Bonus guides wrap the text in a styled card (no video area).
-    var contentHTML = isMain ? pointsHTML : '<div class="form-card">' + pointsHTML + '</div>';
+      var pointsHTML =
+        '<p class="section-heading">Key points</p>' +
+        '<ul class="form-points">' + guide.points.map(function (p) {
+          return '<li>' + esc(p) + '</li>';
+        }).join('') + '</ul>' +
+        (guide.mistakes
+          ? '<p class="form-mistakes"><strong>Common mistakes:</strong> ' + esc(guide.mistakes) + '</p>'
+          : '');
+
+      // Bonus guides wrap the text in a styled card (no video area).
+      contentHTML = isMain ? pointsHTML : '<div class="form-card">' + pointsHTML + '</div>';
+    }
 
     screen.innerHTML =
       '<header class="topbar">' +
