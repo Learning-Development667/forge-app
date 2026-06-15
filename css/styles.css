@@ -2230,3 +2230,14 @@ button:focus { outline: none; }
   font-size: 14px;
   color: var(--dim);
 }
+
+/* Contain the fire glow on Log buttons so it doesn't bleed past the edges. */
+.btn-log.has-fire {
+  overflow: hidden;
+}
+
+.btn-log .btn-fire {
+  height: 30px;
+  bottom: 0;
+  opacity: 0.7;
+}
