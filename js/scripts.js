@@ -519,15 +519,20 @@
 
     function resize() {
       // Button fire only (the timer 'ring-fire' is laid out by its own CSS).
-      // Small buttons (under 48px tall OR under 120px wide) get a slim 16px fire
-      // strip and never the laser border; large ones keep full height + laser.
+      // Small buttons (under 48px tall OR under 120px wide) get a slim fire strip
+      // and never the laser border; large ones keep full height + laser.
       var host = canvas.parentNode;
       if (canvas.classList.contains('btn-fire') && host) {
         var exempt = laserExempt(host);
         if (exempt) host.classList.remove('forge-laser'); // never on Log/Post, even while hidden
         if (host.clientWidth && host.clientHeight) {
           var small = host.clientHeight < 48 || host.clientWidth < 120;
-          canvas.classList.toggle('btn-fire--slim', small);
+          // Slim strip height by button: btn-log is taller so it gets 30px to
+          // fill its base; board-post and all other small buttons get 16px.
+          canvas.classList.remove('btn-fire--slim', 'btn-fire--slim-log');
+          if (small) {
+            canvas.classList.add(host.classList.contains('btn-log') ? 'btn-fire--slim-log' : 'btn-fire--slim');
+          }
           if (small || exempt) {
             host.classList.remove('forge-laser');
           } else if (!host.classList.contains('forge-laser')) {

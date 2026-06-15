@@ -1561,9 +1561,14 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 
 /* Slim fire strip for small buttons (Post, exercise-card Log buttons) so the
    flames don't swallow the label/icon — applied by startFire when the button is
-   under 48px tall or under 120px wide. */
+   under 48px tall or under 120px wide. board-post + others use 16px; the taller
+   Log buttons use 30px to fill their base. */
 .btn-fire--slim {
   height: 16px;
+}
+
+.btn-fire--slim-log {
+  height: 30px;
 }
 
 .btn-label {
