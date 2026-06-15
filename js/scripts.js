@@ -794,7 +794,10 @@
     inner.appendChild(label);
 
     card.appendChild(inner);
-    card.addEventListener('click', function () { setIndex(index); });
+    card.addEventListener('click', function () {
+      setIndex(index);
+      fillEmailFromSelected(); // iOS: auto-fill the email input from the tapped user
+    });
     return card;
   }
 
@@ -853,6 +856,24 @@
 
   function isRegisterSelected() {
     return currentIndex === TEAM.length;
+  }
+
+  // iOS only: when a carousel avatar is tapped, look up that user's email in the
+  // users collection (by name) and auto-fill the email input so they can tap
+  // "Get sign-in code" without typing. No-op on Android/desktop and on the
+  // Register card. Failures (e.g. user not found) leave the field untouched.
+  function fillEmailFromSelected() {
+    if (!IS_IOS || !loginEmail) return;
+    if (isRegisterSelected()) return;
+    var name = TEAM[currentIndex];
+    if (!name) return;
+    db.collection('users').where('name', '==', name).limit(1).get()
+      .then(function (snap) {
+        if (snap.empty) return;
+        var email = (snap.docs[0].data() || {}).email;
+        if (email) loginEmail.value = email;
+      })
+      .catch(function (err) { console.warn('Email auto-fill lookup failed:', err); });
   }
 
   function onCarouselKey(e) {
