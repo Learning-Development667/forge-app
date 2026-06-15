@@ -2131,6 +2131,15 @@ button:focus { outline: none; }
   width: 100%;
 }
 
+/* "Code sent" confirmation shown below the button after a successful send. */
+.ios-sent-note {
+  width: 100%;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--cream);
+  text-align: center;
+}
+
 /* Code entry on the login screen. Hidden by default on every platform; only
    shown when init adds .code-signin--ios — and on iOS only after a magic link
    has been sent (a sign-in is pending). */

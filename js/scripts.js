@@ -330,6 +330,7 @@
   var loginEmailField = document.getElementById('login-email-field');
   var loginEmail = document.getElementById('login-email');
   var registerLink = document.getElementById('register-link');
+  var iosSentNote = document.getElementById('ios-sent-note');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
@@ -796,7 +797,7 @@
     card.appendChild(inner);
     card.addEventListener('click', function () {
       setIndex(index);
-      fillEmailFromSelected(); // iOS: auto-fill the email input from the tapped user
+      focusEmailOnTap(); // iOS: focus + clear the email input for typing
     });
     return card;
   }
@@ -858,22 +859,14 @@
     return currentIndex === TEAM.length;
   }
 
-  // iOS only: when a carousel avatar is tapped, look up that user's email in the
-  // users collection (by name) and auto-fill the email input so they can tap
-  // "Get sign-in code" without typing. No-op on Android/desktop and on the
-  // Register card. Failures (e.g. user not found) leave the field untouched.
-  function fillEmailFromSelected() {
+  // iOS only: tapping a carousel avatar focuses the email input and clears any
+  // existing value so the user can type their address. No Firestore query runs
+  // pre-authentication. No-op on Android/desktop and on the Register card.
+  function focusEmailOnTap() {
     if (!IS_IOS || !loginEmail) return;
     if (isRegisterSelected()) return;
-    var name = TEAM[currentIndex];
-    if (!name) return;
-    db.collection('users').where('name', '==', name).limit(1).get()
-      .then(function (snap) {
-        if (snap.empty) return;
-        var email = (snap.docs[0].data() || {}).email;
-        if (email) loginEmail.value = email;
-      })
-      .catch(function (err) { console.warn('Email auto-fill lookup failed:', err); });
+    loginEmail.value = '';
+    loginEmail.focus();
   }
 
   function onCarouselKey(e) {
@@ -941,10 +934,10 @@
     setMessage(loginMessage, '');
     loginJunk.classList.add('hidden');
 
-    // iOS: the carousel is replaced by a typed-email flow. Send the magic link to
-    // the entered address, then reveal the code-entry section so the user can
-    // finish in the PWA after copying the code from Safari.
+    // iOS: send the magic link to the typed email, then reveal the code-entry
+    // section so the user can finish in the PWA after copying the code.
     if (IS_IOS) {
+      if (iosSentNote) iosSentNote.classList.add('hidden'); // a new request hides the prior note
       var iosEmail = (loginEmail.value || '').trim().toLowerCase();
       if (!iosEmail) {
         setMessage(loginMessage, 'Enter your email address.', true);
@@ -953,9 +946,7 @@
       forgeBtn.disabled = true;
       sendMagicLink(iosEmail, 'ios-get-code')
         .then(function () {
-          setMessage(loginMessage,
-            'Sign-in email sent to ' + iosEmail + '. Open it, copy the code, then enter it below.');
-          loginJunk.classList.remove('hidden');
+          if (iosSentNote) iosSentNote.classList.remove('hidden');
           revealCodeInput();
           forgeBtn.disabled = false;
         })
