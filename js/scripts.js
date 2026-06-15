@@ -22,6 +22,10 @@
   // Canonical app URL the magic link must return to so sign-in completes inside
   // the Forge app (and, on iOS, the installed PWA) rather than an external browser.
   var APP_URL = 'https://learning-development667.github.io/forge-app/';
+  // iOS can't share the Safari sign-in session with the sandboxed PWA, so iOS
+  // users get a copy-code flow instead of the standard magic-link completion.
+  var IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var CODE_TTL_MS = 10 * 60 * 1000; // sign-in codes expire after 10 minutes
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
@@ -324,6 +328,12 @@
   var installBtn = document.getElementById('install-btn');
   var loginMessage = document.getElementById('login-message');
   var loginJunk = document.getElementById('login-junk');
+
+  // iOS-only copy-code sign-in controls (revealed by init on iOS).
+  var codeSignin = document.getElementById('code-signin');
+  var codeInput = document.getElementById('code-input');
+  var codeSigninBtn = document.getElementById('code-signin-btn');
+  var codeSigninMessage = document.getElementById('code-signin-message');
 
   var confirmScreen = document.getElementById('confirm-screen');
   var confirmEmail = document.getElementById('confirm-email');
@@ -1001,6 +1011,12 @@
   function completeSignInIfPresent() {
     if (!auth.isSignInWithEmailLink(window.location.href)) return;
     completingSignIn = true; // keep the login carousel hidden while we finish
+    // iOS: the link opens in Safari, which can't hand its session to the PWA.
+    // Instead of completing here, mint a short code the user copies into the app.
+    if (IS_IOS) {
+      showSignInCode();
+      return;
+    }
     var email = window.localStorage.getItem(EMAIL_STORAGE_KEY);
     if (email) {
       finishSignIn(email);
@@ -1008,6 +1024,114 @@
       // No stored email (e.g. opened on another device): ask in-app, no prompt().
       showEmailConfirm('');
     }
+  }
+
+  // ---- iOS copy-code flow ------------------------------------------
+  // 6 unambiguous alphanumerics (no 0/O/1/I) so the code is easy to read & type.
+  function generateSignInCode() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var out = '';
+    for (var i = 0; i < 6; i++) {
+      out += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return out;
+  }
+
+  function copyCode(text, btn) {
+    var done = function () {
+      if (!btn) return;
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = 'Copy code'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {});
+      return;
+    }
+    // Fallback for older Safari.
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // Safari (iOS): show a branded full-screen page with a copyable code. The code,
+  // the requester's email, and the original link are stored in Firestore so the
+  // PWA can complete sign-in with signInWithEmailLink.
+  function showSignInCode() {
+    var screen = ensureScreen('code-screen');
+    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+    var link = window.location.href;
+
+    if (!email) {
+      screen.innerHTML =
+        '<div class="code-page">' +
+          '<h1 class="brand-name">FORGE</h1>' +
+          '<p class="code-instructions">Please request a new sign-in code from the ' +
+          'same device, then open the Forge app to enter it.</p>' +
+        '</div>';
+      showScreen(screen);
+      return;
+    }
+
+    var code = generateSignInCode();
+    screen.innerHTML =
+      '<div class="code-page">' +
+        '<h1 class="brand-name">FORGE</h1>' +
+        '<p class="code-instructions">Open the Forge app and enter this code to sign in.</p>' +
+        '<div class="code-value" id="code-value">' + esc(code) + '</div>' +
+        '<button class="btn-outline code-copy" id="code-copy" type="button">Copy code</button>' +
+        '<p class="code-note">This code expires in 10 minutes.</p>' +
+      '</div>';
+    showScreen(screen);
+
+    db.collection('signInCodes').add({
+      code: code,
+      email: email,
+      link: link,
+      used: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function (err) { console.error('Failed to store sign-in code:', err); });
+
+    var copyBtn = document.getElementById('code-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () { copyCode(code, copyBtn); });
+    }
+  }
+
+  function onCodeSignIn() {
+    var code = (codeInput.value || '').trim().toUpperCase();
+    setMessage(codeSigninMessage, '');
+    if (code.length !== 6) {
+      setMessage(codeSigninMessage, 'Enter the 6-character code.', true);
+      return;
+    }
+    codeSigninBtn.disabled = true;
+    db.collection('signInCodes').where('code', '==', code).limit(1).get()
+      .then(function (snap) {
+        if (snap.empty) { throw new Error('That code is not valid.'); }
+        var doc = snap.docs[0];
+        var data = doc.data() || {};
+        if (data.used) { throw new Error('That code has already been used.'); }
+        var created = data.createdAt && data.createdAt.toDate
+          ? data.createdAt.toDate().getTime() : 0;
+        if (!created || (Date.now() - created) > CODE_TTL_MS) {
+          throw new Error('That code has expired. Request a new one.');
+        }
+        completingSignIn = true;
+        return auth.signInWithEmailLink(data.email, data.link)
+          .then(function () { return doc.ref.update({ used: true }); })
+          .then(function () { window.localStorage.removeItem(EMAIL_STORAGE_KEY); });
+        // onAuthStateChanged routes on to the dashboard.
+      })
+      .catch(function (err) {
+        completingSignIn = false;
+        codeSigninBtn.disabled = false;
+        setMessage(codeSigninMessage, friendlyError(err), true);
+      });
   }
 
   function showEmailConfirm(errorText) {
@@ -2495,6 +2619,19 @@
     }
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
+
+    // iOS: relabel the magic-link button and reveal the copy-code sign-in. Set
+    // the label before addFire wraps the button text in its .btn-label span.
+    if (IS_IOS) {
+      forgeBtn.textContent = 'Get sign-in code';
+      if (codeSignin) codeSignin.classList.remove('hidden');
+      if (codeSigninBtn) codeSigninBtn.addEventListener('click', onCodeSignIn);
+      if (codeInput) {
+        codeInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); onCodeSignIn(); }
+        });
+      }
+    }
 
     addFire(forgeBtn);
     addFire(installBtn);

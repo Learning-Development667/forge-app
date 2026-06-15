@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.50</p>
+      <p class="brand-version">v0.2.51</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -41,6 +41,15 @@
 
     <!-- Always-visible install instructions button (secondary to Let's Forge) -->
     <button id="install-btn" class="btn-outline" type="button">Install App</button>
+
+    <!-- iOS-only: enter a sign-in code copied from Safari (shown by scripts.js) -->
+    <div id="code-signin" class="code-signin hidden">
+      <input id="code-input" class="code-input" type="text" inputmode="text"
+             autocapitalize="characters" autocomplete="one-time-code" maxlength="6"
+             placeholder="Enter code" aria-label="Sign-in code" />
+      <button id="code-signin-btn" class="btn-outline" type="button">Sign in with code</button>
+      <p id="code-signin-message" class="message" role="status" aria-live="polite"></p>
+    </div>
 
     <!-- Developer-only shortcuts; shown by scripts.js when DEV_MODE is true -->
     <button id="dev-login-btn" class="dev-login hidden" type="button">Dev Login</button>
