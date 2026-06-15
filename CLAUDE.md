@@ -13,6 +13,9 @@ Never delete or overwrite files in the images/ folder.
 Never delete or overwrite js/config.js.
 If an image file is referenced in code, assume it already exists in the repo.
 
+## Handover briefs
+At the end of every build session, delete any handover brief file you have generated in the repo before committing. Do not leave handover brief files in the repository.
+
 ## Deployment
 This app is hosted on GitHub Pages from the main branch.
 After committing, wait 60-90 seconds for deployment.
