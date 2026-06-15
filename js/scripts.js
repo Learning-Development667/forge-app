@@ -18,7 +18,10 @@
   // ---- Constants ----------------------------------------------------
   var INVITE_CODE = 'FORGE2026';
   var MAX_USERS = 10;
-  var EMAIL_STORAGE_KEY = 'forge:pendingEmail';
+  var EMAIL_STORAGE_KEY = 'forgeEmailForSignIn';
+  // Canonical app URL the magic link must return to so sign-in completes inside
+  // the Forge app (and, on iOS, the installed PWA) rather than an external browser.
+  var APP_URL = 'https://learning-development667.github.io/forge-app/';
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
@@ -301,7 +304,11 @@
   });
 
   var actionCodeSettings = {
-    url: window.location.origin + '/forge-app/',
+    // `url` is the field Firebase actually honours; `emailRedirectTo` mirrors it
+    // for clarity. Both point at the app URL so the link returns to Forge (and
+    // the installed PWA on iOS) instead of completing in an external browser.
+    url: APP_URL,
+    emailRedirectTo: APP_URL,
     handleCodeInApp: true
   };
 
