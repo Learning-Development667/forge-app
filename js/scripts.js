@@ -447,9 +447,6 @@
     });
   }
 
-  // Wrap a button's text in a label span, add a rotating laser border, and a
-  // looping Lottie fire layer at the bottom. The flames sit behind the text and
-  // never block clicks.
   // Give a forge-laser element a random start point so they don't sweep in sync.
   function staggerLaser(el) {
     if (el && !el.style.getPropertyValue('--laser-delay')) {
@@ -457,6 +454,9 @@
     }
   }
 
+  // Wrap a button's text in a label span, add the rotating laser border, and a
+  // canvas particle-fire layer along the bottom. The flames sit behind the text
+  // and never block clicks.
   function addFire(btn) {
     if (!btn || btn.classList.contains('has-fire')) return;
     btn.classList.add('has-fire', 'forge-laser');
@@ -465,32 +465,123 @@
     label.className = 'btn-label';
     while (btn.firstChild) label.appendChild(btn.firstChild);
     btn.appendChild(label);
-    // Tile fixed-size fire instances across the button width (no stretching).
-    var fire = document.createElement('div');
-    fire.className = 'btn-fire';
-    btn.appendChild(fire);
-    tileFire(fire, btn);
-    if (window.ResizeObserver) {
-      new ResizeObserver(function () { tileFire(fire, btn); }).observe(btn);
-    }
+    var canvas = document.createElement('canvas');
+    canvas.className = 'btn-fire';
+    if (btn.id === 'forge-btn') canvas.id = 'forge-fire'; // primary hero fire
+    btn.appendChild(canvas);
+    startFire(canvas);
   }
 
-  // Fill the button width with 80x60 fire tiles; re-tile when the width changes
-  // (e.g. when a hidden screen becomes visible).
-  function tileFire(container, btn) {
-    var count = Math.max(1, Math.ceil((btn.clientWidth || 0) / 60));
-    if (Number(container.dataset.count) === count) return;
-    container.dataset.count = count;
-    container.innerHTML = '';
-    for (var i = 0; i < count; i++) {
-      var p = document.createElement('lottie-player');
-      p.className = 'fire-tile';
-      p.setAttribute('src', 'images/fire.json');
-      p.setAttribute('autoplay', '');
-      p.setAttribute('loop', '');
-      p.setAttribute('preserveAspectRatio', 'xMidYMid slice'); // fill each tile, no gaps
-      container.appendChild(p);
+  // Canvas particle fire: 120 flame + 30 spark particles, additive ('lighter')
+  // blending, radial-gradient glow on each flame, sin-based value-noise
+  // turbulence. The canvas is transparent (clearRect only — never filled) so it
+  // sits over the background image. Runs ~60fps via requestAnimationFrame, and
+  // stops itself when the canvas is removed from the DOM (screen re-render).
+  function startFire(canvas) {
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var W = 0, H = 0;
+
+    function resize() {
+      W = canvas.clientWidth || 0;
+      H = canvas.clientHeight || 0;
+      canvas.width = Math.max(1, Math.round(W * dpr));
+      canvas.height = Math.max(1, Math.round(H * dpr));
     }
+    resize();
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+
+    var flames = [];
+    var sparks = [];
+    var t = 0; // noise time offset, increments 0.018 per frame
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    // Value noise from a sin-based hash, sampled at x*0.012, y*0.012 (+ time).
+    function noise(x, y) {
+      return Math.sin(x * 0.012 + t) * Math.cos(y * 0.012 - t * 0.7);
+    }
+
+    function spawnFlame(p) {
+      p.x = W / 2 + rand(-40, 40); // base centre, 80px spread
+      p.y = H;
+      p.vx = rand(-0.2, 0.2);
+      p.vy = rand(-1.7, -0.9);     // rises
+      p.size = rand(8, 18);
+      p.life = 1;
+      p.decay = rand(0.006, 0.018);
+      return p;
+    }
+    function spawnSpark(p) {
+      p.x = W / 2 + rand(-30, 30);
+      p.y = H;
+      p.vx = rand(-0.7, 0.7);
+      p.vy = rand(-3.6, -2.2);     // high upward velocity
+      p.size = rand(1, 2.4);
+      p.life = 1;
+      p.decay = rand(0.012, 0.026);
+      return p;
+    }
+
+    var i;
+    for (i = 0; i < 120; i++) flames.push(spawnFlame({}));
+    for (i = 0; i < 30; i++) sparks.push(spawnSpark({}));
+
+    // Colour by life stage.
+    function flameColor(life) {
+      if (life > 0.7) return '255,244,200';  // near-white / yellow core
+      if (life > 0.4) return '255,150,40';   // orange mid
+      if (life > 0.15) return '200,45,20';   // deep red ember
+      return '45,35,35';                     // dark smoke
+    }
+
+    function frame() {
+      if (!canvas.isConnected) return; // detached on screen re-render → stop loop
+      t += 0.018;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (W > 0 && H > 0) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.globalCompositeOperation = 'lighter';
+
+        for (var f = 0; f < flames.length; f++) {
+          var p = flames[f];
+          p.vx += noise(p.x, p.y) * 0.05; // noise-based turbulence drift
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= p.decay;
+          p.size *= 0.985;                // size decays over lifetime
+          if (p.life <= 0 || p.size < 0.6 || p.y < -10) { spawnFlame(p); continue; }
+          var rgb = flameColor(p.life);
+          var a = Math.min(1, p.life) * 0.9;
+          var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+          g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')');
+          g.addColorStop(1, 'rgba(' + rgb + ',0)'); // soft glow edge
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        for (var s = 0; s < sparks.length; s++) {
+          var q = sparks[s];
+          q.vy += 0.05;                   // gravity pulls sparks back down
+          q.x += q.vx;
+          q.y += q.vy;
+          q.life -= q.decay;
+          if (q.life <= 0 || q.y > H + 6) { spawnSpark(q); continue; }
+          // Fade orange to transparent over life.
+          ctx.fillStyle = 'rgba(255,' + (130 + Math.round(70 * q.life)) + ',40,' + Math.min(1, q.life) + ')';
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, q.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
   }
 
   // ===================================================================
@@ -1790,13 +1881,11 @@
       var ringWrap = screen.querySelector('.ring-wrap');
       var startBtn = screen.querySelector('.timer-start');
 
-      // Fire along the bottom of the timer container.
-      var timerFire = document.createElement('lottie-player');
+      // Fire along the bottom of the timer container (canvas particle fire).
+      var timerFire = document.createElement('canvas');
       timerFire.className = 'ring-fire';
-      timerFire.setAttribute('src', 'images/fire.json');
-      timerFire.setAttribute('autoplay', '');
-      timerFire.setAttribute('loop', '');
       ringWrap.appendChild(timerFire);
+      startFire(timerFire);
 
       addFire(startBtn); // laser border + fire on the START button
       startBtn.addEventListener('click', function () {
