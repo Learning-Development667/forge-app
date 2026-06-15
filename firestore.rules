@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Forge — Firestore security rules.
+// NOTE: GitHub Pages does not deploy this file. Paste it into the Firebase
+// console (project forge-bc1d3 → Firestore Database → Rules) or deploy with the
+// Firebase CLI. This file is the version-controlled source of truth.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Passwordless iOS sign-in codes (UNCHANGED — do not modify) ----
+    // The 6-char code is the document ID, so every lookup is a get-by-id;
+    // listing/enumeration is never allowed.
+    match /signInCodes/{code} {
+      allow create: if request.resource.data.keys().hasAll(
+                         ['code', 'email', 'link', 'createdAt', 'used'])
+                     && request.resource.data.used == false;
+      allow get:  if true;
+      allow list: if false;
+      allow update: if resource != null
+                     && request.resource.data.used == true
+                     && request.resource.data.code  == resource.data.code
+                     && request.resource.data.email == resource.data.email
+                     && request.resource.data.link  == resource.data.link;
+      allow delete: if false;
+    }
+
+    // ---- App data: any authenticated user may read; writes require auth ----
+    // The app reads these on login: the users collection (loadUsers / the
+    // email lookup in ensureUserDoc), each user's logs subcollection (loadLogs),
+    // and — on the board — a collection-group query over logs plus the messages
+    // and activities feeds. Allowing authenticated reads fixes the
+    // "Failed to enter app: Missing or insufficient permissions" errors.
+
+    match /users/{userId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null;
+
+      match /logs/{logId} {
+        allow read:  if request.auth != null;
+        allow write: if request.auth != null;
+      }
+    }
+
+    // Collection-group query over every user's logs (squad progress + stats).
+    match /{path=**}/logs/{logId} {
+      allow read: if request.auth != null;
+    }
+
+    // Shared board collections.
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    match /activities/{activityId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1808,7 +1808,9 @@
     var infoBtn = isRest ? '' :
       '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">i</button>';
 
-    return '<div class="card' + (isRest ? ' card-rest' : ' forge-laser') + (logged ? ' card-done' : '') + '">' +
+    // Cards no longer carry the laser border — it visually wraps the small Log
+    // button inside. The laser is reserved for full-width standalone buttons.
+    return '<div class="card' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
              '<div class="card-info">' +
                '<div class="card-name-row">' +
                  '<h3 class="card-name">' + ex.name + '</h3>' + infoBtn +
@@ -1823,7 +1825,7 @@
   }
 
   function wireDashboard() {
-    // Random start point for every laser element (cards, warm/cool, buttons).
+    // Random start point for the laser elements (Warm Up / Cool Down buttons).
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('.forge-laser'), staggerLaser);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
