@@ -2125,9 +2125,15 @@ button:focus { outline: none; }
   color: var(--orange);
 }
 
-/* ---------- iOS copy-code sign-in ---------- */
+/* ---------- iOS email + copy-code sign-in ---------- */
+/* Email input shown on the iOS login screen (in place of the carousel). */
+.login-email-field {
+  width: 100%;
+}
+
 /* Code entry on the login screen. Hidden by default on every platform; only
-   shown when init adds .code-signin--ios (i.e. when IS_IOS is true). */
+   shown when init adds .code-signin--ios — and on iOS only after a magic link
+   has been sent (a sign-in is pending). */
 .code-signin {
   width: 100%;
   display: none;

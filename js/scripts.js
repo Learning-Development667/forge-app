@@ -326,6 +326,10 @@
   var dashboardScreen = document.getElementById('dashboard-screen');
 
   var carousel = document.getElementById('carousel');
+  var loginCarousel = document.getElementById('login-carousel');
+  var loginEmailField = document.getElementById('login-email-field');
+  var loginEmail = document.getElementById('login-email');
+  var registerLink = document.getElementById('register-link');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
@@ -915,6 +919,32 @@
   function onForge() {
     setMessage(loginMessage, '');
     loginJunk.classList.add('hidden');
+
+    // iOS: the carousel is replaced by a typed-email flow. Send the magic link to
+    // the entered address, then reveal the code-entry section so the user can
+    // finish in the PWA after copying the code from Safari.
+    if (IS_IOS) {
+      var iosEmail = (loginEmail.value || '').trim().toLowerCase();
+      if (!iosEmail) {
+        setMessage(loginMessage, 'Enter your email address.', true);
+        return;
+      }
+      forgeBtn.disabled = true;
+      sendMagicLink(iosEmail, 'ios-get-code')
+        .then(function () {
+          setMessage(loginMessage,
+            'Sign-in email sent to ' + iosEmail + '. Open it, copy the code, then enter it below.');
+          loginJunk.classList.remove('hidden');
+          revealCodeInput();
+          forgeBtn.disabled = false;
+        })
+        .catch(function (err) {
+          setMessage(loginMessage, friendlyError(err), true);
+          forgeBtn.disabled = false;
+        });
+      return;
+    }
+
     if (isRegisterSelected()) {
       openRegister('');
       return;
@@ -1057,6 +1087,24 @@
     ta.select();
     try { document.execCommand('copy'); done(); } catch (e) {}
     document.body.removeChild(ta);
+  }
+
+  // Reveal the iOS code-entry section. Called after a magic link is sent so the
+  // user can paste the code once they return from Safari.
+  function revealCodeInput() {
+    if (codeSignin) codeSignin.classList.add('code-signin--ios');
+  }
+
+  // On iOS, show the code-entry section only when a sign-in is already pending
+  // (a link was sent — the email is still stored and not yet consumed). On the
+  // initial login view, with nothing pending, it stays hidden.
+  function maybeShowCodeInput() {
+    if (!IS_IOS || !codeSignin) return;
+    if (window.localStorage.getItem(EMAIL_STORAGE_KEY)) {
+      codeSignin.classList.add('code-signin--ios');
+    } else {
+      codeSignin.classList.remove('code-signin--ios');
+    }
   }
 
   // Safari (iOS): show a branded full-screen page with a copyable code. The code,
@@ -2629,19 +2677,34 @@
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
 
-    // iOS: relabel the magic-link button and reveal the copy-code sign-in. Set
-    // the label before addFire wraps the button text in its .btn-label span.
-    // Non-iOS keeps the standard carousel + "Let's Forge" (magic-link) flow and
-    // never sees the code UI (it stays display:none).
+    // "Create account" is available on every device and is never hidden by any
+    // iOS-specific logic — it always routes to the register screen.
+    if (registerLink) registerLink.addEventListener('click', function () { openRegister(''); });
+
+    // iOS: the carousel is replaced by a typed-email flow. Relabel the button to
+    // "Get sign-in code" (before addFire wraps its text), show the email input,
+    // and wire the code-entry controls. The code section itself stays hidden
+    // until a magic link has been sent (maybeShowCodeInput / revealCodeInput).
+    // Non-iOS keeps the standard carousel + "Let's Forge" flow unchanged.
     if (IS_IOS) {
       forgeBtn.textContent = 'Get sign-in code';
-      if (codeSignin) codeSignin.classList.add('code-signin--ios');
+      if (loginCarousel) loginCarousel.classList.add('hidden');
+      if (loginEmailField) loginEmailField.classList.remove('hidden');
+      // Prefill with the address from a pending/previous sign-in, if any.
+      if (loginEmail) {
+        var storedEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+        if (storedEmail) loginEmail.value = storedEmail;
+        loginEmail.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); onForge(); }
+        });
+      }
       if (codeSigninBtn) codeSigninBtn.addEventListener('click', onCodeSignIn);
       if (codeInput) {
         codeInput.addEventListener('keydown', function (e) {
           if (e.key === 'Enter') { e.preventDefault(); onCodeSignIn(); }
         });
       }
+      maybeShowCodeInput();
     }
 
     addFire(forgeBtn);
@@ -2662,7 +2725,10 @@
     });
 
     registerForm.addEventListener('submit', onRegisterSubmit);
-    registerBack.addEventListener('click', function () { showScreen(loginScreen); });
+    registerBack.addEventListener('click', function () {
+      showScreen(loginScreen);
+      maybeShowCodeInput(); // reflect a pending sign-in when returning to login (iOS)
+    });
     confirmBtn.addEventListener('click', onConfirmEmail);
 
     completeSignInIfPresent();
