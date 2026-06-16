@@ -21,6 +21,20 @@
   var FORGE_USER_KEY = 'forgeUser';
   // Name of the last user to sign in on this device — centres the carousel.
   var FORGE_LAST_AVATAR_KEY = 'forgeLastAvatar';
+  // First-login onboarding seen flag.
+  var ONBOARDING_KEY = 'forgeOnboardingSeen';
+
+  // Default onboarding cards (overridden by the Firestore notices/onboarding doc
+  // if it exists — see loadOnboarding). Card 6 carries the "Let's Forge" CTA.
+  var ONBOARDING_DEFAULT = [
+    { heading: 'Welcome to Forge', body: '90 days. Built together. This is your squad’s fitness challenge — press-ups, sit-ups, plank and lunges, every day, getting stronger together.' },
+    { heading: 'How It Works', body: 'Each day you’ll see your exercises and targets. Complete them, log your effort, and tell us how you felt. Miss a day? No problem — just keep going.' },
+    { heading: 'Scoring', body: 'Log any exercise: +10 points. Complete all due exercises: +25 bonus. Friday Best Effort (all 4): +50 bonus. 7-day streak: +100. 30-day streak: +500. Bonus spin: +20.' },
+    { heading: 'The Squad', body: 'You’re not doing this alone. Check the message board to see what your squad is up to, post messages, and cheer each other on with the confetti button.' },
+    { heading: 'Best Effort Friday', body: 'Every Friday is Best Effort day — all four exercises, maximum effort. No targets, just give everything you’ve got. You’ll see your own numbers and the squad average — but your individual scores are private. Only you can see how many reps you did.' },
+    { heading: 'Let’s Go', body: 'The challenge starts 23 June 2026. Points count from Day 1. Your squad is ready. Are you?' }
+  ];
+  var onboardingCards = ONBOARDING_DEFAULT.slice(); // current content (Firestore may override)
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
@@ -1311,7 +1325,12 @@
       })
       .then(function () {
         startCheerListener(); // real-time cheer pop-ups
-        enterHome();
+        // First login on this device → show the onboarding before the dashboard.
+        if (!window.localStorage.getItem(ONBOARDING_KEY)) {
+          showOnboarding({ fromSettings: false });
+        } else {
+          enterHome();
+        }
       })
       .catch(function (err) {
         console.error('Failed to enter app:', err);
@@ -2522,6 +2541,7 @@
 
       '<section class="profile-section">' +
         '<p class="section-heading">App</p>' +
+        '<button type="button" class="btn-outline set-view-intro">View intro</button>' +
         '<button type="button" class="btn-outline set-check-updates">Check for Updates</button>' +
       '</section>' +
 
@@ -2586,6 +2606,9 @@
     var checkBtn = screen.querySelector('.set-check-updates');
     if (checkBtn) checkBtn.addEventListener('click', function () { onCheckUpdates(checkBtn); });
 
+    var introBtn = screen.querySelector('.set-view-intro');
+    if (introBtn) introBtn.addEventListener('click', function () { showOnboarding({ fromSettings: true }); });
+
     showScreen(screen);
     showNav('settings');
   }
@@ -2626,6 +2649,158 @@
         settle('You are up to date', false);
       }, 3000);
     }).catch(function () { settle('You are up to date', false); });
+  }
+
+  // ===================================================================
+  // Onboarding (first login + Settings "View intro")
+  // ===================================================================
+  // Pull the latest card content from notices/onboarding (admin-editable),
+  // falling back to the hardcoded defaults for any missing field.
+  function loadOnboarding() {
+    return db.collection('notices').doc('onboarding').get()
+      .then(function (snap) {
+        var d = snap.exists ? (snap.data() || {}) : {};
+        onboardingCards = ONBOARDING_DEFAULT.map(function (def, i) {
+          var n = i + 1;
+          return {
+            heading: d['card' + n + 'heading'] || def.heading,
+            body: d['card' + n + 'body'] || def.body
+          };
+        });
+      })
+      .catch(function (err) {
+        console.error('Failed to load onboarding notice:', err);
+        onboardingCards = ONBOARDING_DEFAULT.slice();
+      });
+  }
+
+  function showOnboarding(opts) {
+    loadOnboarding().then(function () { renderOnboarding(opts || {}); });
+  }
+
+  function renderOnboarding(opts) {
+    opts = opts || {};
+    var fromSettings = !!opts.fromSettings;
+    var screen = ensureScreen('onboarding-screen');
+    var idx = 0;
+
+    function exit() { if (fromSettings) openSettings(); else enterHome(); }
+    function finish() { window.localStorage.setItem(ONBOARDING_KEY, 'true'); exit(); }
+
+    function render() {
+      var total = onboardingCards.length;
+      var card = onboardingCards[idx] || ONBOARDING_DEFAULT[idx];
+      var last = idx === total - 1;
+      var dots = '';
+      for (var i = 0; i < total; i++) {
+        dots += '<span class="onb-dot' + (i === idx ? ' is-active' : '') + '"></span>';
+      }
+      var showTopLink = fromSettings || !last; // Skip hidden on the last card (first-login)
+      var topRight = showTopLink
+        ? '<button type="button" class="btn-link onb-skip">' + (fromSettings ? 'Close' : 'Skip') + '</button>'
+        : '<span></span>';
+      var editBtn = isAdmin()
+        ? '<button type="button" class="btn-link onb-edit">Edit</button>'
+        : '<span></span>';
+
+      var footer;
+      if (last) {
+        footer =
+          '<button type="button" class="btn-forge onb-forge">Let\'s Forge</button>' +
+          (fromSettings ? '' : '<button type="button" class="btn-link onb-dontshow">Don\'t show again</button>') +
+          (idx > 0 ? '<button type="button" class="btn-link onb-back">Back</button>' : '');
+      } else {
+        footer = '<div class="onb-nav">' +
+          (idx > 0 ? '<button type="button" class="btn-outline onb-back">Back</button>' : '') +
+          '<button type="button" class="btn-forge onb-next">Next</button>' +
+        '</div>';
+      }
+
+      screen.innerHTML =
+        '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+        '<div class="onb-top">' + editBtn + topRight + '</div>' +
+        '<div class="onb-card">' +
+          '<h2 class="onb-heading">' + esc(card.heading) + '</h2>' +
+          '<p class="onb-body">' + esc(card.body) + '</p>' +
+        '</div>' +
+        '<div class="onb-dots">' + dots + '</div>' +
+        footer;
+
+      var skip = screen.querySelector('.onb-skip');
+      if (skip) skip.addEventListener('click', exit);
+      var edit = screen.querySelector('.onb-edit');
+      if (edit) edit.addEventListener('click', function () { openOnboardingEdit(opts); });
+      var back = screen.querySelector('.onb-back');
+      if (back) back.addEventListener('click', function () { if (idx > 0) { idx--; render(); } });
+      var next = screen.querySelector('.onb-next');
+      if (next) next.addEventListener('click', function () { if (idx < total - 1) { idx++; render(); } });
+      var forge = screen.querySelector('.onb-forge');
+      if (forge) { forge.addEventListener('click', finish); addFire(forge); }
+      var dont = screen.querySelector('.onb-dontshow');
+      if (dont) dont.addEventListener('click', finish);
+
+      // Swipe left/right on the card (fresh listeners each render — old DOM is replaced).
+      var cardEl = screen.querySelector('.onb-card');
+      var sx = null;
+      cardEl.addEventListener('touchstart', function (e) { sx = e.changedTouches[0].clientX; }, { passive: true });
+      cardEl.addEventListener('touchend', function (e) {
+        if (sx === null) return;
+        var dx = e.changedTouches[0].clientX - sx; sx = null;
+        if (Math.abs(dx) < 40) return;
+        if (dx < 0 && idx < total - 1) { idx++; render(); }
+        else if (dx > 0 && idx > 0) { idx--; render(); }
+      }, { passive: true });
+
+      showScreen(screen);
+    }
+
+    render();
+  }
+
+  // Mark-only: edit the onboarding card content (saved to notices/onboarding).
+  function openOnboardingEdit(opts) {
+    var screen = ensureScreen('onboarding-edit-screen');
+    var rows = '';
+    for (var i = 0; i < ONBOARDING_DEFAULT.length; i++) {
+      var c = onboardingCards[i] || ONBOARDING_DEFAULT[i];
+      var n = i + 1;
+      rows +=
+        '<div class="onb-edit-row">' +
+          '<label class="field"><span class="field-label">Card ' + n + ' heading</span>' +
+            '<input class="onb-edit-h" data-i="' + i + '" type="text" value="' + esc(c.heading) + '" /></label>' +
+          '<label class="field"><span class="field-label">Card ' + n + ' body</span>' +
+            '<textarea class="onb-edit-b" data-i="' + i + '" rows="3">' + esc(c.body) + '</textarea></label>' +
+        '</div>';
+    }
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">EDIT INTRO</span>' +
+      '</header>' +
+      '<h1 class="log-title">Edit Intro</h1>' +
+      rows +
+      '<button type="button" class="btn-forge onb-edit-save">Save</button>' +
+      '<p class="message onb-edit-msg" role="status" aria-live="polite"></p>';
+    showScreen(screen);
+
+    screen.querySelector('.back-btn').addEventListener('click', function () { renderOnboarding(opts); });
+    screen.querySelector('.onb-edit-save').addEventListener('click', function () {
+      var data = {};
+      Array.prototype.forEach.call(screen.querySelectorAll('.onb-edit-h'), function (inp) {
+        data['card' + (Number(inp.getAttribute('data-i')) + 1) + 'heading'] = inp.value;
+      });
+      Array.prototype.forEach.call(screen.querySelectorAll('.onb-edit-b'), function (ta) {
+        data['card' + (Number(ta.getAttribute('data-i')) + 1) + 'body'] = ta.value;
+      });
+      db.collection('notices').doc('onboarding').set(data, { merge: true })
+        .then(function () {
+          for (var i = 0; i < ONBOARDING_DEFAULT.length; i++) {
+            onboardingCards[i] = { heading: data['card' + (i + 1) + 'heading'], body: data['card' + (i + 1) + 'body'] };
+          }
+          renderOnboarding(opts);
+        })
+        .catch(function (err) { setMessage(screen.querySelector('.onb-edit-msg'), friendlyError(err), true); });
+    });
   }
 
   // ===================================================================
