@@ -2373,9 +2373,10 @@
       '</section>' +
 
       '<section class="profile-section">' +
-        '<p class="section-heading">Account</p>' +
-        '<div class="profile-stat"><span class="profile-stat-label">Name</span>' +
-          '<span class="set-value">' + esc(u.name || '') + '</span></div>' +
+        '<div class="lock-id">' +
+          avatarMarkup(u.name, 'lock-avatar') +
+          '<p class="ucard-name">' + esc(u.name || '') + '</p>' +
+        '</div>' +
         '<button type="button" class="btn-link set-signout">Sign out</button>' +
       '</section>' +
       '<p class="message set-msg" role="status" aria-live="polite"></p>';
