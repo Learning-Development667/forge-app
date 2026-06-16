@@ -1656,18 +1656,11 @@
              'aria-label="Profile">' + esc(name.charAt(0).toUpperCase()) + '</button>';
   }
 
-  // Bonus spin is once per day: show the button, or a completed confirmation
-  // if a bonus exercise has already been logged today.
+  // Bonus spin is once per day: a live "Bonus Spin" button, or a greyed
+  // "Spin Used" button (still opens the overlay to review today's result).
   function bonusSpinHTML() {
-    var bonus = todaysBonusLog();
-    if (bonus) {
-      return '<div class="bonus-done">' +
-               '<span class="tick" aria-label="Completed">✓</span>' +
-               '<div class="bonus-done-text">' +
-                 '<span class="bonus-done-label">Bonus complete</span>' +
-                 '<span class="bonus-done-name">' + esc(bonus.exercise) + '</span>' +
-               '</div>' +
-             '</div>';
+    if (todaysBonusLog()) {
+      return '<button type="button" class="btn-forge btn-spin btn-spin--used" data-action="spin">★ Spin Used</button>';
     }
     return '<button type="button" class="btn-forge btn-spin" data-action="spin">★ Bonus Spin</button>';
   }
@@ -1736,7 +1729,10 @@
       });
     });
     var spin = dashboardScreen.querySelector('[data-action="spin"]');
-    if (spin) { spin.addEventListener('click', openSpin); addFire(spin); }
+    if (spin) {
+      spin.addEventListener('click', openSpin);
+      if (!spin.classList.contains('btn-spin--used')) addFire(spin); // no fire on the greyed state
+    }
 
     var warm = dashboardScreen.querySelector('[data-action="warmup"]');
     if (warm) warm.addEventListener('click', function () { openRoutineScreen('warmup'); });
@@ -2151,65 +2147,200 @@
   // ===================================================================
   // Bonus spin
   // ===================================================================
+  // ===================================================================
+  // Bonus spin — full-screen slot-machine experience
+  // ===================================================================
+  var SPIN_CELL = 64; // px height of each reel cell
+  var spinTimers = [];
+  function clearSpinTimers() {
+    spinTimers.forEach(function (id) { clearTimeout(id); });
+    spinTimers = [];
+  }
+  function spinDefer(fn, ms) { var id = setTimeout(fn, ms); spinTimers.push(id); return id; }
+
+  function bonusIndexOf(name) {
+    for (var i = 0; i < BONUS_EXERCISES.length; i++) {
+      if (BONUS_EXERCISES[i].name === name) return i;
+    }
+    return 0;
+  }
+
+  // ---- Spin sounds (Web Audio, generated — no files) ----
+  // Short filtered noise burst → a mechanical reel "click".
+  function spinClick(freq) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t = ctx.currentTime, dur = 0.03;
+    var len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    var src = ctx.createBufferSource(); src.buffer = buf;
+    var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 6;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.5, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+  function spinThump() { playTone(80, 0.08, 'sine', 0.9); } // landing bass impact
+  function spinFanfare() { // three ascending tones in sequence
+    playTone(523, 0.15, 'triangle', 0.5);
+    spinDefer(function () { playTone(659, 0.15, 'triangle', 0.5); }, 150);
+    spinDefer(function () { playTone(784, 0.22, 'triangle', 0.5); }, 300);
+  }
+
+  function closeSpin() {
+    clearSpinTimers();
+    var overlay = document.getElementById('spin-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('is-visible');
+    setTimeout(function () { overlay.classList.add('hidden'); overlay.innerHTML = ''; }, 300);
+  }
+
+  // Fill the five reel cells for a window centred on index c (3 visible + 2 buffer).
+  function renderReel(overlay, c) {
+    var n = BONUS_EXERCISES.length;
+    var cells = overlay.querySelectorAll('.spin-cell');
+    for (var k = 0; k < cells.length; k++) {
+      var idx = ((c - 2 + k) % n + n) % n;
+      cells[k].textContent = BONUS_EXERCISES[idx].name;
+    }
+  }
+
   function openSpin() {
-    var screen = ensureScreen('spin-screen');
+    var overlay = document.getElementById('spin-overlay');
+    if (!overlay) return;
+    clearSpinTimers();
+    ensureAudio(); // unlock audio on the user gesture
 
-    screen.innerHTML =
-      '<header class="topbar">' +
-        '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<span class="topbar-version">BONUS</span>' +
-      '</header>' +
-      '<h1 class="log-title">Bonus Spin</h1>' +
-      '<p class="log-target">Spin for a bonus challenge — worth 20 points</p>' +
-      '<div class="spin-reel"><span class="spin-name">★</span></div>' +
-      '<button type="button" class="btn-forge spin-go">Spin</button>' +
-      '<div class="spin-result hidden"></div>';
+    overlay.innerHTML =
+      '<button type="button" class="spin-close" aria-label="Close">×</button>' +
+      '<div class="spin-glow"></div>' +
+      '<div class="spin-stage">' +
+        '<p class="spin-kicker">BONUS SPIN · 20 PTS</p>' +
+        '<div class="spin-window">' +
+          '<div class="spin-selbar"></div>' +
+          '<div class="spin-strip">' +
+            '<div class="spin-cell spin-cell--off"></div>' +
+            '<div class="spin-cell spin-cell--edge"></div>' +
+            '<div class="spin-cell spin-cell--cur"></div>' +
+            '<div class="spin-cell spin-cell--edge"></div>' +
+            '<div class="spin-cell spin-cell--off"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="spin-outcome"></div>' +
+      '</div>' +
+      '<div class="spin-flash"></div>';
 
-    screen.querySelector('.back-btn').addEventListener('click', renderDashboard);
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
+    overlay.querySelector('.spin-close').addEventListener('click', closeSpin);
 
-    var reel = screen.querySelector('.spin-name');
-    var goBtn = screen.querySelector('.spin-go');
-    var result = screen.querySelector('.spin-result');
+    // Once per day: if already spun, show today's result rather than respinning.
+    var existing = todaysBonusLog();
+    if (existing) {
+      var bx = BONUS_EXERCISES[bonusIndexOf(existing.exercise)] ||
+               { name: existing.exercise, target: existing.target || '' };
+      renderReel(overlay, bonusIndexOf(bx.name));
+      overlay.querySelector('.spin-strip').style.transform = 'translateY(-' + SPIN_CELL + 'px)';
+      showSpinOutcome(overlay, bx, true);
+    } else {
+      startReelSpin(overlay);
+    }
+  }
 
-    goBtn.addEventListener('click', function () {
-      goBtn.disabled = true;
-      var ticks = 0;
-      var final = Math.floor(Math.random() * BONUS_EXERCISES.length);
-      var iv = setInterval(function () {
-        reel.textContent = BONUS_EXERCISES[ticks % BONUS_EXERCISES.length].name;
-        ticks++;
-        if (ticks > 16) {
-          clearInterval(iv);
-          var bonus = BONUS_EXERCISES[final];
-          reel.textContent = bonus.name;
+  function startReelSpin(overlay) {
+    var n = BONUS_EXERCISES.length;
+    var selected = Math.floor(Math.random() * n);
 
-          function showResult() {
-            showScreen(screen);
-            result.classList.remove('hidden');
-            result.innerHTML =
-              '<p class="spin-result-name">' + esc(bonus.name) + '</p>' +
-              '<p class="spin-result-target">' + esc(bonus.target) + '</p>' +
-              '<button type="button" class="btn-link form-link">Form Guide</button>' +
-              '<div class="log-flow"></div>';
-            result.querySelector('.form-link').addEventListener('click', function () {
-              openFormGuide(bonus.name, bonus.name, showResult, showResult);
-            });
-            buildLogFlow(result.querySelector('.log-flow'), {
-              requireInput: false,
-              targetDisplay: bonus.target,
-              confirmValue: bonus.target,
-              onConfirm: function (value, mood) {
-                saveLog(bonus.name, value, bonus.target, mood, false, true).then(renderDashboard);
-              }
-            });
-          }
+    // Tick durations: fast 50ms, easing slower over ~2s, then the dramatic
+    // final three (200, 400, 800ms).
+    var durs = [];
+    for (var k = 0; k < 22; k++) { var p = k / 21; durs.push(Math.round(50 + 100 * (p * p))); }
+    durs.push(200, 400, 800);
+    var T = durs.length;
+    // Choose the start so that exactly T ticks land the centre on `selected`.
+    var c = ((selected - T) % n + n) % n;
 
-          showResult();
-        }
-      }, 90);
+    var strip = overlay.querySelector('.spin-strip');
+    renderReel(overlay, c);
+    strip.style.transition = 'none';
+    strip.style.transform = 'translateY(-' + SPIN_CELL + 'px)';
+
+    var i = 0;
+    function step() {
+      i++;
+      var dur = durs[i - 1];
+      var ease = (i >= T - 1) ? 'cubic-bezier(0.15,0.85,0.25,1)' : 'linear';
+      var blur = dur <= 70 ? 5 : dur <= 110 ? 3 : dur <= 180 ? 1.5 : 0;
+      strip.style.setProperty('--spin-blur', blur + 'px');
+      void strip.offsetWidth;
+      strip.style.transition = 'transform ' + dur + 'ms ' + ease;
+      strip.style.transform = 'translateY(-' + (SPIN_CELL * 2) + 'px)'; // slide up one cell
+
+      spinDefer(function () {
+        // Seamlessly re-centre on the next item (no visible jump).
+        c = (c + 1) % n;
+        strip.style.transition = 'none';
+        renderReel(overlay, c);
+        strip.style.transform = 'translateY(-' + SPIN_CELL + 'px)';
+        void strip.offsetWidth;
+        // Click as the item locks in — deeper for the final three.
+        if (i === T - 2) spinClick(150);
+        else if (i === T - 1) spinClick(120);
+        else if (i === T) spinClick(100);
+        else spinClick(200);
+        if (i < T) step();
+        else landSpin(overlay, selected);
+      }, dur);
+    }
+    spinDefer(step, 60);
+  }
+
+  function landSpin(overlay, selected) {
+    var bonus = BONUS_EXERCISES[selected];
+    overlay.querySelector('.spin-strip').style.setProperty('--spin-blur', '0px');
+
+    // CLUNK — bass thump, white flash, selection-bar pulse.
+    spinThump();
+    var flash = overlay.querySelector('.spin-flash');
+    flash.classList.add('is-flash');
+    spinDefer(function () { flash.classList.remove('is-flash'); }, 40);
+    var selbar = overlay.querySelector('.spin-selbar');
+    selbar.classList.remove('is-clunk'); void selbar.offsetWidth; selbar.classList.add('is-clunk');
+
+    if (typeof fireConfettiCannon === 'function') fireConfettiCannon();
+    spinDefer(spinFanfare, 120);
+    showSpinOutcome(overlay, bonus, false);
+  }
+
+  function showSpinOutcome(overlay, bonus, alreadyUsed) {
+    var out = overlay.querySelector('.spin-outcome');
+    out.innerHTML =
+      '<span class="spin-shockwave"></span>' +
+      '<h2 class="spin-win-name">' + esc(bonus.name) + '</h2>' +
+      '<p class="spin-win-target">' + esc(bonus.target || '') + '</p>' +
+      (alreadyUsed
+        ? '<p class="spin-used-note">Bonus already claimed today</p>' +
+          '<button type="button" class="btn-forge spin-done">Close</button>'
+        : '<button type="button" class="btn-forge spin-go">LET\'S GO</button>');
+    out.classList.add('is-shown');
+
+    if (alreadyUsed) {
+      out.querySelector('.spin-done').addEventListener('click', closeSpin);
+      return;
+    }
+    var go = out.querySelector('.spin-go');
+    addFire(go);
+    go.addEventListener('click', function () {
+      go.disabled = true;
+      // Mark the spin used via the existing logging path (bonusExercise = true).
+      saveLog(bonus.name, bonus.target, bonus.target, null, false, true)
+        .then(function () { closeSpin(); renderDashboard(); })
+        .catch(function () { closeSpin(); renderDashboard(); });
     });
-
-    showScreen(screen);
   }
 
   // ===================================================================

@@ -979,6 +979,13 @@ img.topbar-avatar,
   margin-top: 4px;
 }
 
+/* Greyed "Spin Used" state — already spun today (still opens to review). */
+.btn-spin--used {
+  background: #2a2a2d;
+  color: rgba(245, 240, 232, 0.55);
+  box-shadow: none;
+}
+
 .dash-footer {
   width: 100%;
   display: flex;
@@ -1118,53 +1125,214 @@ img.topbar-avatar,
   max-width: 200px;
 }
 
-/* ---------- Bonus spin ---------- */
-.spin-reel {
-  width: 100%;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 32px 16px;
-  text-align: center;
+/* ===================================================================
+   Bonus spin — full-screen slot machine
+   =================================================================== */
+.spin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.95);
+  opacity: 0;
+  transition: opacity 300ms ease;
 }
 
-.spin-name {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 40px;
-  letter-spacing: 1.5px;
+.spin-overlay.is-visible { opacity: 1; }
+
+/* Pulsing radial glow behind the reel. */
+.spin-glow {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  width: 440px;
+  height: 440px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(232, 98, 26, 0.45) 0%, rgba(232, 98, 26, 0) 65%);
+  pointer-events: none;
+  animation: spinGlowPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes spinGlowPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+.spin-stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.spin-kicker {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
   color: var(--orange);
 }
 
-.spin-result {
+.spin-close {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 2;
+  background: none;
+  border: none;
+  color: var(--cream);
+  font-size: 34px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* Reel window — three visible cells (plus two clipped buffers). */
+.spin-window {
+  position: relative;
+  width: 300px;
+  height: 192px;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.spin-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.spin-cell {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--cream);
+}
+
+.spin-cell--cur { font-size: 30px; }
+.spin-cell--edge { font-size: 24px; opacity: 0.55; filter: blur(var(--spin-blur, 0px)); }
+.spin-cell--off { font-size: 24px; opacity: 0.3; filter: blur(var(--spin-blur, 0px)); }
+
+/* Highlighted selection bar behind the centre cell. */
+.spin-selbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 64px;
+  height: 64px;
+  z-index: 0;
+  background: rgba(232, 98, 26, 0.18);
+  border-top: 2px solid var(--orange);
+  border-bottom: 2px solid var(--orange);
+  box-shadow: inset 0 0 26px rgba(232, 98, 26, 0.5);
+}
+
+.spin-selbar.is-clunk { animation: selbarClunk 0.4s ease-out; }
+
+@keyframes selbarClunk {
+  0% { background: rgba(232, 98, 26, 0.7); box-shadow: inset 0 0 40px rgba(232, 98, 26, 0.9); }
+  100% { background: rgba(232, 98, 26, 0.18); box-shadow: inset 0 0 26px rgba(232, 98, 26, 0.5); }
+}
+
+/* White impact flash on landing. */
+.spin-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spin-flash.is-flash { opacity: 0.85; }
+
+/* Landed result. */
+.spin-outcome {
+  position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 200ms ease;
 }
 
-.spin-target {
-  font-family: 'DM Mono', monospace;
-  font-size: 16px;
-  color: var(--orange);
-  text-align: center;
+.spin-outcome.is-shown { opacity: 1; }
+
+.spin-shockwave {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 400px;
+  height: 400px;
+  margin-left: -200px;
+  margin-top: -200px;
+  border: 3px solid var(--orange);
+  border-radius: 50%;
+  transform: scale(0);
+  opacity: 0.7;
+  pointer-events: none;
+  animation: spinShockwave 600ms ease-out forwards;
 }
 
-/* Landed bonus result: name large in Bebas Neue, target below in DM Sans. */
-.spin-result-name {
+@keyframes spinShockwave {
+  from { transform: scale(0); opacity: 0.7; }
+  to { transform: scale(1); opacity: 0; }
+}
+
+.spin-win-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 44px;
-  letter-spacing: 1.5px;
-  color: var(--cream);
-  text-align: center;
-  line-height: 1;
-}
-
-.spin-result-target {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 18px;
+  font-size: 48px;
+  letter-spacing: 1px;
+  line-height: 0.95;
   color: var(--orange);
   text-align: center;
-  margin-top: -8px;
+  text-shadow: 0 0 18px rgba(232, 98, 26, 0.5);
+  animation: spinSlam 300ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes spinSlam {
+  0% { opacity: 0; transform: scale(0.5); }
+  70% { opacity: 1; transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.spin-win-target {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: var(--cream);
+  opacity: 0.85;
+  text-align: center;
+}
+
+.spin-used-note {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  opacity: 0.5;
+}
+
+.spin-go, .spin-done {
+  width: auto;
+  min-width: 180px;
+  margin-top: 6px;
 }
 
 /* Once-per-day bonus completed state on the dashboard. */
