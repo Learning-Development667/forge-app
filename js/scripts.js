@@ -1164,6 +1164,32 @@
     return users.filter(function (u) { return u.name === name; })[0] || null;
   }
 
+  // Authoritative existence check: query Firestore directly for a user document
+  // by name (the cached `users` list is capped at MAX_USERS and may miss someone).
+  // Falls back to the cached list for cleaned/legacy names. Resolves to a user
+  // object { id, name, email, avatar, biometricCredentialId } or null.
+  function findExistingUser(name) {
+    return db.collection('users').where('name', '==', name).limit(1).get()
+      .then(function (snap) {
+        if (!snap.empty) {
+          var d = snap.docs[0];
+          var data = d.data() || {};
+          return {
+            id: d.id,
+            name: cleanName(data.name, data.email),
+            email: data.email || '',
+            avatar: data.avatar || null,
+            biometricCredentialId: data.biometricCredentialId || null
+          };
+        }
+        return registeredUser(name);
+      })
+      .catch(function (err) {
+        console.error('findExistingUser failed:', err);
+        return registeredUser(name);
+      });
+  }
+
   function openRegister(prefillName) {
     showScreen(registerScreen);
     setMessage(registerMessage, '');
@@ -1173,7 +1199,9 @@
   }
 
   // Carousel action: tap the Register card → register; tap a known user → sign
-  // in (returning flow); tap an unknown name → registration pre-filled.
+  // in (returning flow); tap an unknown name → registration pre-filled. The
+  // existence check queries Firestore so a registered user is never asked to
+  // register again.
   function onForge() {
     setMessage(loginMessage, '');
     loginJunk.classList.add('hidden');
@@ -1181,16 +1209,20 @@
     if (isRegisterSelected()) { openRegister(''); return; }
 
     var name = TEAM[currentIndex];
-    var existing = registeredUser(name);
-    if (existing) {
-      loginExisting(existing); // Part 4
-    } else {
-      openRegister(name);      // not yet registered
-    }
+    forgeBtn.disabled = true;
+    findExistingUser(name).then(function (existing) {
+      forgeBtn.disabled = false;
+      if (existing) {
+        loginExisting(existing); // registered → straight in (Part 4)
+      } else {
+        openRegister(name);      // genuinely new → register
+      }
+    });
   }
 
   // Part 3 — new registration: validate invite code, create the Firestore user
   // doc, store the local identity, then offer biometrics and enter the app.
+  // An existing profile for this name bypasses the user limit and logs straight in.
   function onRegisterSubmit(e) {
     e.preventDefault();
     setMessage(registerMessage, '');
@@ -1206,35 +1238,46 @@
       setMessage(registerMessage, 'That invite code is not valid.', true);
       return;
     }
-    if (users.length >= MAX_USERS) {
-      setMessage(registerMessage, 'Forge is full — max 10 users.', true);
-      return;
-    }
 
     var submitBtn = registerForm.querySelector('button[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
-    var avatarFile = AVATARS[name] ? AVATARS[name].split('/').pop() : null;
-    var ref = db.collection('users').doc();
-    var data = {
-      name: name,
-      avatar: avatarFile,
-      totalPoints: 0,
-      joinedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    ref.set(data)
-      .then(function () {
-        var identity = { uid: ref.id, name: name, email: '', avatar: avatarFile };
-        setForgeUser(identity);
-        usersLoaded = false; // refresh the carousel's known-users list next time
-        state.user = { id: ref.id, name: name, email: '', avatar: avatarFile, totalPoints: 0 };
+    findExistingUser(name).then(function (existing) {
+      // Already registered → log straight in. The user limit does NOT apply,
+      // and we never create a duplicate document.
+      if (existing) {
         if (submitBtn) submitBtn.disabled = false;
-        showBiometricOffer(function () { enterApp(identity); }); // Part 5
-      })
-      .catch(function (err) {
-        setMessage(registerMessage, friendlyError(err), true);
+        loginExisting(existing);
+        return;
+      }
+      // Genuinely new user — only now does the squad-size limit apply.
+      if (users.length >= MAX_USERS) {
+        setMessage(registerMessage, 'Forge is full — max 10 users.', true);
         if (submitBtn) submitBtn.disabled = false;
-      });
+        return;
+      }
+      var avatarFile = AVATARS[name] ? AVATARS[name].split('/').pop() : null;
+      var ref = db.collection('users').doc();
+      var data = {
+        name: name,
+        avatar: avatarFile,
+        totalPoints: 0,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      ref.set(data)
+        .then(function () {
+          var identity = { uid: ref.id, name: name, email: '', avatar: avatarFile };
+          setForgeUser(identity);
+          usersLoaded = false; // refresh the carousel's known-users list next time
+          state.user = { id: ref.id, name: name, email: '', avatar: avatarFile, totalPoints: 0 };
+          if (submitBtn) submitBtn.disabled = false;
+          showBiometricOffer(function () { enterApp(identity); }); // Part 5
+        })
+        .catch(function (err) {
+          setMessage(registerMessage, friendlyError(err), true);
+          if (submitBtn) submitBtn.disabled = false;
+        });
+    });
   }
 
   // ===================================================================
