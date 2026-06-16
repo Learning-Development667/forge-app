@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.74</p>
+      <p class="brand-version">v0.2.75</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -39,9 +39,6 @@
 
     <button id="forge-btn" class="btn-forge" type="button">Let's Forge</button>
 
-    <!-- Always available: go to the register screen. -->
-    <button id="register-link" class="btn-link" type="button">Create account</button>
-
     <!-- Install instructions button (secondary) -->
     <button id="install-btn" class="btn-outline" type="button">Install App</button>
 
@@ -53,33 +50,9 @@
     <p id="login-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
   </main>
 
-  <!-- PIN setup, biometric, returning-user lock and other auth screens are
-       rendered dynamically by scripts.js (see buildPinScreen / showLock). -->
-
-  <!-- ===================== REGISTER FORM ===================== -->
-  <main id="register-screen" class="screen hidden">
-    <header class="brand brand--compact">
-      <h1 class="brand-name">FORGE</h1>
-      <p class="brand-tagline">Join the challenge.</p>
-    </header>
-
-    <form id="register-form" class="form" novalidate>
-      <label class="field">
-        <span class="field-label">First Name</span>
-        <input id="reg-name" name="name" type="text" autocomplete="given-name" placeholder="First Name" required />
-      </label>
-
-      <label class="field">
-        <span class="field-label">Invite code</span>
-        <input id="reg-code" name="code" type="text" autocomplete="off" required />
-      </label>
-
-      <button type="submit" class="btn-forge">Register</button>
-      <button type="button" id="register-back" class="btn-link">Back</button>
-      <p id="register-message" class="message" role="status" aria-live="polite"></p>
-      <p id="register-junk" class="junk-note hidden"></p>
-    </form>
-  </main>
+  <!-- Face ID enrolment + other auth screens are rendered dynamically by
+       scripts.js (see showEnableFaceId). There is no registration screen —
+       the squad admin adds users to the Firestore users collection. -->
 
   <!-- ===================== DASHBOARD (placeholder) ===================== -->
   <main id="dashboard-screen" class="screen hidden">

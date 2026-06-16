@@ -16,10 +16,11 @@
   const DEV_MODE = true;
 
   // ---- Constants ----------------------------------------------------
-  var INVITE_CODE = 'FORGE2026';
   var MAX_USERS = 10;
   // Local identity: { uid, name, email, avatar } stored as JSON.
   var FORGE_USER_KEY = 'forgeUser';
+  // Name of the last user to sign in on this device — centres the carousel.
+  var FORGE_LAST_AVATAR_KEY = 'forgeLastAvatar';
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
@@ -316,8 +317,8 @@
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
   // Firebase Authentication is no longer used — identity lives in localStorage
-  // (forgeUser) and Firestore is gated by the in-app invite code. Firestore stays
-  // for data storage only.
+  // (forgeUser). Users are added to the Firestore users collection by the squad
+  // admin; login is carousel tap + optional Face ID. Firestore = data storage.
 
   // ---- Local identity (localStorage) -------------------------------
   function getForgeUser() {
@@ -380,38 +381,55 @@
     });
   }
 
-  // First-registration biometric offer. onDone runs whether enabled or skipped.
-  function showBiometricOffer(onDone) {
-    var screen = ensureScreen('biometric-screen');
+  // Finalise a successful login: persist the identity + last-avatar, enter app.
+  function finishLogin(identity) {
+    setForgeUser(identity);
+    window.localStorage.setItem(FORGE_LAST_AVATAR_KEY, identity.name);
+    enterApp(identity);
+  }
+
+  // Funny "that's not you" lines for a failed Face ID check.
+  function randomFaceFail(name) {
+    var msgs = [
+      "You sure don't look like " + name + "! Please choose your avatar.",
+      'Nice try! ' + name + ' has a much better face than that.',
+      'Our Face ID is good, but not THAT good. Try your own avatar!',
+      'Forge security level: Fort Knox. Please choose your avatar.'
+    ];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  }
+
+  // First time on this device for a known user: offer Face ID enrolment.
+  function showEnableFaceId(identity) {
+    // registerBiometric reads state.user for the doc id + name.
+    state.user = { id: identity.uid, name: identity.name, email: '', avatar: identity.avatar || null };
+    var screen = ensureScreen('faceid-screen');
     screen.innerHTML =
       '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
-      '<h2 class="pin-title">Enable Face ID</h2>' +
-      '<p class="pin-subtext">Sign in instantly with Face ID or fingerprint. Your ' +
-      'biometric data never leaves your device.</p>' +
-      '<button type="button" class="btn-forge bio-enable">Enable</button>' +
-      '<button type="button" class="btn-link bio-skip">Skip</button>' +
+      '<div class="lock-id">' + avatarMarkup(identity.name, 'lock-avatar') +
+        '<p class="lock-name">' + esc(identity.name) + '</p></div>' +
+      '<p class="pin-subtext">Enable Face ID to sign in as ' + esc(identity.name) + '</p>' +
+      '<button type="button" class="btn-forge faceid-enable">Enable Face ID</button>' +
+      '<button type="button" class="btn-link faceid-skip">Skip</button>' +
       '<p class="pin-error message" role="status" aria-live="polite"></p>';
     showScreen(screen);
-    var errEl = screen.querySelector('.pin-error');
-    var enableBtn = screen.querySelector('.bio-enable');
+    var enableBtn = screen.querySelector('.faceid-enable');
     enableBtn.addEventListener('click', function () {
-      if (!webauthnSupported) { onDone(); return; } // skip silently
+      if (!webauthnSupported) { finishLogin(identity); return; } // skip silently
       enableBtn.disabled = true;
       registerBiometric()
-        .then(function () { setMessage(errEl, 'Face ID enabled.'); setTimeout(onDone, 900); })
-        .catch(function () { onDone(); }); // cancel/unsupported → continue silently
+        .then(function () { finishLogin(identity); })
+        .catch(function () { finishLogin(identity); }); // cancel/unsupported → continue
     });
-    screen.querySelector('.bio-skip').addEventListener('click', onDone);
+    screen.querySelector('.faceid-skip').addEventListener('click', function () { finishLogin(identity); });
     addFire(enableBtn);
   }
 
   // ---- DOM references (login screens live in index.html) -----------
   var loginScreen = document.getElementById('login-screen');
-  var registerScreen = document.getElementById('register-screen');
   var dashboardScreen = document.getElementById('dashboard-screen');
 
   var carousel = document.getElementById('carousel');
-  var registerLink = document.getElementById('register-link');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
@@ -419,16 +437,9 @@
   var loginMessage = document.getElementById('login-message');
   var loginJunk = document.getElementById('login-junk');
 
-  var registerForm = document.getElementById('register-form');
-  var registerBack = document.getElementById('register-back');
-  var registerMessage = document.getElementById('register-message');
-  var registerJunk = document.getElementById('register-junk');
-  var regName = document.getElementById('reg-name');
-  var regCode = document.getElementById('reg-code');
-
   // ---- State --------------------------------------------------------
   var users = [];           // registered users from Firestore
-  var cards = [];           // carousel card elements (users + register)
+  var cards = [];           // carousel card elements
   var currentIndex = 0;     // centred carousel card
   var touchStartX = null;   // swipe tracking
 
@@ -978,11 +989,13 @@
     TEAM.forEach(function (name, i) {
       cards.push(buildCard(name, AVATARS[name] || null, i, false));
     });
-    cards.push(buildCard('Register', null, TEAM.length, true));
 
     cards.forEach(function (card) { carousel.appendChild(card); });
 
-    currentIndex = 0;
+    // Centre on the last avatar to sign in on this device, if any.
+    var last = window.localStorage.getItem(FORGE_LAST_AVATAR_KEY);
+    var li = last ? TEAM.indexOf(last) : -1;
+    currentIndex = li >= 0 ? li : 0;
     layout();
     playEntryAnimation();
   }
@@ -1081,28 +1094,14 @@
     setIndex(currentIndex + delta);
   }
 
-  function isRegisterSelected() {
-    return currentIndex === TEAM.length;
+  function setIndexByName(name) {
+    var i = TEAM.indexOf(name);
+    if (i >= 0) setIndex(i);
   }
 
-  // A logged-out user lands on the carousel login screen (no Firebase auth).
+  // A logged-out user lands on the carousel login screen.
   function showLoginEntry() {
     showScreen(loginScreen);
-  }
-
-  // Returning user: store their identity locally, then enter the app. If a
-  // biometric credential is registered, trigger it for the "cool factor" — but
-  // we proceed either way (failure falls back silently, no error shown).
-  function loginExisting(existing) {
-    var identity = { uid: existing.id, name: existing.name, email: '', avatar: existing.avatar || null };
-    setForgeUser(identity);
-    if (existing.biometricCredentialId) {
-      authBiometric(existing.biometricCredentialId)
-        .then(function () { enterApp(identity); })
-        .catch(function () { enterApp(identity); });
-    } else {
-      enterApp(identity);
-    }
   }
 
   function onCarouselKey(e) {
@@ -1190,93 +1189,37 @@
       });
   }
 
-  function openRegister(prefillName) {
-    showScreen(registerScreen);
-    setMessage(registerMessage, '');
-    registerJunk.classList.add('hidden');
-    registerForm.reset();
-    regName.value = prefillName || '';
-  }
-
-  // Carousel action: tap the Register card → register; tap a known user → sign
-  // in (returning flow); tap an unknown name → registration pre-filled. The
-  // existence check queries Firestore so a registered user is never asked to
-  // register again.
+  // Login flow: tap the centred avatar → look the name up in Firestore.
+  //  - no document      → friendly "we don't recognise you" message (no register)
+  //  - no biometric yet → offer Face ID enrolment, then enter the app
+  //  - biometric exists → verify Face ID; success enters, failure jokes + returns
   function onForge() {
     setMessage(loginMessage, '');
     loginJunk.classList.add('hidden');
-
-    if (isRegisterSelected()) { openRegister(''); return; }
 
     var name = TEAM[currentIndex];
     forgeBtn.disabled = true;
     findExistingUser(name).then(function (existing) {
       forgeBtn.disabled = false;
-      if (existing) {
-        loginExisting(existing); // registered → straight in (Part 4)
+      if (!existing) {
+        setMessage(loginMessage,
+          "We don't recognise you! Ask your squad admin to add you to Forge.", true);
+        return;
+      }
+      var identity = { uid: existing.id, name: existing.name, email: '', avatar: existing.avatar || null };
+      if (existing.biometricCredentialId) {
+        // Returning device — verify Face ID. Either outcome is handled here.
+        authBiometric(existing.biometricCredentialId)
+          .then(function () { finishLogin(identity); })
+          .catch(function () {
+            setMessage(loginMessage, randomFaceFail(existing.name), true);
+            showScreen(loginScreen);
+            setIndexByName(existing.name);
+          });
       } else {
-        openRegister(name);      // genuinely new → register
+        // First time on this device for this user — offer Face ID enrolment.
+        showEnableFaceId(identity);
       }
-    });
-  }
-
-  // Part 3 — new registration: validate invite code, create the Firestore user
-  // doc, store the local identity, then offer biometrics and enter the app.
-  // An existing profile for this name bypasses the user limit and logs straight in.
-  function onRegisterSubmit(e) {
-    e.preventDefault();
-    setMessage(registerMessage, '');
-
-    var name = regName.value.trim().split(/\s+/)[0]; // first name only
-    var code = regCode.value.trim();
-
-    if (!name || !code) {
-      setMessage(registerMessage, 'Please fill in every field.', true);
-      return;
-    }
-    if (code !== INVITE_CODE) {
-      setMessage(registerMessage, 'That invite code is not valid.', true);
-      return;
-    }
-
-    var submitBtn = registerForm.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-
-    findExistingUser(name).then(function (existing) {
-      // Already registered → log straight in. The user limit does NOT apply,
-      // and we never create a duplicate document.
-      if (existing) {
-        if (submitBtn) submitBtn.disabled = false;
-        loginExisting(existing);
-        return;
-      }
-      // Genuinely new user — only now does the squad-size limit apply.
-      if (users.length >= MAX_USERS) {
-        setMessage(registerMessage, 'Forge is full — max 10 users.', true);
-        if (submitBtn) submitBtn.disabled = false;
-        return;
-      }
-      var avatarFile = AVATARS[name] ? AVATARS[name].split('/').pop() : null;
-      var ref = db.collection('users').doc();
-      var data = {
-        name: name,
-        avatar: avatarFile,
-        totalPoints: 0,
-        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      ref.set(data)
-        .then(function () {
-          var identity = { uid: ref.id, name: name, email: '', avatar: avatarFile };
-          setForgeUser(identity);
-          usersLoaded = false; // refresh the carousel's known-users list next time
-          state.user = { id: ref.id, name: name, email: '', avatar: avatarFile, totalPoints: 0 };
-          if (submitBtn) submitBtn.disabled = false;
-          showBiometricOffer(function () { enterApp(identity); }); // Part 5
-        })
-        .catch(function (err) {
-          setMessage(registerMessage, friendlyError(err), true);
-          if (submitBtn) submitBtn.disabled = false;
-        });
     });
   }
 
@@ -2720,9 +2663,11 @@
   function onSignOut() {
     teardownBoard();
     devForceFriday = false;
-    clearForgeUser();      // remove the local identity
+    clearForgeUser();      // remove the local identity (keep forgeLastAvatar)
     state.user = null;
     state.logs = [];
+    var last = window.localStorage.getItem(FORGE_LAST_AVATAR_KEY);
+    if (last) setIndexByName(last); // carousel still defaults to them
     showLoginEntry();
   }
 
@@ -2757,9 +2702,6 @@
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
 
-    // "Create account" always routes to the register screen.
-    if (registerLink) registerLink.addEventListener('click', function () { openRegister(''); });
-
     addFire(forgeBtn);
     addFire(installBtn);
 
@@ -2777,12 +2719,9 @@
       }
     });
 
-    registerForm.addEventListener('submit', onRegisterSubmit);
-    registerBack.addEventListener('click', function () { showScreen(loginScreen); });
-
-    // No Firebase auth — identity lives in localStorage. Load the users list
-    // (so the carousel knows who's registered), then either resume the stored
-    // identity straight into the app or show the login carousel.
+    // No Firebase auth — identity lives in localStorage. Load the users list,
+    // then either resume the stored identity straight into the app or show the
+    // login carousel (centred on the last avatar to sign in here).
     loadUsers().then(function () {
       var identity = getForgeUser();
       if (identity && identity.uid) {
