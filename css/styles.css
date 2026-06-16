@@ -100,6 +100,7 @@ body {
 #profile-screen,
 #progress-screen,
 #plan-screen,
+#forgecard-screen,
 #settings-screen { background-image: url('../images/bg-minimal.png'); }
 
 #spin-screen { background-image: url('../images/bg-training.png'); }
@@ -1681,6 +1682,7 @@ button:focus { outline: none; }
 #board-screen,
 #progress-screen,
 #plan-screen,
+#forgecard-screen,
 #settings-screen {
   padding-top: 72px;
 }
@@ -1710,6 +1712,8 @@ button:focus { outline: none; }
   font-family: 'DM Sans', sans-serif;
   font-size: 10px;
   letter-spacing: 0.3px;
+  text-align: center;
+  line-height: 1.1; /* two-word labels (e.g. Forge Card) wrap tidily */
 }
 
 .nav-item.is-active {
@@ -2787,6 +2791,92 @@ button:focus { outline: none; }
   color: var(--orange);
   text-align: right;
   flex-shrink: 0;
+}
+
+/* ===================================================================
+   Forge Card screen (coming soon)
+   =================================================================== */
+#forgecard-screen { gap: 20px; }
+
+.fc-title {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--cream);
+  text-align: center;
+}
+
+.fc-card {
+  width: 100%;
+  max-width: 300px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 28px;
+}
+
+.fc-lock {
+  width: 46px;
+  height: 46px;
+  color: var(--orange);
+  opacity: 0.9;
+}
+
+.fc-locked {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+.fc-text {
+  width: 100%;
+  max-width: 340px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cream);
+  opacity: 0.8;
+  text-align: center;
+}
+
+.fc-attrs {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0.45; /* greyed out — locked preview */
+}
+
+.fc-attr {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fc-attr-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.fc-attr-bar {
+  width: 100%;
+  height: 8px;
+  background: #2a2a2a;
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
 }
 
 /* ---------- iOS email + copy-code sign-in ---------- */

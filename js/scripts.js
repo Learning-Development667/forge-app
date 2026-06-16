@@ -806,6 +806,8 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/></svg>' },
     { key: 'plan', label: 'Plan',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8.5" y1="8" x2="15.5" y2="8"/><line x1="8.5" y1="12" x2="15.5" y2="12"/><line x1="8.5" y1="16" x2="12.5" y2="16"/></svg>' },
+    { key: 'forgecard', label: 'Forge Card',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8" cy="11" r="1.6"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="13.5" x2="18" y2="13.5"/><line x1="6" y1="15" x2="11" y2="15"/></svg>' },
     { key: 'settings', label: 'Settings',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg>' }
   ];
@@ -853,6 +855,7 @@
     else if (dest === 'exercises') renderDashboard();
     else if (dest === 'progress') openProgress();
     else if (dest === 'plan') openPlan();
+    else if (dest === 'forgecard') openForgeCard();
     else if (dest === 'settings') openSettings();
   }
 
@@ -2809,6 +2812,36 @@
 
     var embers = screen.querySelector('.pl-hero-embers');
     if (embers) startEmbers(embers);
+  }
+
+  // ===================================================================
+  // Forge Card (coming soon)
+  // ===================================================================
+  function openForgeCard() {
+    var screen = ensureScreen('forgecard-screen');
+    var lock = '<svg class="fc-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+    var ATTRS = ['STRENGTH', 'ENDURANCE', 'IRON CORE', 'AGILITY', 'CONSISTENCY'];
+    var attrHTML = ATTRS.map(function (a) {
+      return '<div class="fc-attr">' +
+               '<span class="fc-attr-name">' + esc(a) + '</span>' +
+               '<div class="fc-attr-bar"></div>' +
+             '</div>';
+    }).join('');
+
+    screen.innerHTML =
+      '<h1 class="fc-title">FORGE CARD</h1>' +
+      '<div class="fc-card forge-laser">' +
+        lock +
+        '<span class="fc-locked">LOCKED</span>' +
+      '</div>' +
+      '<p class="fc-text">Your Forge Card is coming soon. Complete your first Best Effort ' +
+        'Friday to unlock your attributes.</p>' +
+      '<div class="fc-attrs">' + attrHTML + '</div>';
+
+    showScreen(screen);
+    showNav('forgecard');
   }
 
   function openSettings() {
