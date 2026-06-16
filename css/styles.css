@@ -615,48 +615,135 @@ img.topbar-avatar,
   text-align: center;
 }
 
-/* ---------- Stats ---------- */
-.stats {
+/* ---------- Stats hero row (animated counters) ---------- */
+.dash-stats {
+  position: relative;
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.stat {
-  background: var(--card);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 4px;
+  background: #161616;
   border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 12px 6px;
-  text-align: center;
+  border-radius: 16px;
+  padding: 16px 8px 12px;
+  overflow: hidden;
 }
 
-.stat-value {
-  font-family: 'DM Mono', monospace;
-  font-size: 22px;
+.dash-stat {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.dash-stat > * { position: relative; z-index: 1; }
+
+/* Ember glow behind the STREAK stat. */
+.dash-stat--streak::before {
+  content: '';
+  position: absolute;
+  inset: -12px -6px;
+  background: radial-gradient(circle at 50% 45%, rgba(232, 98, 26, 0.32), rgba(232, 98, 26, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dash-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+.dash-sub {
   color: var(--cream);
-  line-height: 1.1;
+  opacity: 0.45;
+  font-size: 0.55em;
 }
 
-.stat-sub {
-  font-size: 12px;
+.dash-fire {
+  display: block;
+  width: 48px;
+  height: 40px;
+}
+
+.dash-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--cream);
   opacity: 0.5;
 }
 
-.stat-label {
-  margin-top: 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--dim);
+/* ---------- Training section header ---------- */
+.dash-trainhead {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.section-label {
-  width: 100%;
-  font-size: 13px;
+.dash-trainhead-day {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 34px;
   letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--dim);
+  line-height: 1;
+  color: var(--cream);
+}
+
+.dash-trainhead-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
+.dash-trainhead-be {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--orange);
+  margin-top: 2px;
+}
+
+.dash-trainhead-rule {
+  width: 64px;
+  height: 3px;
+  margin-top: 8px;
+  background: var(--orange);
+  border-radius: 2px;
+  transform-origin: left center;
+  animation: ruleDraw 600ms ease-out both;
+}
+
+@keyframes ruleDraw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ---------- All-done completion banner ---------- */
+.dash-alldone {
+  width: 100%;
+  text-align: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 1.5px;
+  color: var(--orange);
+  animation: alldoneIn 400ms ease-out both, alldonePulse 2.4s ease-in-out 400ms infinite;
+}
+
+@keyframes alldoneIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes alldonePulse {
+  0%, 100% { text-shadow: 0 0 8px rgba(232, 98, 26, 0.35); }
+  50% { text-shadow: 0 0 20px rgba(232, 98, 26, 0.75); }
 }
 
 /* ---------- Exercise cards ---------- */
@@ -670,24 +757,43 @@ img.topbar-avatar,
 .card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   background: var(--card);
-  border: none;
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--orange);
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 14px 16px;
+  box-shadow: inset 0 0 22px rgba(232, 98, 26, 0.07); /* subtle orange glow */
 }
 
-/* Logged state: green tick inside is the indicator. */
+.card-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  color: var(--orange);
+  display: inline-flex;
+}
+
+.card-info { flex: 1; min-width: 0; }
+.card-action { flex-shrink: 0; }
+
+/* Logged state: green left border + green glow, ✓ prefix on the name. */
 .card-done {
-  border: none;
+  border-left-color: var(--green);
+  box-shadow: inset 0 0 22px rgba(39, 174, 96, 0.12);
 }
+.card-done .card-icon { color: var(--green); }
+.card-check { color: var(--green); }
 
-/* Rest-day card: no laser — static dim grey border, darker bg, dimmed text. */
+/* Rest-day card: muted grey left border, darker bg, dimmed. */
 .card-rest {
-  border: 1px solid #4a4a4d;
+  border: 1px solid #3a3a3d;
+  border-left: 3px solid #4a4a4d;
   background: #202022;
+  box-shadow: none;
+  opacity: 0.65;
 }
+.card-rest .card-icon { color: #6a6a6e; }
 
 .card-rest .card-name { color: rgba(245, 240, 232, 0.45); }
 .card-rest .card-target { color: var(--dim); }
@@ -734,16 +840,17 @@ img.topbar-avatar,
 
 .card-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 26px;
+  font-size: 29px;
   letter-spacing: 1px;
   color: var(--cream);
 }
 
 .card-target {
   font-family: 'DM Mono', monospace;
-  font-size: 14px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
   color: var(--orange);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .btn-log {
@@ -784,9 +891,12 @@ img.topbar-avatar,
 }
 
 .badge-rest {
-  background: rgba(245, 240, 232, 0.1);
-  color: var(--dim);
+  background: rgba(245, 240, 232, 0.08);
+  color: rgba(245, 240, 232, 0.55);
   border: 1px solid var(--card-border);
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
 }
 
 /* ---------- Full rest day ---------- */

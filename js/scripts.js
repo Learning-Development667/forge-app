@@ -1520,14 +1520,30 @@
   // ===================================================================
   // Dashboard
   // ===================================================================
+  // Simple geometric exercise icons for the dashboard cards (decorative).
+  var EXERCISE_ICONS = {
+    pressups: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="8" r="1.8"/><path d="M6.2 8.7l8.8 1.8"/><path d="M15 10.5l4 .6"/><path d="M8.5 10l-.6 4M12.5 10.9l-.4 3.6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+    situps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="1.8"/><path d="M8 7.6l4.5 6.4"/><path d="M12.5 14h6"/><path d="M18.5 14l-3-4"/><line x1="4" y1="18" x2="20" y2="18"/></svg>',
+    plank: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.8" cy="9" r="1.8"/><line x1="6.4" y1="9.6" x2="19" y2="13.6"/><line x1="6.8" y1="10.2" x2="6" y2="15"/><line x1="19" y1="13.6" x2="20.4" y2="14.6"/><line x1="3" y1="16" x2="21" y2="16"/></svg>',
+    lunges: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4.5" r="1.8"/><path d="M11 6.3v6"/><path d="M11 12.3L7 19"/><path d="M11 12.3l4 3v3.5"/><line x1="4" y1="20" x2="20" y2="20"/></svg>'
+  };
+
   function renderDashboard() {
     var today = new Date();
     var day = challengeDay(today);
     var sched = todaySchedule();
     var routine = todayRoutine();
 
-    var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
-    var week = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
+    var dayNum = day < 1 ? 0 : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
+    var weekNum = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
+    var streakVal = state.user ? (state.user.currentStreak || 0) : 0;
+    var pointsVal = state.user ? (state.user.totalPoints || 0) : 0;
+
+    var DOW = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                  'August', 'September', 'October', 'November', 'December'];
+    var dowName = DOW[today.getDay()];
+    var dateStr = today.getDate() + ' ' + MONTHS[today.getMonth()] + ' ' + today.getFullYear();
 
     var banner = '';
     if (day > TOTAL_DAYS) {
@@ -1551,6 +1567,7 @@
       }).join('') + '</div>';
     }
 
+    var allDone = sched.type !== 'rest' && allDueLoggedToday(sched);
     var showIntro = !!(state.user && !state.user.introSeen);
 
     var html =
@@ -1564,22 +1581,45 @@
 
       (banner ? '<div class="banner">' + esc(banner) + '</div>' : '') +
 
-      '<section class="stats">' +
-        statCard(dayLabel + '<span class="stat-sub">/ ' + TOTAL_DAYS + '</span>', 'Day') +
-        statCard(week + '<span class="stat-sub">/ ' + TOTAL_WEEKS + '</span>', 'Week') +
-        statCard('🔥 ' + (state.user ? state.user.currentStreak : 0), 'Streak') +
-        statCard((state.user ? state.user.totalPoints : 0), 'Points') +
+      // Stats hero row — animated counters; ember glow + small fire under STREAK.
+      '<section class="dash-stats">' +
+        '<div class="dash-stat">' +
+          '<span class="dash-num"><span data-count="' + dayNum + '" data-dur="600">0</span>' +
+            '<span class="dash-sub">/' + TOTAL_DAYS + '</span></span>' +
+          '<span class="dash-label">DAY</span>' +
+        '</div>' +
+        '<div class="dash-stat">' +
+          '<span class="dash-num"><span data-count="' + weekNum + '" data-dur="700">0</span>' +
+            '<span class="dash-sub">/' + TOTAL_WEEKS + '</span></span>' +
+          '<span class="dash-label">WEEK</span>' +
+        '</div>' +
+        '<div class="dash-stat dash-stat--streak">' +
+          '<span class="dash-num" data-count="' + streakVal + '" data-dur="800">0</span>' +
+          '<canvas class="dash-fire prog-streak-fire"></canvas>' +
+          '<span class="dash-label">STREAK</span>' +
+        '</div>' +
+        '<div class="dash-stat">' +
+          '<span class="dash-num" data-count="' + pointsVal + '" data-dur="1000">0</span>' +
+          '<span class="dash-label">POINTS</span>' +
+        '</div>' +
       '</section>' +
 
       (routine ? '<button type="button" class="btn-outline forge-laser" data-action="warmup">Warm Up</button>' : '') +
 
-      (sched.type === 'besteffort'
-        ? '<p class="section-label">Best Effort Friday — 2 min each</p>'
-        : '<p class="section-label">Today\'s training</p>') +
+      // Training section header — day + date + animated underline.
+      '<div class="dash-trainhead">' +
+        '<h2 class="dash-trainhead-day">' + esc(dowName) + '</h2>' +
+        '<p class="dash-trainhead-date">' + esc(dateStr) + '</p>' +
+        (sched.type === 'besteffort'
+          ? '<p class="dash-trainhead-be">Best Effort · 2 min each</p>' : '') +
+        '<span class="dash-trainhead-rule"></span>' +
+      '</div>' +
 
       body +
 
       bonusSpinHTML() +
+
+      (allDone ? '<div class="dash-alldone">ALL DONE TODAY! 💪</div>' : '') +
 
       (routine ? '<button type="button" class="btn-outline forge-laser" data-action="cooldown">Cool Down</button>' : '');
 
@@ -1587,14 +1627,18 @@
     wireDashboard();
     showScreen(dashboardScreen);
     showNav('exercises');
+    // Counters + streak fire trigger once the dashboard is visible.
+    requestAnimationFrame(function () { runDashboardAnimations(dashboardScreen); });
     if (showIntro) markIntroSeen(); // one-time note; gone on next render
   }
 
-  function statCard(value, label) {
-    return '<div class="stat">' +
-             '<div class="stat-value">' + value + '</div>' +
-             '<div class="stat-label">' + label + '</div>' +
-           '</div>';
+  // Animate the four stat counters up from 0 and start the small streak fire.
+  function runDashboardAnimations(screen) {
+    Array.prototype.forEach.call(screen.querySelectorAll('.dash-stats [data-count]'), function (el) {
+      animateCount(el, Number(el.getAttribute('data-count')), Number(el.getAttribute('data-dur')));
+    });
+    var fire = screen.querySelector('.dash-fire');
+    if (fire) startFire(fire); // capped particle size via the prog-streak-fire class
   }
 
   // Topbar profile button shows the user's avatar (photo or initial placeholder),
@@ -1650,12 +1694,16 @@
     var infoBtn = isRest ? '' :
       '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">i</button>';
 
-    // Cards no longer carry the laser border — it visually wraps the small Log
-    // button inside. The laser is reserved for full-width standalone buttons.
+    // Logged cards prefix the name with a green ✓ (alongside the green styling).
+    var checkPrefix = logged ? '<span class="card-check">✓</span> ' : '';
+
+    // Active cards carry an orange left border + subtle glow; logged → green;
+    // rest → muted grey. The laser is reserved for full-width standalone buttons.
     return '<div class="card' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
+             '<span class="card-icon">' + (EXERCISE_ICONS[exKey] || '') + '</span>' +
              '<div class="card-info">' +
                '<div class="card-name-row">' +
-                 '<h3 class="card-name">' + ex.name + '</h3>' + infoBtn +
+                 '<h3 class="card-name">' + checkPrefix + ex.name + '</h3>' + infoBtn +
                '</div>' +
                '<p class="card-target">' +
                  (isRest ? 'Rest day for this one' :
