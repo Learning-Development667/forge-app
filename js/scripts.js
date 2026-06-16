@@ -388,21 +388,21 @@
     enterApp(identity);
   }
 
-  // Funny "that's not you" lines for a failed Face ID check.
-  function randomFaceFail(name) {
-    var msgs = [
-      "You sure don't look like " + name + "! Please choose your avatar.",
-      'Nice try! ' + name + ' has a much better face than that.',
-      'Our Face ID is good, but not THAT good. Try your own avatar!',
-      'Forge security level: Fort Knox. Please choose your avatar.'
-    ];
-    return msgs[Math.floor(Math.random() * msgs.length)];
+  // Return to the login carousel, centred on the given avatar.
+  function backToCarousel(name) {
+    setMessage(loginMessage, '');
+    showScreen(loginScreen);
+    if (name) setIndexByName(name);
   }
 
   // First time on this device for a known user: offer Face ID enrolment.
+  // Skip is ONLY offered if this device has previously signed in as this person
+  // (forgeLastAvatar matches) — otherwise anyone could tap an avatar and skip
+  // straight in. Without a match, the only options are Enable Face ID or Back.
   function showEnableFaceId(identity) {
     // registerBiometric reads state.user for the doc id + name.
     state.user = { id: identity.uid, name: identity.name, email: '', avatar: identity.avatar || null };
+    var allowSkip = window.localStorage.getItem(FORGE_LAST_AVATAR_KEY) === identity.name;
     var screen = ensureScreen('faceid-screen');
     screen.innerHTML =
       '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
@@ -410,19 +410,62 @@
         '<p class="lock-name">' + esc(identity.name) + '</p></div>' +
       '<p class="pin-subtext">Enable Face ID to sign in as ' + esc(identity.name) + '</p>' +
       '<button type="button" class="btn-forge faceid-enable">Enable Face ID</button>' +
-      '<button type="button" class="btn-link faceid-skip">Skip</button>' +
+      (allowSkip
+        ? '<button type="button" class="btn-link faceid-skip">Skip</button>'
+        : '<button type="button" class="btn-link faceid-back">Back</button>') +
       '<p class="pin-error message" role="status" aria-live="polite"></p>';
     showScreen(screen);
+    var errEl = screen.querySelector('.pin-error');
     var enableBtn = screen.querySelector('.faceid-enable');
     enableBtn.addEventListener('click', function () {
-      if (!webauthnSupported) { finishLogin(identity); return; } // skip silently
+      if (!webauthnSupported) { finishLogin(identity); return; } // no WebAuthn → allow in
       enableBtn.disabled = true;
       registerBiometric()
         .then(function () { finishLogin(identity); })
-        .catch(function () { finishLogin(identity); }); // cancel/unsupported → continue
+        .catch(function () {
+          // Enrolment cancelled/failed. A known returning user (Skip allowed)
+          // may proceed; a new user must enrol — let them retry or go back.
+          if (allowSkip) { finishLogin(identity); return; }
+          enableBtn.disabled = false;
+          setMessage(errEl, 'Face ID is needed to sign in. Try again or go back.', true);
+        });
     });
-    screen.querySelector('.faceid-skip').addEventListener('click', function () { finishLogin(identity); });
+    var skipBtn = screen.querySelector('.faceid-skip');
+    if (skipBtn) skipBtn.addEventListener('click', function () { finishLogin(identity); });
+    var backBtn = screen.querySelector('.faceid-back');
+    if (backBtn) backBtn.addEventListener('click', function () { backToCarousel(identity.name); });
     addFire(enableBtn);
+  }
+
+  // A user with a stored credential that isn't on THIS device (different device
+  // or cleared credentials). Offer to enrol Face ID here instead of a misleading
+  // "wrong face" message.
+  function showFaceIdNotSetUp(identity) {
+    state.user = { id: identity.uid, name: identity.name, email: '', avatar: identity.avatar || null };
+    var screen = ensureScreen('faceid-setup-screen');
+    screen.innerHTML =
+      '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+      '<div class="lock-id">' + avatarMarkup(identity.name, 'lock-avatar') +
+        '<p class="lock-name">' + esc(identity.name) + '</p></div>' +
+      '<p class="pin-subtext">Face ID not set up on this device. Are you ' + esc(identity.name) + '?</p>' +
+      '<button type="button" class="btn-forge faceid-setup-yes">Yes, set up Face ID</button>' +
+      '<button type="button" class="btn-link faceid-setup-no">Not me</button>' +
+      '<p class="pin-error message" role="status" aria-live="polite"></p>';
+    showScreen(screen);
+    var errEl = screen.querySelector('.pin-error');
+    var yesBtn = screen.querySelector('.faceid-setup-yes');
+    yesBtn.addEventListener('click', function () {
+      if (!webauthnSupported) { finishLogin(identity); return; }
+      yesBtn.disabled = true;
+      registerBiometric() // creates a new credential + updates biometricCredentialId
+        .then(function () { finishLogin(identity); })
+        .catch(function () {
+          yesBtn.disabled = false;
+          setMessage(errEl, 'Could not set up Face ID. Try again or tap Not me.', true);
+        });
+    });
+    screen.querySelector('.faceid-setup-no').addEventListener('click', function () { backToCarousel(identity.name); });
+    addFire(yesBtn);
   }
 
   // ---- DOM references (login screens live in index.html) -----------
@@ -1210,16 +1253,20 @@
       }
       var identity = { uid: existing.id, name: existing.name, email: '', avatar: existing.avatar || null };
       if (existing.biometricCredentialId) {
-        // Returning device — verify Face ID. Either outcome is handled here.
+        // Stored credential — verify Face ID on this device.
         authBiometric(existing.biometricCredentialId)
-          .then(function () { finishLogin(identity); })
+          .then(function (cred) {
+            if (!cred) { showFaceIdNotSetUp(identity); return; }
+            finishLogin(identity);
+          })
           .catch(function () {
-            setMessage(loginMessage, randomFaceFail(existing.name), true);
-            showScreen(loginScreen);
-            setIndexByName(existing.name);
+            // NotAllowedError / null → the credential isn't on this device (or
+            // the check failed). Offer to set Face ID up here rather than a
+            // misleading "wrong face" message.
+            showFaceIdNotSetUp(identity);
           });
       } else {
-        // First time on this device for this user — offer Face ID enrolment.
+        // No credential anywhere yet — offer Face ID enrolment.
         showEnableFaceId(identity);
       }
     });
