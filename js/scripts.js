@@ -2519,7 +2519,19 @@
         '</div>' +
         '<button type="button" class="btn-link set-signout">Sign out</button>' +
       '</section>' +
-      '<p class="message set-msg" role="status" aria-live="polite"></p>';
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">App</p>' +
+        '<button type="button" class="btn-outline set-check-updates">Check for Updates</button>' +
+      '</section>' +
+
+      '<p class="message set-msg" role="status" aria-live="polite"></p>' +
+
+      '<footer class="settings-footer">' +
+        '<p class="settings-version">' + esc(appVersion()) + '</p>' +
+        '<img class="m1-logo" src="images/mark_one_log.png" alt="Mark One Apps" />' +
+        '<p class="m1-credit">Built by Mark One Apps</p>' +
+      '</footer>';
 
     var toggle = screen.querySelector('#reminder-toggle');
     toggle.addEventListener('click', function () {
@@ -2571,8 +2583,49 @@
       });
     }
 
+    var checkBtn = screen.querySelector('.set-check-updates');
+    if (checkBtn) checkBtn.addEventListener('click', function () { onCheckUpdates(checkBtn); });
+
     showScreen(screen);
     showNav('settings');
+  }
+
+  // The current app version (single source of truth: the login-screen badge).
+  function appVersion() {
+    var el = document.querySelector('.brand-version');
+    return el ? el.textContent : '';
+  }
+
+  // Force a service-worker update check from Settings.
+  function onCheckUpdates(btn) {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.getRegistration) {
+      btn.textContent = 'Updates unavailable';
+      setTimeout(function () { btn.textContent = 'Check for Updates'; }, 2000);
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    var settled = false;
+    function settle(text, reload) {
+      if (settled) return;
+      settled = true;
+      btn.textContent = text;
+      if (reload) {
+        setTimeout(function () { window.location.reload(); }, 2000);
+      } else {
+        setTimeout(function () { btn.textContent = 'Check for Updates'; btn.disabled = false; }, 2000);
+      }
+    }
+    navigator.serviceWorker.getRegistration().then(function (reg) {
+      if (!reg) { settle('You are up to date', false); return; }
+      var onFound = function () { settle('Update available — tap to reload', true); };
+      reg.addEventListener('updatefound', onFound);
+      try { reg.update(); } catch (e) {}
+      setTimeout(function () {
+        reg.removeEventListener('updatefound', onFound);
+        settle('You are up to date', false);
+      }, 3000);
+    }).catch(function () { settle('You are up to date', false); });
   }
 
   // ===================================================================
