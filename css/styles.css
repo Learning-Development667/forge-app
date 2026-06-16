@@ -2365,3 +2365,67 @@ button:focus { outline: none; }
   align-items: center;
   justify-content: center;
 }
+
+/* ---------- Feed mood icon (same SVG as the logging screen) ---------- */
+.feed-mood {
+  display: inline-flex;
+  vertical-align: middle;
+  color: var(--orange);
+}
+.feed-mood svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Cheer pop-up (confetti notification) ---------- */
+.cheer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;                 /* above the 60px top nav */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.cheer-card {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: var(--charcoal);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 0 40px rgba(232, 98, 26, 0.4);
+  text-align: center;
+}
+
+.cheer-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--orange);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cheer-msg {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--cream);
+}
+
+.cheer-card .cheer-close {
+  width: auto;
+  min-width: 160px;
+}

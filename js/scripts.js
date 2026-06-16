@@ -447,6 +447,7 @@
 
   // DEV_MODE session flag: treat today as a Friday (best-effort) for display.
   var devForceFriday = false;
+  var plankTimerActive = false; // true while the best-effort/plank countdown runs
 
   // Message board real-time state.
   var boardUnsubs = [];
@@ -459,6 +460,7 @@
   // Screen helpers
   // ===================================================================
   function showScreen(screen) {
+    plankTimerActive = false; // leaving any screen ends the timer context
     var all = document.querySelectorAll('.screen');
     Array.prototype.forEach.call(all, function (s) {
       s.classList.add('hidden');
@@ -1347,6 +1349,8 @@
   }
 
   function saveLog(exKey, repsCompleted, target, mood, isBestEffort, bonusExercise) {
+    var sched = todaySchedule();
+    var wasComplete = allDueLoggedToday(sched); // before this log
     var entry = {
       date: dateKey(new Date()),
       exercise: exKey,
@@ -1361,22 +1365,29 @@
       .then(function (ref) {
         entry._id = ref.id;
         state.logs.push(entry);
-        writeActivity(exKey, repsCompleted, mood);
+        // Individual logs no longer post to the feed. Post ONE consolidated
+        // activity only when this log completes all of today's due exercises.
+        if (!wasComplete && allDueLoggedToday(sched)) {
+          writeSessionComplete(sched);
+        }
         return refreshStats();
       });
   }
 
-  // Auto-write a public activity entry to the message board feed.
-  function writeActivity(exKey, repsCompleted, mood) {
-    var ex = EXERCISES[exKey];
-    var displayName = ex ? ex.name : exKey; // bonus passes the move name
-    var detail = ex ? formatTarget(ex, Number(repsCompleted)) : String(repsCompleted);
+  // One consolidated "session complete" activity for the message board. The mood
+  // shown is the average of every (non-bonus) mood logged today.
+  function writeSessionComplete(sched) {
+    var todays = todayLogs().filter(function (l) { return !l.bonusExercise; });
+    var bestEffort = sched.type === 'besteffort';
+    var message = bestEffort
+      ? state.user.name + ' gave it everything on Best Effort Friday 🔥'
+      : state.user.name + " crushed today's session 💪";
     db.collection('activities').add({
       userId: state.user.id,
       userName: state.user.name,
-      exercise: displayName,
-      repsCompleted: detail,
-      mood: mood,
+      kind: 'session',
+      message: message,
+      mood: avgMoodLabel(todays), // label → matching icon in the feed
       reactions: [],
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function (err) { console.error('Failed to write activity:', err); });
@@ -1796,6 +1807,7 @@
   }
 
   function startCountdown(seconds, ringEl, labelEl, fireEl, onDone) {
+    plankTimerActive = true; // suppress cheer pop-ups while the timer runs
     var C = 2 * Math.PI * 54; // circumference for r=54
     var total = seconds;
     var remaining = seconds;
@@ -2004,6 +2016,22 @@
   function moodScore(label) {
     var i = MOODS.indexOf(label);
     return i < 0 ? null : (5 - i); // Crushed it = 5 … Really tough = 1
+  }
+
+  // Average a set of logs' moods into a single mood label (rounded to nearest).
+  function avgMoodLabel(logs) {
+    var scores = (logs || []).map(function (l) { return moodScore(l.mood); })
+      .filter(function (s) { return s != null; });
+    if (!scores.length) return null;
+    var avg = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+    avg = Math.max(1, Math.min(5, Math.round(avg)));
+    return MOODS[5 - avg]; // score → label (inverse of moodScore)
+  }
+
+  // The logging-screen SVG icon for a mood label (same representation as logging).
+  function moodIconHtml(label) {
+    var i = MOODS.indexOf(label);
+    return i >= 0 ? '<span class="feed-mood" title="' + esc(label) + '">' + MOOD_ICONS[i] + '</span>' : '';
   }
 
   function computeDaysCompleted() {
@@ -2497,6 +2525,7 @@
     listenBoard();
     showScreen(screen);
     showNav('board');
+    checkCheers(); // app load (board is the landing screen) + every board open
   }
 
   function listenBoard() {
@@ -2595,16 +2624,20 @@
           '" data-del-id="' + e._id + '" aria-label="Delete">×</button>'
         : '';
       if (e._kind === 'activity') {
-        var emoji = MOOD_EMOJI[e.mood] || '';
         var feedName = cleanName(e.userName);
+        var moodIcon = moodIconHtml(e.mood); // same SVG as the logging screen
         var reacts = (e.reactions || []).map(function (n) {
           return avatarMarkup(cleanName(n), 'react-avatar');
         }).join('');
+        // Consolidated session posts carry a message; legacy logs describe the exercise.
+        var text = e.message
+          ? esc(e.message)
+          : '<strong>' + esc(feedName) + '</strong> completed ' +
+            esc(e.exercise) + ' — ' + esc(e.repsCompleted || '');
         return '<div class="feed-card feed-activity">' +
                  avatarMarkup(feedName, 'mini-avatar') +
                  '<div class="feed-body">' +
-                   '<p class="feed-text"><strong>' + esc(feedName) + '</strong> completed ' +
-                     esc(e.exercise) + ' — ' + esc(e.repsCompleted || '') + ' ' + emoji + '</p>' +
+                   '<p class="feed-text">' + text + ' ' + moodIcon + '</p>' +
                    (reacts ? '<div class="feed-reactions">' + reacts + '</div>' : '') +
                    '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
                  '</div>' +
@@ -2626,7 +2659,10 @@
     Array.prototype.forEach.call(feed.querySelectorAll('[data-react]'), function (btn) {
       btn.addEventListener('click', function () {
         fireConfetti(btn);
-        addReaction(btn.getAttribute('data-react'));
+        var id = btn.getAttribute('data-react');
+        addReaction(id);
+        var act = boardActivities.filter(function (a) { return a._id === id; })[0];
+        if (act) writeCheer(cleanName(act.userName)); // notify the cheered user
       });
     });
     Array.prototype.forEach.call(feed.querySelectorAll('[data-del-id]'), function (btn) {
@@ -2658,6 +2694,84 @@
       document.body.appendChild(p);
       (function (el) { setTimeout(function () { el.remove(); }, 900); })(p);
     }
+  }
+
+  // Big centre-screen confetti cannon (used by the cheer pop-up).
+  function fireConfettiCannon() {
+    var colors = ['#E8621A', '#F5F0E8', '#27AE60', '#FFD700', '#ffffff'];
+    var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    for (var i = 0; i < 40; i++) {
+      var p = document.createElement('div');
+      p.className = 'confetti';
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      p.style.background = colors[i % colors.length];
+      p.style.setProperty('--dx', ((Math.random() - 0.5) * 480) + 'px');
+      p.style.setProperty('--dy', (-(Math.random() * 360 + 120)) + 'px');
+      document.body.appendChild(p);
+      (function (el) { setTimeout(function () { el.remove(); }, 1100); })(p);
+    }
+  }
+
+  // ---- Cheers (confetti notifications between squad members) -------
+  function avatarFileFor(name) {
+    return AVATARS[name] ? AVATARS[name].split('/').pop() : null;
+  }
+
+  // Tapping a feed cheer button writes a cheer doc the recipient sees next time.
+  function writeCheer(toName) {
+    var fromName = cleanName(state.user && state.user.name, '');
+    if (!toName || !fromName || toName === fromName) return; // no self-cheers
+    var msgs = [
+      fromName + ' is cheering you on! 🎉',
+      fromName + ' thinks you are smashing it! 🔥',
+      fromName + ' just fired the confetti cannon for you! 🎊',
+      fromName + ' says keep going, you legend! 💪'
+    ];
+    db.collection('cheers').add({
+      fromName: fromName,
+      fromAvatar: avatarFileFor(fromName),
+      toName: toName,
+      toAvatar: avatarFileFor(toName),
+      message: msgs[Math.floor(Math.random() * msgs.length)],
+      seen: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function (err) { console.error('Failed to write cheer:', err); });
+  }
+
+  // Look for unseen cheers addressed to the current user and pop them up.
+  // (Single-field query — filtered for unseen client-side, no composite index.)
+  function checkCheers() {
+    if (!state.user) return;
+    var myName = cleanName(state.user.name, '');
+    db.collection('cheers').where('toName', '==', myName).get()
+      .then(function (snap) {
+        var unseen = snap.docs.filter(function (d) { return (d.data() || {}).seen === false; });
+        if (unseen.length) showCheerPopup(unseen, 0);
+      })
+      .catch(function (err) { console.error('Failed to check cheers:', err); });
+  }
+
+  // Show queued cheers one at a time. Never over the plank timer screen.
+  function showCheerPopup(docs, i) {
+    if (!docs || i >= docs.length) return;
+    if (plankTimerActive) return; // deferred — re-checked when the board opens
+    var data = docs[i].data() || {};
+    var overlay = document.createElement('div');
+    overlay.className = 'cheer-overlay';
+    overlay.innerHTML =
+      '<div class="cheer-card">' +
+        avatarMarkup(cleanName(data.fromName), 'cheer-avatar') +
+        '<p class="cheer-msg">' + esc(data.message || '') + '</p>' +
+        '<button type="button" class="btn-forge cheer-close">Thanks!</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    fireConfettiCannon();
+    docs[i].ref.update({ seen: true }).catch(function (err) { console.error('Failed to mark cheer seen:', err); });
+    overlay.querySelector('.cheer-close').addEventListener('click', function () {
+      overlay.remove();
+      showCheerPopup(docs, i + 1); // next queued cheer, if any
+    });
   }
 
   function onSignOut() {
