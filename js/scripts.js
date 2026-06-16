@@ -23,6 +23,23 @@
   var FORGE_LAST_AVATAR_KEY = 'forgeLastAvatar';
   // First-login onboarding seen flag.
   var ONBOARDING_KEY = 'forgeOnboardingSeen';
+  // Date (YYYY-MM-DD) the daily motivation pop-up was last shown on this device.
+  var DAILY_QUOTE_KEY = 'forgeDailyQuoteDate';
+
+  // Fallback motivational quotes for the daily pop-up when the ZenQuotes API is
+  // unreachable. One is chosen by day-of-year so it stays stable all day.
+  var DAILY_FALLBACK_QUOTES = [
+    'The pain you feel today will be the strength you feel tomorrow.',
+    'It never gets easier, you just get stronger.',
+    "Your body can stand almost anything. It's your mind you have to convince.",
+    'Success is the sum of small efforts repeated day in and day out.',
+    "Don't stop when you're tired. Stop when you're done.",
+    "The only bad workout is the one that didn't happen.",
+    'Strength does not come from the body. It comes from the will of the soul.',
+    'Push yourself because no one else is going to do it for you.',
+    'Wake up with determination. Go to bed with satisfaction.',
+    "The harder you work for something the greater you'll feel when you achieve it."
+  ];
 
   // Default onboarding cards (overridden by the Firestore notices/onboarding doc
   // if it exists — see loadOnboarding). Card 6 carries the "Let's Forge" CTA.
@@ -1331,10 +1348,12 @@
         } else {
           enterHome();
         }
+        scheduleDailyQuote(); // once-per-day motivation pop-up, after a short delay
       })
       .catch(function (err) {
         console.error('Failed to enter app:', err);
         enterHome();
+        scheduleDailyQuote();
       });
   }
 
@@ -3487,6 +3506,103 @@
   function friendlyError(err) {
     if (err && err.message) return err.message;
     return 'Something went wrong. Please try again.';
+  }
+
+  // ===================================================================
+  // Daily motivation pop-up (ZenQuotes, once per day)
+  // ===================================================================
+  // 1-based day of the year, used to pick a stable fallback quote per day.
+  function dayOfYear(d) {
+    var start = new Date(d.getFullYear(), 0, 0);
+    return Math.floor((atMidnight(d) - start) / 86400000);
+  }
+
+  // Same fallback all day, chosen by day-of-year.
+  function fallbackDailyQuote() {
+    var list = DAILY_FALLBACK_QUOTES;
+    return { q: list[dayOfYear(new Date()) % list.length], a: 'Unknown' };
+  }
+
+  // Normalise a ZenQuotes array response ([{q,a}]) into { q, a }.
+  function parseZenQuote(arr) {
+    if (Array.isArray(arr) && arr[0] && arr[0].q) {
+      return { q: String(arr[0].q), a: String(arr[0].a || 'Unknown') };
+    }
+    throw new Error('Unexpected ZenQuotes response');
+  }
+
+  // JSONP fetch — ZenQuotes needs this in the browser (CORS). The callback name
+  // is fixed to zenQuoteCallback because that is what we pass in the URL.
+  function fetchQuoteJsonp(timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var cbName = 'zenQuoteCallback';
+      var script = document.createElement('script');
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { cleanup(); reject(new Error('timeout')); } }, timeoutMs);
+      function cleanup() {
+        done = true;
+        clearTimeout(timer);
+        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+      window[cbName] = function (data) { if (!done) { cleanup(); resolve(data); } };
+      script.onerror = function () { if (!done) { cleanup(); reject(new Error('network')); } };
+      script.src = 'https://zenquotes.io/api/today?callback=' + cbName;
+      document.head.appendChild(script);
+    });
+  }
+
+  // Fallback path: the random endpoint has more permissive CORS than /today.
+  function fetchQuoteRandom(timeoutMs) {
+    if (!window.fetch) return Promise.reject(new Error('no fetch'));
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, timeoutMs);
+    return fetch('https://zenquotes.io/api/random', ctrl ? { signal: ctrl.signal } : {})
+      .then(function (r) { clearTimeout(timer); return r.json(); }, function (e) { clearTimeout(timer); throw e; });
+  }
+
+  // Try JSONP /today → random endpoint → hardcoded fallback. Always resolves.
+  function fetchDailyQuote() {
+    return fetchQuoteJsonp(3000).then(parseZenQuote)
+      .catch(function () { return fetchQuoteRandom(3000).then(parseZenQuote); })
+      .catch(function () { return fallbackDailyQuote(); });
+  }
+
+  // Show the pop-up once per day, 600ms after the dashboard has loaded so the
+  // user briefly sees the app behind it.
+  function scheduleDailyQuote() {
+    if (window.localStorage.getItem(DAILY_QUOTE_KEY) === dateKey(new Date())) return;
+    setTimeout(function () {
+      var todayKey = dateKey(new Date());
+      if (window.localStorage.getItem(DAILY_QUOTE_KEY) === todayKey) return; // guard re-entry
+      fetchDailyQuote().then(function (quote) {
+        if (window.localStorage.getItem(DAILY_QUOTE_KEY) === dateKey(new Date())) return;
+        window.localStorage.setItem(DAILY_QUOTE_KEY, dateKey(new Date()));
+        showDailyQuotePopup(quote);
+      });
+    }, 600);
+  }
+
+  function showDailyQuotePopup(quote) {
+    var overlay = document.getElementById('daily-quote-overlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div class="quote-card">' +
+        '<span class="quote-brand">FORGE</span>' +
+        '<span class="quote-label">TODAY\'S MOTIVATION</span>' +
+        '<p class="quote-text">' + esc(quote.q) + '</p>' +
+        '<p class="quote-author">— ' + esc(quote.a || 'Unknown') + '</p>' +
+        '<button type="button" class="btn-forge quote-close">LET\'S FORGE</button>' +
+      '</div>';
+    overlay.classList.remove('hidden', 'is-visible'); // reset so the entrance replays
+    var closeBtn = overlay.querySelector('.quote-close');
+    addFire(closeBtn);
+    closeBtn.addEventListener('click', function () {
+      overlay.classList.add('hidden');
+      overlay.innerHTML = '';
+    });
+    // Next frame → add the visible class so the fade/slide-up transition runs.
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
   }
 
   // ===================================================================
