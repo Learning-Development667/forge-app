@@ -2576,3 +2576,72 @@ button:focus { outline: none; }
 .onb-edit-b:focus {
   border-color: var(--orange);
 }
+
+/* ===================================================================
+   Admin panel
+   =================================================================== */
+#admin-screen { background-image: url('../images/bg-minimal.png'); }
+
+/* Destructive action — cream outline, red text, no background. */
+.btn-danger {
+  width: 100%;
+  border: 1px solid var(--cream);
+  border-radius: 14px;
+  background: none;
+  color: #ff5a5a;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 2px;
+  padding: 14px;
+  cursor: pointer;
+}
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.admin-confirm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.admin-confirm-text {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream);
+  text-align: center;
+}
+
+/* Registered-user list */
+.admin-users {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-user-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--cream);
+}
+
+.admin-user-meta {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--cream);
+  opacity: 0.6;
+}

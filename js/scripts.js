@@ -2543,6 +2543,7 @@
         '<p class="section-heading">App</p>' +
         '<button type="button" class="btn-outline set-view-intro">View intro</button>' +
         '<button type="button" class="btn-outline set-check-updates">Check for Updates</button>' +
+        (isAdmin() ? '<button type="button" class="btn-outline set-admin">Admin</button>' : '') +
       '</section>' +
 
       '<p class="message set-msg" role="status" aria-live="polite"></p>' +
@@ -2608,6 +2609,9 @@
 
     var introBtn = screen.querySelector('.set-view-intro');
     if (introBtn) introBtn.addEventListener('click', function () { showOnboarding({ fromSettings: true }); });
+
+    var adminBtn = screen.querySelector('.set-admin');
+    if (adminBtn) adminBtn.addEventListener('click', openAdmin);
 
     showScreen(screen);
     showNav('settings');
@@ -2801,6 +2805,137 @@
         })
         .catch(function (err) { setMessage(screen.querySelector('.onb-edit-msg'), friendlyError(err), true); });
     });
+  }
+
+  // ===================================================================
+  // Admin panel (Mark only)
+  // ===================================================================
+  function openAdmin() {
+    var screen = ensureScreen('admin-screen');
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">ADMIN</span>' +
+      '</header>' +
+      '<h1 class="settings-title">ADMIN PANEL</h1>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Challenge Data</p>' +
+        '<button type="button" class="btn-danger admin-reset">Reset All Challenge Data</button>' +
+        '<div class="admin-confirm hidden">' +
+          '<p class="admin-confirm-text">This will delete all logs, reset all points and ' +
+          'streaks to zero, and clear the activity feed and message board. This cannot be ' +
+          'undone. Are you sure?</p>' +
+          '<button type="button" class="btn-link admin-cancel">Cancel</button>' +
+          '<button type="button" class="btn-danger admin-confirm-btn">Confirm Reset</button>' +
+        '</div>' +
+        '<p class="message admin-msg" role="status" aria-live="polite"></p>' +
+      '</section>' +
+
+      '<section class="profile-section">' +
+        '<p class="section-heading">Registered Users</p>' +
+        '<div class="admin-users"><p class="feed-empty">Loading…</p></div>' +
+      '</section>';
+
+    showScreen(screen);
+
+    screen.querySelector('.back-btn').addEventListener('click', openSettings);
+
+    var resetBtn = screen.querySelector('.admin-reset');
+    var confirm = screen.querySelector('.admin-confirm');
+    var confirmBtn = screen.querySelector('.admin-confirm-btn');
+    var cancelBtn = screen.querySelector('.admin-cancel');
+    var msg = screen.querySelector('.admin-msg');
+
+    resetBtn.addEventListener('click', function () {
+      confirm.classList.remove('hidden');
+      resetBtn.classList.add('hidden');
+      setMessage(msg, '');
+    });
+    cancelBtn.addEventListener('click', function () {
+      confirm.classList.add('hidden');
+      resetBtn.classList.remove('hidden');
+    });
+    confirmBtn.addEventListener('click', function () {
+      resetChallengeData(confirmBtn, function (ok, text) {
+        confirm.classList.add('hidden');
+        resetBtn.classList.remove('hidden');
+        setMessage(msg, text, !ok);
+        if (ok) loadAdminUsers(screen.querySelector('.admin-users')); // refresh the points column
+      });
+    });
+
+    loadAdminUsers(screen.querySelector('.admin-users'));
+  }
+
+  // Delete every document in a top-level collection.
+  function deleteCollection(name) {
+    return db.collection(name).get().then(function (snap) {
+      return Promise.all(snap.docs.map(function (d) { return d.ref.delete(); }));
+    });
+  }
+
+  // Reset all challenge data (logs, points, streaks, feed, board, cheers).
+  function resetChallengeData(btn, done) {
+    btn.disabled = true;
+    btn.textContent = 'Resetting…';
+    db.collection('users').get()
+      .then(function (usnap) {
+        var docs = usnap.docs;
+        // 1. Reset each user's score fields.
+        return Promise.all(docs.map(function (d) {
+          return d.ref.set({ totalPoints: 0, currentStreak: 0, longestStreak: 0 }, { merge: true });
+        }))
+        // 2. Delete every user's logs subcollection.
+        .then(function () {
+          return Promise.all(docs.map(function (d) {
+            return d.ref.collection('logs').get().then(function (lsnap) {
+              return Promise.all(lsnap.docs.map(function (l) { return l.ref.delete(); }));
+            });
+          }));
+        });
+      })
+      .then(function () { return deleteCollection('activities'); }) // 3
+      .then(function () { return deleteCollection('messages'); })   // 4
+      .then(function () { return deleteCollection('cheers'); })     // 5
+      .then(function () {
+        // Reflect the reset in the current session.
+        if (state.user) { state.user.totalPoints = 0; state.user.currentStreak = 0; state.user.longestStreak = 0; }
+        state.logs = [];
+        btn.disabled = false;
+        btn.textContent = 'Confirm Reset';
+        done(true, 'Challenge data reset successfully. All scores and logs have been cleared.'); // 6
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Reset';
+        done(false, friendlyError(err));
+      });
+  }
+
+  // Registered-user overview for the admin panel.
+  function loadAdminUsers(container) {
+    db.collection('users').get()
+      .then(function (snap) {
+        var rows = snap.docs.map(function (d) {
+          var u = d.data() || {};
+          var name = cleanName(u.name, u.email);
+          var joined = (u.joinedAt && u.joinedAt.toDate) ? u.joinedAt.toDate().toLocaleDateString() : '—';
+          var faceId = u.biometricCredentialId ? 'Yes' : 'No';
+          return '<div class="admin-user">' +
+                   avatarMarkup(name, 'mini-avatar') +
+                   '<div class="admin-user-info">' +
+                     '<span class="admin-user-name">' + esc(name) + '</span>' +
+                     '<span class="admin-user-meta">Joined ' + esc(joined) +
+                       ' · Face ID: ' + faceId + ' · ' + (u.totalPoints || 0) + ' pts</span>' +
+                   '</div>' +
+                 '</div>';
+        }).join('');
+        container.innerHTML = rows || '<p class="feed-empty">No users registered yet.</p>';
+      })
+      .catch(function (err) {
+        container.innerHTML = '<p class="message is-error">' + esc(friendlyError(err)) + '</p>';
+      });
   }
 
   // ===================================================================
