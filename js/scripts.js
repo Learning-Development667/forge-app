@@ -504,6 +504,7 @@
   // ===================================================================
   function showScreen(screen) {
     plankTimerActive = false; // leaving any screen ends the timer context
+    if (typeof drainCheerQueue === 'function') drainCheerQueue(); // show cheers queued during the timer
     var all = document.querySelectorAll('.screen');
     Array.prototype.forEach.call(all, function (s) {
       s.classList.add('hidden');
@@ -1304,7 +1305,10 @@
         state.logs = logs;
         return refreshStats();
       })
-      .then(enterHome)
+      .then(function () {
+        startCheerListener(); // real-time cheer pop-ups
+        enterHome();
+      })
       .catch(function (err) {
         console.error('Failed to enter app:', err);
         enterHome();
@@ -2572,7 +2576,6 @@
     listenBoard();
     showScreen(screen);
     showNav('board');
-    checkCheers(); // app load (board is the landing screen) + every board open
   }
 
   function listenBoard() {
@@ -2786,24 +2789,61 @@
     }).catch(function (err) { console.error('Failed to write cheer:', err); });
   }
 
-  // Look for unseen cheers addressed to the current user and pop them up.
-  // (Single-field query — filtered for unseen client-side, no composite index.)
-  function checkCheers() {
+  // ---- Real-time cheer listener + display queue --------------------
+  var cheersUnsub = null;     // onSnapshot unsubscribe handle
+  var cheerQueue = [];        // unseen cheer docs awaiting display
+  var cheerShowing = false;   // a pop-up is currently on screen
+  var shownCheerIds = {};     // ids already shown this session (de-dupe)
+
+  // Live listener: pop up unseen cheers for the current user in real time.
+  // Uses the requested compound query; on a missing-index error it falls back
+  // to a toName-only listener (unseen filtered client-side) so it still works.
+  function startCheerListener() {
+    stopCheerListener();
     if (!state.user) return;
     var myName = cleanName(state.user.name, '');
-    db.collection('cheers').where('toName', '==', myName).get()
-      .then(function (snap) {
-        var unseen = snap.docs.filter(function (d) { return (d.data() || {}).seen === false; });
-        if (unseen.length) showCheerPopup(unseen, 0);
-      })
-      .catch(function (err) { console.error('Failed to check cheers:', err); });
+
+    function handle(snap) {
+      snap.docChanges().forEach(function (chg) {
+        if (chg.type === 'removed') return;
+        var d = chg.doc;
+        if ((d.data() || {}).seen === false) queueOrShowCheer(d);
+      });
+    }
+    cheersUnsub = db.collection('cheers')
+      .where('toName', '==', myName).where('seen', '==', false)
+      .onSnapshot(handle, function (err) {
+        console.error('Cheers listener (compound) failed, falling back:', err);
+        cheersUnsub = db.collection('cheers').where('toName', '==', myName)
+          .onSnapshot(handle, function (e2) { console.error('Cheers listener failed:', e2); });
+      });
   }
 
-  // Show queued cheers one at a time. Never over the plank timer screen.
-  function showCheerPopup(docs, i) {
-    if (!docs || i >= docs.length) return;
-    if (plankTimerActive) return; // deferred — re-checked when the board opens
-    var data = docs[i].data() || {};
+  function stopCheerListener() {
+    if (cheersUnsub) { cheersUnsub(); cheersUnsub = null; }
+    cheerQueue = [];
+    cheerShowing = false;
+  }
+
+  function queueOrShowCheer(doc) {
+    if (shownCheerIds[doc.id]) return;
+    if (cheerQueue.some(function (d) { return d.id === doc.id; })) return;
+    cheerQueue.push(doc);
+    drainCheerQueue();
+  }
+
+  // Show queued cheers one at a time. Never over the plank timer screen —
+  // queued cheers are drained when the timer ends (showScreen → drainCheerQueue).
+  function drainCheerQueue() {
+    if (cheerShowing || plankTimerActive || !cheerQueue.length) return;
+    var doc = cheerQueue.shift();
+    shownCheerIds[doc.id] = true;
+    cheerShowing = true;
+    showCheerPopup(doc);
+  }
+
+  function showCheerPopup(doc) {
+    var data = doc.data() || {};
     var overlay = document.createElement('div');
     overlay.className = 'cheer-overlay';
     overlay.innerHTML =
@@ -2814,15 +2854,18 @@
       '</div>';
     document.body.appendChild(overlay);
     fireConfettiCannon();
-    docs[i].ref.update({ seen: true }).catch(function (err) { console.error('Failed to mark cheer seen:', err); });
+    doc.ref.update({ seen: true }).catch(function (err) { console.error('Failed to mark cheer seen:', err); });
     overlay.querySelector('.cheer-close').addEventListener('click', function () {
       overlay.remove();
-      showCheerPopup(docs, i + 1); // next queued cheer, if any
+      cheerShowing = false;
+      drainCheerQueue(); // next queued cheer, if any
     });
   }
 
   function onSignOut() {
     teardownBoard();
+    stopCheerListener();   // detach the real-time cheer listener
+    shownCheerIds = {};
     devForceFriday = false;
     clearForgeUser();      // remove the local identity (keep forgeLastAvatar)
     state.user = null;
