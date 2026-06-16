@@ -24,45 +24,23 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.71</p>
+      <p class="brand-version">v0.2.72</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
     <p id="login-quote" class="login-quote"></p>
 
-    <!-- Rolodex-style horizontal carousel (cards injected by scripts.js) — swipe to
-         navigate. Hidden on iOS, where the email + code flow replaces it. -->
+    <!-- Rolodex-style horizontal carousel (cards injected by scripts.js) — swipe to navigate. -->
     <section id="login-carousel" class="carousel" aria-label="Select a user">
       <div id="carousel" class="carousel-track" role="listbox" tabindex="0">
         <!-- User cards injected by scripts.js -->
       </div>
     </section>
 
-    <!-- iOS-only: type your email to receive a sign-in code (revealed by scripts.js) -->
-    <label id="login-email-field" class="field login-email-field hidden">
-      <span class="field-label">Email address</span>
-      <input id="login-email" type="email" autocomplete="email" inputmode="email"
-             placeholder="you@example.com" />
-    </label>
-
     <button id="forge-btn" class="btn-forge" type="button">Let's Forge</button>
 
-    <!-- iOS: confirmation shown directly below the button after a code is sent. -->
-    <p id="ios-sent-note" class="ios-sent-note hidden">Code sent! Please check your inbox — and your Junk or Spam folder if it doesn't arrive within a minute.</p>
-
-    <!-- Always available on every device (including iOS): go to the register screen.
-         Never hidden by iOS-specific logic. -->
+    <!-- Always available: go to the register screen. -->
     <button id="register-link" class="btn-link" type="button">Create account</button>
-
-    <!-- iOS-only: enter a sign-in code copied from Safari. Hidden via CSS until a
-         magic link has been sent successfully (revealed by scripts.js). -->
-    <div id="code-signin" class="code-signin">
-      <input id="code-input" class="code-input" type="text" inputmode="text"
-             autocapitalize="characters" autocomplete="one-time-code" maxlength="6"
-             placeholder="Enter code" aria-label="Sign-in code" />
-      <button id="code-signin-btn" class="btn-outline" type="button">Sign in with code</button>
-      <p id="code-signin-message" class="message" role="status" aria-live="polite"></p>
-    </div>
 
     <!-- Install instructions button (secondary) -->
     <button id="install-btn" class="btn-outline" type="button">Install App</button>
@@ -75,15 +53,8 @@
     <p id="login-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
   </main>
 
-  <!-- ===== iOS RETURNING USER (minimal) — shown by scripts.js when a stored email exists ===== -->
-  <main id="returning-screen" class="screen hidden">
-    <header class="brand">
-      <h1 class="brand-name">FORGE</h1>
-    </header>
-    <button id="returning-signin" class="btn-forge" type="button">Sign In</button>
-    <button id="returning-switch" class="btn-link" type="button">Not you? Sign in with a different account</button>
-    <p id="returning-message" class="message" role="status" aria-live="polite"></p>
-  </main>
+  <!-- PIN setup, biometric, returning-user lock and other auth screens are
+       rendered dynamically by scripts.js (see buildPinScreen / showLock). -->
 
   <!-- ===================== REGISTER FORM ===================== -->
   <main id="register-screen" class="screen hidden">

@@ -18,21 +18,19 @@
   // ---- Constants ----------------------------------------------------
   var INVITE_CODE = 'FORGE2026';
   var MAX_USERS = 10;
-  var EMAIL_STORAGE_KEY = 'forgeEmailForSignIn';
   // Name typed at registration, stashed so it survives the magic-link round-trip
   // and can seed the profile doc once auth completes (the write can't happen
   // pre-auth — the security rules reject it).
   var PENDING_NAME_KEY = 'forgePendingName';
-  // Last email a magic link was sent to / signed in with. Unlike EMAIL_STORAGE_KEY
-  // this is NOT cleared on sign-in, so it flags a returning user on later visits.
-  var LAST_EMAIL_KEY = 'forgeLastEmail';
+  // "Remember this device" token — skips the PIN/biometric lock for 30 days.
+  var DEVICE_TOKEN_KEY = 'forgeDeviceToken';
+  var DEVICE_DAYS = 30;
+  // Set before a Forgot-PIN magic link so we force PIN setup after the round-trip.
+  var PIN_RESET_KEY = 'forgePinReset';
   // Canonical app URL the magic link must return to so sign-in completes inside
-  // the Forge app (and, on iOS, the installed PWA) rather than an external browser.
+  // the Forge app rather than an external browser. The email is carried in the
+  // continue URL (?fe=) so the landing page can recover it without localStorage.
   var APP_URL = 'https://learning-development667.github.io/forge-app/';
-  // iOS can't share the Safari sign-in session with the sandboxed PWA, so iOS
-  // users get a copy-code flow instead of the standard magic-link completion.
-  var IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  var CODE_TTL_MS = 10 * 60 * 1000; // sign-in codes expire after 10 minutes
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
@@ -364,27 +362,13 @@
   var dashboardScreen = document.getElementById('dashboard-screen');
 
   var carousel = document.getElementById('carousel');
-  var loginCarousel = document.getElementById('login-carousel');
-  var loginEmailField = document.getElementById('login-email-field');
-  var loginEmail = document.getElementById('login-email');
   var registerLink = document.getElementById('register-link');
-  var iosSentNote = document.getElementById('ios-sent-note');
-  var returningScreen = document.getElementById('returning-screen');
-  var returningSignin = document.getElementById('returning-signin');
-  var returningSwitch = document.getElementById('returning-switch');
-  var returningMessage = document.getElementById('returning-message');
   var forgeBtn = document.getElementById('forge-btn');
   var devLoginBtn = document.getElementById('dev-login-btn');
   var devFridayBtn = document.getElementById('dev-friday-btn');
   var installBtn = document.getElementById('install-btn');
   var loginMessage = document.getElementById('login-message');
   var loginJunk = document.getElementById('login-junk');
-
-  // iOS-only copy-code sign-in controls (revealed by init on iOS).
-  var codeSignin = document.getElementById('code-signin');
-  var codeInput = document.getElementById('code-input');
-  var codeSigninBtn = document.getElementById('code-signin-btn');
-  var codeSigninMessage = document.getElementById('code-signin-message');
 
   var confirmScreen = document.getElementById('confirm-screen');
   var confirmEmail = document.getElementById('confirm-email');
@@ -405,9 +389,11 @@
   var currentIndex = 0;     // centred carousel card
   var touchStartX = null;   // swipe tracking
   var completingSignIn = false; // suppress login screen while a magic link completes
-  var iosCodeLanding = false;   // iOS Safari landing only shows the code — never auth/route
+  var justSignedIn = false;     // a magic link completed this load (skip the lock)
+  var appEntered = false;       // guard so onAuthStateChanged routes/locks only once
+  var pinAttempts = 0;          // failed PIN attempts on the lock screen
 
-  var state = { user: null, logs: [] };
+  var state = { user: null, logs: [], auth: {} }; // auth = { pinHash, biometricCredentialId }
 
   // DEV_MODE session flag: treat today as a Friday (best-effort) for display.
   var devForceFriday = false;
@@ -995,10 +981,7 @@
     inner.appendChild(label);
 
     card.appendChild(inner);
-    card.addEventListener('click', function () {
-      setIndex(index);
-      focusEmailOnTap(); // iOS: focus + clear the email input for typing
-    });
+    card.addEventListener('click', function () { setIndex(index); });
     return card;
   }
 
@@ -1059,66 +1042,331 @@
     return currentIndex === TEAM.length;
   }
 
-  // iOS only: tapping a carousel avatar focuses the email input and clears any
-  // existing value so the user can type their address. No Firestore query runs
-  // pre-authentication. No-op on Android/desktop and on the Register card.
-  function focusEmailOnTap() {
-    if (!IS_IOS || !loginEmail) return;
-    if (isRegisterSelected()) return;
-    loginEmail.value = '';
-    loginEmail.focus();
-  }
-
-  // ---- iOS returning user -------------------------------------------
-  // A returning iOS user has a stored email (forgeEmailForSignIn, or the
-  // persistent forgeLastEmail) — they've signed in here before.
-  function returningEmail() {
-    return window.localStorage.getItem(EMAIL_STORAGE_KEY) ||
-           window.localStorage.getItem(LAST_EMAIL_KEY) || '';
-  }
-  function isReturningIos() {
-    return IS_IOS && (!!returningEmail() || !!auth.currentUser);
-  }
-
-  // Choose the right entry screen for a signed-out user: the minimal returning
-  // screen on iOS when an email is known, otherwise the full login screen.
+  // A signed-out user always lands on the standard login screen (carousel +
+  // magic link). Returning users with a live session are handled by enterApp's
+  // PIN/biometric lock, not here.
   function showLoginEntry() {
-    if (isReturningIos()) {
-      showScreen(returningScreen);
-    } else {
-      showScreen(loginScreen);
-    }
-  }
-
-  // Returning screen "Sign In": auto-send the magic link to the stored email,
-  // then hand off to the login screen for code entry (iOS needs the code input,
-  // which must not live on the minimal returning screen).
-  function onReturningSignIn() {
-    var email = returningEmail();
-    if (!email) { showScreen(loginScreen); return; } // nothing stored — fall back
-    setMessage(returningMessage, '');
-    returningSignin.disabled = true;
-    sendMagicLink(email, 'returning-signin')
-      .then(function () {
-        if (loginEmail) loginEmail.value = email;
-        showScreen(loginScreen);
-        revealCodeInput();
-        if (iosSentNote) iosSentNote.classList.remove('hidden');
-        returningSignin.disabled = false;
-      })
-      .catch(function (err) {
-        setMessage(returningMessage, friendlyError(err), true);
-        returningSignin.disabled = false;
-      });
-  }
-
-  // "Not you?" — forget the stored account and show the full standard login.
-  function onReturningSwitch() {
-    window.localStorage.removeItem(EMAIL_STORAGE_KEY);
-    window.localStorage.removeItem(LAST_EMAIL_KEY);
-    if (loginEmail) loginEmail.value = '';
-    setMessage(returningMessage, '');
     showScreen(loginScreen);
+  }
+
+  // ===================================================================
+  // PIN + biometric lock (a local lock over the persisted Firebase session)
+  // ===================================================================
+  var webauthnSupported = !!(window.PublicKeyCredential && navigator.credentials &&
+                             navigator.credentials.create && navigator.credentials.get);
+
+  // ---- small crypto / encoding helpers ----
+  function sha256Hex(str) {
+    if (!(window.crypto && crypto.subtle)) return Promise.reject(new Error('No crypto'));
+    var bytes = new TextEncoder().encode(String(str));
+    return crypto.subtle.digest('SHA-256', bytes).then(function (buf) {
+      var arr = new Uint8Array(buf), hex = '';
+      for (var i = 0; i < arr.length; i++) hex += arr[i].toString(16).padStart(2, '0');
+      return hex;
+    });
+  }
+  function bufToB64(buf) {
+    var arr = new Uint8Array(buf), bin = '';
+    for (var i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+    return btoa(bin);
+  }
+  function b64ToBuf(b64) {
+    var bin = atob(b64), arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr.buffer;
+  }
+
+  // ---- userAuth (owner-only collection keyed by Firebase UID) ----
+  function currentUid() { return auth.currentUser ? auth.currentUser.uid : null; }
+
+  function loadUserAuth(uid) {
+    if (!uid) return Promise.resolve({});
+    return db.collection('userAuth').doc(uid).get()
+      .then(function (snap) { return snap.exists ? (snap.data() || {}) : {}; })
+      .catch(function (err) { console.error('Failed to load userAuth:', err); return {}; });
+  }
+  function saveUserAuth(fields) {
+    var uid = currentUid();
+    if (!uid) return Promise.reject(new Error('Not signed in'));
+    state.auth = Object.assign({}, state.auth, fields);
+    return db.collection('userAuth').doc(uid).set(fields, { merge: true });
+  }
+  function clearFirstLogin() {
+    if (!state.user) return Promise.resolve();
+    state.user.firstLogin = false;
+    return db.collection('users').doc(state.user.id)
+      .set({ firstLogin: false }, { merge: true })
+      .catch(function (e) { console.error('Failed to clear firstLogin:', e); });
+  }
+
+  // ---- device token (remember this device for 30 days) ----
+  function setDeviceToken() {
+    window.localStorage.setItem(DEVICE_TOKEN_KEY,
+      String(Date.now() + DEVICE_DAYS * 24 * 60 * 60 * 1000));
+  }
+  function deviceTokenValid() {
+    var v = parseInt(window.localStorage.getItem(DEVICE_TOKEN_KEY) || '0', 10);
+    return !!v && Date.now() < v;
+  }
+  function forgetDevice() { window.localStorage.removeItem(DEVICE_TOKEN_KEY); }
+
+  // ---- shared keypad / dots markup ----
+  function dotsHtml(filled) {
+    var h = '';
+    for (var i = 0; i < 4; i++) h += '<span class="pin-dot' + (i < filled ? ' is-filled' : '') + '"></span>';
+    return h;
+  }
+  function keypadHtml() {
+    var h = '<div class="pin-keypad">';
+    for (var d = 1; d <= 9; d++) h += '<button type="button" class="pin-key" data-key="' + d + '">' + d + '</button>';
+    h += '<span class="pin-key pin-key--blank" aria-hidden="true"></span>';
+    h += '<button type="button" class="pin-key" data-key="0">0</button>';
+    h += '<button type="button" class="pin-key pin-key--del" data-key="del" aria-label="Delete">⌫</button>';
+    h += '</div>';
+    return h;
+  }
+
+  // Build a keypad PIN screen. opts: { id, title, subtext, headerExtra, footer,
+  // onPin(pin, ctl), onReady(screen, ctl) }. ctl = { reset(), setError(msg) }.
+  function buildPinScreen(opts) {
+    var screen = ensureScreen(opts.id);
+    var entry = '';
+    screen.innerHTML =
+      '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+      (opts.headerExtra || '') +
+      '<h2 class="pin-title">' + esc(opts.title) + '</h2>' +
+      (opts.subtext ? '<p class="pin-subtext">' + esc(opts.subtext) + '</p>' : '') +
+      '<div class="pin-dots">' + dotsHtml(0) + '</div>' +
+      '<p class="pin-error message" role="status" aria-live="polite"></p>' +
+      keypadHtml() +
+      (opts.footer || '');
+
+    var dotsEl = screen.querySelector('.pin-dots');
+    var errEl = screen.querySelector('.pin-error');
+    function render() { dotsEl.innerHTML = dotsHtml(entry.length); }
+    var ctl = {
+      reset: function () { entry = ''; render(); },
+      setError: function (m) { setMessage(errEl, m || '', !!m); }
+    };
+    Array.prototype.forEach.call(screen.querySelectorAll('[data-key]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var k = btn.getAttribute('data-key');
+        if (k === 'del') { entry = entry.slice(0, -1); ctl.setError(''); render(); return; }
+        if (entry.length >= 4) return;
+        entry += k;
+        render();
+        if (entry.length === 4) {
+          var pin = entry;
+          // brief pause so the 4th dot registers before we act
+          setTimeout(function () { opts.onPin(pin, ctl); }, 130);
+        }
+      });
+    });
+    showScreen(screen);
+    if (opts.onReady) opts.onReady(screen, ctl);
+    return screen;
+  }
+
+  // ---- PART 1: PIN setup (enter + confirm) ----
+  function startPinSetup(opts) {
+    opts = opts || {};
+    buildPinScreen({
+      id: 'pin-setup-screen',
+      title: 'Set your PIN',
+      subtext: 'Choose a 4-digit PIN to sign in quickly. Your PIN is encrypted and ' +
+               'cannot be seen by anyone, including the Forge admin.',
+      onPin: function (first) {
+        buildPinScreen({
+          id: 'pin-confirm-screen',
+          title: 'Confirm your PIN',
+          subtext: 'Enter your PIN again to confirm.',
+          onPin: function (second, ctl2) {
+            if (second !== first) {
+              ctl2.setError('PINs did not match. Let’s try again.');
+              setTimeout(function () { startPinSetup(opts); }, 1000);
+              return;
+            }
+            sha256Hex(second)
+              .then(function (hash) { return saveUserAuth({ pinHash: hash }); })
+              .then(function () { return clearFirstLogin(); })
+              .then(function () {
+                if (opts.skipBiometric) { (opts.onDone || enterHome)(); }
+                else { showBiometricOffer(opts); }
+              })
+              .catch(function () { ctl2.setError('Could not save your PIN. Try again.'); });
+          }
+        });
+      }
+    });
+  }
+
+  // ---- PART 2: biometric registration (optional) ----
+  function registerBiometric() {
+    if (!webauthnSupported) return Promise.reject(new Error('WebAuthn unsupported'));
+    var uid = currentUid();
+    var first = cleanName(state.user && state.user.name, state.user && state.user.email);
+    var email = (state.user && state.user.email) || 'forge-user';
+    return navigator.credentials.create({
+      publicKey: {
+        rp: { name: 'Forge', id: window.location.hostname },
+        user: { id: new TextEncoder().encode(uid || email), name: email, displayName: first },
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000
+      }
+    }).then(function (cred) { return bufToB64(cred.rawId); });
+  }
+  function authBiometric(credIdB64) {
+    if (!webauthnSupported) return Promise.reject(new Error('WebAuthn unsupported'));
+    return navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type: 'public-key', id: b64ToBuf(credIdB64), transports: ['internal'] }],
+        userVerification: 'required',
+        rpId: window.location.hostname,
+        timeout: 60000
+      }
+    });
+  }
+
+  function showBiometricOffer(opts) {
+    opts = opts || {};
+    var screen = ensureScreen('biometric-screen');
+    screen.innerHTML =
+      '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+      '<h2 class="pin-title">Enable Face ID / Fingerprint</h2>' +
+      '<p class="pin-subtext">Sign in instantly using your device biometrics. Your ' +
+      'fingerprint or face data never leaves your device.</p>' +
+      '<button type="button" class="btn-forge bio-enable">Enable</button>' +
+      '<button type="button" class="btn-link bio-skip">Skip for now</button>' +
+      '<p class="pin-error message" role="status" aria-live="polite"></p>';
+    showScreen(screen);
+    var errEl = screen.querySelector('.pin-error');
+    var enableBtn = screen.querySelector('.bio-enable');
+    enableBtn.addEventListener('click', function () {
+      if (!webauthnSupported) { offerRememberDevice(opts); return; } // skip silently
+      enableBtn.disabled = true;
+      registerBiometric()
+        .then(function (credId) { return saveUserAuth({ biometricCredentialId: credId }); })
+        .then(function () {
+          setMessage(errEl, 'Biometrics enabled. You are all set.');
+          setTimeout(function () { offerRememberDevice(opts); }, 1100);
+        })
+        .catch(function () { offerRememberDevice(opts); }); // cancel/unsupported → skip silently
+    });
+    screen.querySelector('.bio-skip').addEventListener('click', function () { offerRememberDevice(opts); });
+    addFire(enableBtn);
+  }
+
+  function offerRememberDevice(opts) {
+    opts = opts || {};
+    var screen = ensureScreen('remember-screen');
+    screen.innerHTML =
+      '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+      '<h2 class="pin-title">Remember this device?</h2>' +
+      '<p class="pin-subtext">Skip the PIN and biometrics on this device for 30 days.</p>' +
+      '<button type="button" class="btn-forge remember-yes">Remember for 30 days</button>' +
+      '<button type="button" class="btn-link remember-no">Not now</button>';
+    showScreen(screen);
+    screen.querySelector('.remember-yes').addEventListener('click', function () {
+      setDeviceToken();
+      (opts.onDone || enterHome)();
+    });
+    screen.querySelector('.remember-no').addEventListener('click', function () {
+      (opts.onDone || enterHome)();
+    });
+    addFire(screen.querySelector('.remember-yes'));
+  }
+
+  // ---- PART 3: returning-user lock (biometric auto + PIN entry) ----
+  function showLock() {
+    var first = cleanName(state.user && state.user.name, state.user && state.user.email);
+    var hasBio = !!(state.auth && state.auth.biometricCredentialId);
+    buildPinScreen({
+      id: 'lock-screen',
+      title: 'Welcome back, ' + first,
+      headerExtra: '<div class="lock-id">' + avatarMarkup(first, 'lock-avatar') + '</div>',
+      footer: (hasBio ? '<button type="button" class="btn-link pin-biometric">Use Face ID / Fingerprint</button>' : '') +
+              '<button type="button" class="btn-link pin-forgot">Forgot PIN?</button>',
+      onPin: verifyPin,
+      onReady: function (screen, ctl) {
+        var forgot = screen.querySelector('.pin-forgot');
+        if (forgot) forgot.addEventListener('click', forgotPinFlow);
+        var bioBtn = screen.querySelector('.pin-biometric');
+        if (bioBtn) bioBtn.addEventListener('click', function () { tryBiometricUnlock(ctl); });
+        if (hasBio) tryBiometricUnlock(ctl); // auto-trigger on load
+      }
+    });
+  }
+
+  function verifyPin(pin, ctl) {
+    sha256Hex(pin).then(function (hash) {
+      if (state.auth && hash === state.auth.pinHash) {
+        pinAttempts = 0;
+        enterHome();
+        return;
+      }
+      pinAttempts++;
+      ctl.reset();
+      if (pinAttempts >= 5) {
+        ctl.setError('Too many attempts. Sign in with email instead.');
+        setTimeout(forgotPinFlow, 1200);
+      } else {
+        ctl.setError('Incorrect PIN. Try again.');
+      }
+    }).catch(function () { ctl.setError('Could not check PIN. Try again.'); });
+  }
+
+  function tryBiometricUnlock(ctl) {
+    if (!state.auth || !state.auth.biometricCredentialId) return;
+    authBiometric(state.auth.biometricCredentialId)
+      .then(function () { pinAttempts = 0; enterHome(); })
+      .catch(function () { if (ctl) ctl.setError('Biometric sign-in unavailable. Enter your PIN.'); });
+  }
+
+  // Forgot PIN → send a magic link, flag a reset so we force PIN setup on return.
+  function forgotPinFlow() {
+    var email = (state.user && state.user.email) || '';
+    if (!email) { showLoginEntry(); return; }
+    window.localStorage.setItem(PIN_RESET_KEY, '1');
+    sendMagicLink(email, 'forgot-pin')
+      .then(function () { showMagicSent(email); })
+      .catch(function () { showMagicSent(email); });
+  }
+
+  function showMagicSent(email) {
+    var screen = ensureScreen('magic-sent-screen');
+    screen.innerHTML =
+      '<header class="brand"><h1 class="brand-name">FORGE</h1></header>' +
+      '<p class="pin-subtext">We’ve emailed a sign-in link to <strong>' + esc(email) + '</strong>. ' +
+      'Open it on this device, then set a new PIN.</p>' +
+      '<p class="junk-note">Can’t find it? Check your junk or spam folder.</p>';
+    showScreen(screen);
+  }
+
+  // Decide what to show once the user's data + auth are loaded.
+  function routeAfterLoad() {
+    // Returning from a Forgot-PIN magic link → force a new PIN.
+    if (window.localStorage.getItem(PIN_RESET_KEY)) {
+      window.localStorage.removeItem(PIN_RESET_KEY);
+      startPinSetup({ onDone: enterHome });
+      return;
+    }
+    // First sign-in ever → set a PIN, then offer biometrics.
+    if (state.user && state.user.firstLogin) {
+      startPinSetup({ onDone: enterHome });
+      return;
+    }
+    // Just completed a magic link this load → already authenticated, go straight in.
+    if (justSignedIn) { enterHome(); return; }
+    // Returning app load with a persisted session.
+    if (deviceTokenValid()) { enterHome(); return; }          // remembered device
+    if (state.auth && (state.auth.pinHash || state.auth.biometricCredentialId)) {
+      showLock();                                             // locked → PIN / biometric
+      return;
+    }
+    enterHome(); // no PIN set (e.g. legacy user) → nothing to lock
   }
 
   function onCarouselKey(e) {
@@ -1186,29 +1434,6 @@
     setMessage(loginMessage, '');
     loginJunk.classList.add('hidden');
 
-    // iOS: send the magic link to the typed email, then reveal the code-entry
-    // section so the user can finish in the PWA after copying the code.
-    if (IS_IOS) {
-      if (iosSentNote) iosSentNote.classList.add('hidden'); // a new request hides the prior note
-      var iosEmail = (loginEmail.value || '').trim().toLowerCase();
-      if (!iosEmail) {
-        setMessage(loginMessage, 'Enter your email address.', true);
-        return;
-      }
-      forgeBtn.disabled = true;
-      sendMagicLink(iosEmail, 'ios-get-code')
-        .then(function () {
-          if (iosSentNote) iosSentNote.classList.remove('hidden');
-          revealCodeInput();
-          forgeBtn.disabled = false;
-        })
-        .catch(function (err) {
-          setMessage(loginMessage, friendlyError(err), true);
-          forgeBtn.disabled = false;
-        });
-      return;
-    }
-
     if (isRegisterSelected()) {
       openRegister('');
       return;
@@ -1249,8 +1474,6 @@
     }
     pendingSend = auth.sendSignInLinkToEmail(email, buildActionCodeSettings(email))
       .then(function () {
-        window.localStorage.setItem(EMAIL_STORAGE_KEY, email);
-        window.localStorage.setItem(LAST_EMAIL_KEY, email); // persists for returning-user detection
         console.log('[FORGE auth] magic link sent', email);
         pendingSend = null;
       }, function (err) {
@@ -1304,157 +1527,19 @@
       });
   }
 
+  // Complete a magic link (first registration or Forgot-PIN). The email is
+  // recovered from the continue URL (?fe=); if absent, ask for it in-app.
   function completeSignInIfPresent() {
     if (!auth.isSignInWithEmailLink(window.location.href)) return;
     completingSignIn = true; // keep the login carousel hidden while we finish
-    // iOS: the link opens in Safari, which can't hand its session to the PWA.
-    // Instead of completing here, mint a short code the user copies into the app.
-    // This page is terminal — it must never sign in or route to the dashboard,
-    // even if Safari happens to hold a persisted Firebase session (see the
-    // onAuthStateChanged guard). Authentication only completes in the PWA.
-    if (IS_IOS) {
-      iosCodeLanding = true;
-      showSignInCode();
-      return;
-    }
-    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY) || emailFromUrl();
+    justSignedIn = true;     // tells routeAfterLoad this load is a fresh sign-in
+    var email = emailFromUrl();
     if (email) {
       finishSignIn(email);
     } else {
-      // No stored email (e.g. opened on another device): ask in-app, no prompt().
+      // No email in the link (e.g. opened on another device): ask in-app.
       showEmailConfirm('');
     }
-  }
-
-  // ---- iOS copy-code flow ------------------------------------------
-  // 6 unambiguous alphanumerics (no 0/O/1/I) so the code is easy to read & type.
-  function generateSignInCode() {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    var out = '';
-    for (var i = 0; i < 6; i++) {
-      out += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return out;
-  }
-
-  function copyCode(text, btn) {
-    var done = function () {
-      if (!btn) return;
-      btn.textContent = 'Copied!';
-      setTimeout(function () { btn.textContent = 'Copy code'; }, 2000);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () {});
-      return;
-    }
-    // Fallback for older Safari.
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) {}
-    document.body.removeChild(ta);
-  }
-
-  // Reveal the iOS code-entry section. Called after a magic link is sent so the
-  // user can paste the code once they return from Safari.
-  function revealCodeInput() {
-    if (codeSignin) codeSignin.classList.add('code-signin--ios');
-  }
-
-  // On iOS, show the code-entry section only when a sign-in is already pending
-  // (a link was sent — the email is still stored and not yet consumed). On the
-  // initial login view, with nothing pending, it stays hidden.
-  function maybeShowCodeInput() {
-    if (!IS_IOS || !codeSignin) return;
-    if (window.localStorage.getItem(EMAIL_STORAGE_KEY)) {
-      codeSignin.classList.add('code-signin--ios');
-    } else {
-      codeSignin.classList.remove('code-signin--ios');
-    }
-  }
-
-  // Safari (iOS): show a branded full-screen page with a copyable code. The code,
-  // the requester's email, and the original link are stored in Firestore so the
-  // PWA can complete sign-in with signInWithEmailLink.
-  function showSignInCode() {
-    var screen = ensureScreen('code-screen');
-    // Prefer localStorage, but fall back to the email carried in the URL — in
-    // Safari (where the link opens) localStorage is often empty because the link
-    // was requested in the PWA's separate storage context.
-    var email = window.localStorage.getItem(EMAIL_STORAGE_KEY) || emailFromUrl();
-    var link = window.location.href;
-
-    if (!email) {
-      screen.innerHTML =
-        '<div class="code-page">' +
-          '<h1 class="brand-name">FORGE</h1>' +
-          '<p class="code-instructions">Please request a new sign-in code from the ' +
-          'same device, then open the Forge app to enter it.</p>' +
-        '</div>';
-      showScreen(screen);
-      return;
-    }
-
-    var code = generateSignInCode();
-    screen.innerHTML =
-      '<div class="code-page">' +
-        '<h1 class="brand-name">FORGE</h1>' +
-        '<p class="code-instructions">Open the Forge app and enter this code to sign in.</p>' +
-        '<div class="code-value" id="code-value">' + esc(code) + '</div>' +
-        '<button class="btn-outline code-copy" id="code-copy" type="button">Copy code</button>' +
-        '<p class="code-note">This code expires in 10 minutes.</p>' +
-      '</div>';
-    showScreen(screen);
-
-    db.collection('signInCodes').doc(code).set({
-      code: code,
-      email: email,
-      link: link,
-      used: false,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function (err) { console.error('Failed to store sign-in code:', err); });
-
-    var copyBtn = document.getElementById('code-copy');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', function () { copyCode(code, copyBtn); });
-    }
-  }
-
-  function onCodeSignIn() {
-    var code = (codeInput.value || '').trim().toUpperCase();
-    setMessage(codeSigninMessage, '');
-    if (code.length !== 6) {
-      setMessage(codeSigninMessage, 'Enter the 6-character code.', true);
-      return;
-    }
-    codeSigninBtn.disabled = true;
-    // The code is the document ID, so this is a get-by-id (not a list query) —
-    // which is all the Firestore security rules permit.
-    var ref = db.collection('signInCodes').doc(code);
-    ref.get()
-      .then(function (snap) {
-        if (!snap.exists) { throw new Error('That code is not valid.'); }
-        var data = snap.data() || {};
-        if (data.used) { throw new Error('That code has already been used.'); }
-        var created = data.createdAt && data.createdAt.toDate
-          ? data.createdAt.toDate().getTime() : 0;
-        if (!created || (Date.now() - created) > CODE_TTL_MS) {
-          throw new Error('That code has expired. Request a new one.');
-        }
-        completingSignIn = true;
-        return auth.signInWithEmailLink(data.email, data.link)
-          .then(function () { return ref.update({ used: true }); })
-          .then(function () { window.localStorage.removeItem(EMAIL_STORAGE_KEY); });
-        // onAuthStateChanged routes on to the dashboard.
-      })
-      .catch(function (err) {
-        completingSignIn = false;
-        codeSigninBtn.disabled = false;
-        setMessage(codeSigninMessage, friendlyError(err), true);
-      });
   }
 
   function showEmailConfirm(errorText) {
@@ -1467,12 +1552,12 @@
     console.log('[FORGE auth] signInWithEmailLink (completing, no send)', email);
     return auth.signInWithEmailLink(email, window.location.href)
       .then(function () {
-        window.localStorage.removeItem(EMAIL_STORAGE_KEY);
         history.replaceState(null, '', window.location.origin + '/forge-app/');
-        // onAuthStateChanged routes on to the dashboard.
+        // onAuthStateChanged routes on to the dashboard / PIN setup.
       })
       .catch(function (err) {
         completingSignIn = false;
+        justSignedIn = false;
         showEmailConfirm(friendlyError(err));
       });
   }
@@ -1484,6 +1569,7 @@
       return;
     }
     completingSignIn = true;
+    justSignedIn = true;
     finishSignIn(email);
   }
 
@@ -1529,6 +1615,7 @@
           totalPoints: 0,
           currentStreak: 0,
           longestStreak: 0,
+          firstLogin: true, // gates the one-time PIN setup before the dashboard
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         return ref.set(data).then(function () {
@@ -1551,19 +1638,23 @@
   }
 
   function enterApp(fbUser) {
+    var uid = currentUid() || fbUser.uid || null;
     ensureUserDoc(fbUser)
       .then(function (res) {
         state.user = Object.assign({ id: res.id }, res.data);
         // Never let an email-looking / missing name surface as the display name.
         state.user.name = cleanName(state.user.name, state.user.email);
-        if (state.user.email) window.localStorage.setItem(LAST_EMAIL_KEY, state.user.email);
-        return loadLogs(res.id);
+        return loadUserAuth(uid);
+      })
+      .then(function (authData) {
+        state.auth = authData || {};
+        return loadLogs(state.user.id);
       })
       .then(function (logs) {
         state.logs = logs;
         return refreshStats();
       })
-      .then(enterHome)
+      .then(function () { routeAfterLoad(); })
       .catch(function (err) {
         console.error('Failed to enter app:', err);
         enterHome();
@@ -2588,6 +2679,13 @@
       '</section>' +
 
       '<section class="profile-section">' +
+        '<p class="section-heading">Security</p>' +
+        '<button type="button" class="btn-outline set-change-pin">Change PIN</button>' +
+        '<button type="button" class="btn-outline set-manage-bio">Manage biometrics</button>' +
+        '<button type="button" class="btn-outline set-forget-device">Forget this device</button>' +
+      '</section>' +
+
+      '<section class="profile-section">' +
         '<p class="section-heading">Account</p>' +
         '<div class="profile-stat"><span class="profile-stat-label">Name</span>' +
           '<span class="set-value">' + esc(u.name || '') + '</span></div>' +
@@ -2620,8 +2718,66 @@
 
     screen.querySelector('.set-signout').addEventListener('click', onSignOut);
 
+    // Change PIN — set a new PIN (no firstLogin gate); return to Settings after.
+    screen.querySelector('.set-change-pin').addEventListener('click', function () {
+      startPinSetup({ onDone: openSettings });
+    });
+    // Manage biometrics — enable or disable device biometric sign-in.
+    screen.querySelector('.set-manage-bio').addEventListener('click', showBiometricManage);
+    // Forget this device — clear the remember-me token and re-lock if a PIN/bio exists.
+    screen.querySelector('.set-forget-device').addEventListener('click', function () {
+      forgetDevice();
+      if (state.auth && (state.auth.pinHash || state.auth.biometricCredentialId)) {
+        showLock();
+      } else {
+        setMessage(screen.querySelector('.set-msg'), 'This device has been forgotten.');
+      }
+    });
+
     showScreen(screen);
     showNav('settings');
+  }
+
+  // Settings → Manage biometrics: enable (register) or disable (clear) biometrics.
+  function showBiometricManage() {
+    var screen = ensureScreen('biometric-manage-screen');
+    var hasBio = !!(state.auth && state.auth.biometricCredentialId);
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<span class="topbar-version">BIOMETRICS</span>' +
+      '</header>' +
+      '<h1 class="pin-title">Face ID / Fingerprint</h1>' +
+      '<p class="pin-subtext">' + (hasBio
+        ? 'Biometric sign-in is enabled on this device.'
+        : 'Sign in instantly using your device biometrics. Your fingerprint or face data never leaves your device.') + '</p>' +
+      (hasBio
+        ? '<button type="button" class="btn-outline bio-disable">Disable biometrics</button>'
+        : '<button type="button" class="btn-forge bio-enable2">Enable biometrics</button>') +
+      '<p class="pin-error message" role="status" aria-live="polite"></p>';
+    showScreen(screen);
+    var errEl = screen.querySelector('.pin-error');
+    screen.querySelector('.back-btn').addEventListener('click', openSettings);
+    var enable = screen.querySelector('.bio-enable2');
+    if (enable) {
+      if (!webauthnSupported) { enable.disabled = true; setMessage(errEl, 'Biometrics are not supported on this device.', true); }
+      enable.addEventListener('click', function () {
+        enable.disabled = true;
+        registerBiometric()
+          .then(function (credId) { return saveUserAuth({ biometricCredentialId: credId }); })
+          .then(function () { setMessage(errEl, 'Biometrics enabled.'); setTimeout(showBiometricManage, 900); })
+          .catch(function () { enable.disabled = false; setMessage(errEl, 'Could not enable biometrics.', true); });
+      });
+    }
+    var disable = screen.querySelector('.bio-disable');
+    if (disable) {
+      disable.addEventListener('click', function () {
+        disable.disabled = true;
+        saveUserAuth({ biometricCredentialId: firebase.firestore.FieldValue.delete() })
+          .then(function () { state.auth.biometricCredentialId = null; setMessage(errEl, 'Biometrics disabled.'); setTimeout(showBiometricManage, 900); })
+          .catch(function () { disable.disabled = false; setMessage(errEl, 'Could not disable biometrics.', true); });
+      });
+    }
   }
 
   // ===================================================================
@@ -2930,9 +3086,12 @@
   function onSignOut() {
     teardownBoard();
     devForceFriday = false;
+    appEntered = false;
+    forgetDevice(); // a full sign-out also forgets the remembered device
     auth.signOut().then(function () {
       state.user = null;
       state.logs = [];
+      state.auth = {};
       showLoginEntry();
     });
   }
@@ -2968,46 +3127,8 @@
 
     if (installBtn) installBtn.addEventListener('click', openInstall);
 
-    // "Create account" is available on every device and is never hidden by any
-    // iOS-specific logic — it always routes to the register screen.
+    // "Create account" always routes to the register screen.
     if (registerLink) registerLink.addEventListener('click', function () { openRegister(''); });
-
-    // iOS returning-user minimal screen controls.
-    if (returningSignin) {
-      returningSignin.addEventListener('click', onReturningSignIn);
-      addFire(returningSignin);
-    }
-    if (returningSwitch) returningSwitch.addEventListener('click', onReturningSwitch);
-
-    // iOS: keep the carousel (restored — it works the same as everywhere else),
-    // and add the typed-email flow beneath it. Relabel the button to "Get sign-in
-    // code" (before addFire wraps its text), show the email input, and wire the
-    // code-entry controls. The code section stays hidden until a magic link has
-    // been sent (maybeShowCodeInput / revealCodeInput).
-    if (IS_IOS) {
-      if (loginEmailField) loginEmailField.classList.remove('hidden');
-      // Returning user? A stored email (pending or previously used) or an existing
-      // session means they've signed in before — present a clear "Sign In" rather
-      // than the new-user "Get sign-in code". The Create account link stays visible.
-      var knownEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY) ||
-                       window.localStorage.getItem(LAST_EMAIL_KEY) || '';
-      var returningUser = !!knownEmail || !!auth.currentUser;
-      forgeBtn.textContent = returningUser ? 'Sign In' : 'Get sign-in code';
-      // Prefill with the address from a pending/previous sign-in, if any.
-      if (loginEmail) {
-        if (knownEmail) loginEmail.value = knownEmail;
-        loginEmail.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') { e.preventDefault(); onForge(); }
-        });
-      }
-      if (codeSigninBtn) codeSigninBtn.addEventListener('click', onCodeSignIn);
-      if (codeInput) {
-        codeInput.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') { e.preventDefault(); onCodeSignIn(); }
-        });
-      }
-      maybeShowCodeInput();
-    }
 
     addFire(forgeBtn);
     addFire(installBtn);
@@ -3027,27 +3148,20 @@
     });
 
     registerForm.addEventListener('submit', onRegisterSubmit);
-    registerBack.addEventListener('click', function () {
-      showScreen(loginScreen);
-      maybeShowCodeInput(); // reflect a pending sign-in when returning to login (iOS)
-    });
+    registerBack.addEventListener('click', function () { showScreen(loginScreen); });
     confirmBtn.addEventListener('click', onConfirmEmail);
 
     completeSignInIfPresent();
-    // Pick the entry screen up front (reduces flicker): returning iOS users get
-    // the minimal returning screen, everyone else the standard login screen.
     if (!completingSignIn) showLoginEntry();
 
     auth.onAuthStateChanged(function (firebaseUser) {
-      // On the iOS Safari code-landing page, do nothing: only ever show the code
-      // and its instruction — never sign in or route to the dashboard, even if a
-      // persisted session exists in Safari.
-      if (iosCodeLanding) return;
       loadUsers().then(function () {
         if (firebaseUser) {
-          enterApp(firebaseUser);
-        } else if (!completingSignIn) {
-          showLoginEntry();
+          // Route/lock only once per session; later auth events shouldn't re-lock.
+          if (!appEntered) { appEntered = true; enterApp(firebaseUser); }
+        } else {
+          appEntered = false;
+          if (!completingSignIn) showLoginEntry();
         }
       });
     });

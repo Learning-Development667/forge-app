@@ -2249,3 +2249,119 @@ button:focus { outline: none; }
   bottom: 0;
   opacity: 0.7;
 }
+
+/* ===================================================================
+   PIN + biometric authentication (setup, lock, biometric, remember)
+   Charcoal bg (inherited from .screen), burnt-orange accents, cream text,
+   Bebas Neue headings, DM Sans body, DM Mono for the keypad numbers.
+   =================================================================== */
+.pin-title {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  letter-spacing: 1.5px;
+  line-height: 1.05;
+  color: var(--cream);
+  text-align: center;
+}
+
+.pin-subtext {
+  max-width: 340px;
+  margin: 0 auto;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cream);
+  text-align: center;
+}
+
+/* 4-dot entry indicator */
+.pin-dots {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--orange);
+  background: transparent;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.pin-dot.is-filled {
+  background: var(--orange);
+  transform: scale(1.1);
+}
+
+.pin-error {
+  text-align: center;
+  min-height: 20px;
+}
+
+/* Number keypad */
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.pin-key {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--card-border);
+  border-radius: 50%;
+  background: #2a2a2d;
+  color: var(--cream);
+  font-family: 'DM Mono', monospace;
+  font-size: 26px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease, transform 0.08s ease;
+}
+
+.pin-key:active {
+  transform: scale(0.94);
+  background: var(--orange);
+  color: var(--charcoal);
+}
+
+.pin-key--blank {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.pin-key--del {
+  font-size: 22px;
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Lock screen identity (avatar + name) */
+.lock-id {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lock-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--orange);
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
