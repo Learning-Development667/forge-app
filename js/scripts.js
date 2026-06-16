@@ -550,6 +550,7 @@
   var boardMessages = [];
   var boardActivities = [];
   var squadStatus = {}; // userId -> [logged exercise keys today]
+  var boardSubtitleTimer = null; // rotating Messages-header subtitle interval
 
   // ===================================================================
   // Screen helpers
@@ -3449,10 +3450,17 @@
 
   function openBoard() {
     var screen = ensureScreen('board-screen');
+    var name = state.user ? state.user.name : 'Forger';
     screen.innerHTML =
-      '<h1 class="welcome">Welcome back, ' + esc(state.user ? state.user.name : 'Forger') + '</h1>' +
+      '<canvas class="board-embers"></canvas>' +
+      '<header class="board-head">' +
+        '<span class="board-brand">FORGE</span>' +
+        '<h1 class="board-welcome">WELCOME BACK, ' + esc(name.toUpperCase()) + '</h1>' +
+        '<p class="board-subtitle"></p>' +
+      '</header>' +
       '<p class="section-heading">Today\'s Squad</p>' +
       '<div id="squad-row" class="squad-row"></div>' +
+      '<div class="squad-legend">🟢 Trained today&nbsp;&nbsp;🔴 Yet to train&nbsp;&nbsp;⚪ Rest day</div>' +
       '<div id="board-feed" class="board-feed"></div>' +
       '<div class="board-input">' +
         '<input id="board-msg" type="text" maxlength="200" placeholder="Say something motivating..." />' +
@@ -3482,6 +3490,33 @@
     listenBoard();
     showScreen(screen);
     showNav('board');
+
+    // Subtle ember particles behind the screen (same as the Plan hero).
+    var embers = screen.querySelector('.board-embers');
+    if (embers) startEmbers(embers);
+    startBoardSubtitle(screen.querySelector('.board-subtitle'));
+  }
+
+  // Rotate the Messages-header subtitle every 4s with a fade transition.
+  function startBoardSubtitle(el) {
+    if (boardSubtitleTimer) { clearInterval(boardSubtitleTimer); boardSubtitleTimer = null; }
+    if (!el) return;
+    var day = challengeDay(new Date());
+    var dayLabel = day < 1 ? 0 : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
+    var subs = ['The squad is watching.', 'Every rep counts.', 'Built together.',
+                'Day ' + dayLabel + ' of ' + TOTAL_DAYS + '.'];
+    var idx = 0;
+    el.textContent = subs[0];
+    boardSubtitleTimer = setInterval(function () {
+      if (!el.isConnected) { clearInterval(boardSubtitleTimer); boardSubtitleTimer = null; return; }
+      idx = (idx + 1) % subs.length;
+      el.style.opacity = '0';
+      setTimeout(function () {
+        if (!el.isConnected) return;
+        el.textContent = subs[idx];
+        el.style.opacity = '1';
+      }, 400);
+    }, 4000);
   }
 
   function listenBoard() {
@@ -3574,7 +3609,8 @@
       return tsMillis(b) - tsMillis(a);
     }).slice(0, 40);
 
-    feed.innerHTML = entries.map(function (e) {
+    feed.innerHTML = entries.map(function (e, i) {
+      var delay = Math.min(i, 10) * 40; // staggered fade-in, capped
       var del = isAdmin()
         ? '<button type="button" class="feed-del" data-del-kind="' + e._kind +
           '" data-del-id="' + e._id + '" aria-label="Delete">×</button>'
@@ -3590,35 +3626,42 @@
           ? esc(e.message)
           : '<strong>' + esc(feedName) + '</strong> completed ' +
             esc(e.exercise) + ' — ' + esc(e.repsCompleted || '');
-        return '<div class="feed-card feed-activity">' +
-                 avatarMarkup(feedName, 'mini-avatar') +
+        return '<div class="feed-card feed-activity" style="animation-delay:' + delay + 'ms">' +
+                 avatarMarkup(feedName, 'feed-avatar') +
                  '<div class="feed-body">' +
-                   '<p class="feed-text">' + text + ' ' + moodIcon + '</p>' +
+                   '<p class="feed-text">' + text + '</p>' +
                    (reacts ? '<div class="feed-reactions">' + reacts + '</div>' : '') +
-                   '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
                  '</div>' +
-                 '<button type="button" class="react-btn" data-react="' + e._id + '">🎉</button>' +
-                 del +
+                 '<div class="feed-side">' +
+                   moodIcon +
+                   '<button type="button" class="react-btn" data-react="' + e._id + '">🎉</button>' +
+                   '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
+                 '</div>' + del +
                '</div>';
       }
       var msgName = cleanName(e.userName);
-      return '<div class="feed-card feed-message">' +
-               avatarMarkup(msgName, 'mini-avatar') +
-               '<div class="feed-body">' +
-                 '<span class="feed-name">' + esc(msgName) + '</span>' +
-                 '<p class="feed-text">' + esc(e.message || '') + '</p>' +
-                 '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
+      var isOwn = !!(state.user && e.userId && e.userId === state.user.id);
+      return '<div class="chat-row' + (isOwn ? ' chat-own' : '') + '" style="animation-delay:' + delay + 'ms">' +
+               avatarMarkup(msgName, 'chat-avatar') +
+               '<div class="chat-col">' +
+                 '<span class="chat-name">' + esc(msgName) + '</span>' +
+                 '<div class="chat-bubble">' + esc(e.message || '') + '</div>' +
+                 '<span class="chat-time">' + feedTime(e.timestamp) + '</span>' +
                '</div>' + del +
              '</div>';
     }).join('') || '<p class="feed-empty">No activity yet — be the first to post!</p>';
 
     Array.prototype.forEach.call(feed.querySelectorAll('[data-react]'), function (btn) {
       btn.addEventListener('click', function () {
-        fireConfetti(btn);
+        cheerBurst(btn); // mini confetti + button pop
         var id = btn.getAttribute('data-react');
         addReaction(id);
         var act = boardActivities.filter(function (a) { return a._id === id; })[0];
-        if (act) writeCheer(cleanName(act.userName)); // notify the cheered user
+        if (act) {
+          var to = cleanName(act.userName);
+          writeCheer(to);       // notify the cheered user
+          showCheerToast(to);   // brief on-screen confirmation
+        }
       });
     });
     Array.prototype.forEach.call(feed.querySelectorAll('[data-del-id]'), function (btn) {
@@ -3650,6 +3693,75 @@
       document.body.appendChild(p);
       (function (el) { setTimeout(function () { el.remove(); }, 900); })(p);
     }
+  }
+
+  // Cheer button feedback: a quick scale "pop" plus a mini canvas confetti burst.
+  function cheerBurst(btn) {
+    btn.classList.remove('react-pop');
+    void btn.offsetWidth; // restart the CSS animation
+    btn.classList.add('react-pop');
+    setTimeout(function () { btn.classList.remove('react-pop'); }, 240);
+    miniConfetti(btn);
+  }
+
+  // Small canvas confetti burst centred on a button (20 particles, ~500ms).
+  function miniConfetti(btn) {
+    var rect = btn.getBoundingClientRect();
+    var size = 84;
+    var canvas = document.createElement('canvas');
+    canvas.className = 'mini-confetti';
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    canvas.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
+    canvas.style.top = (rect.top + rect.height / 2 - size / 2) + 'px';
+    document.body.appendChild(canvas);
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) { canvas.remove(); return; }
+    ctx.scale(dpr, dpr);
+    var colors = ['#E8621A', '#F5F0E8', '#27AE60', '#FFD700', '#ffffff'];
+    var parts = [];
+    for (var i = 0; i < 20; i++) {
+      var ang = Math.random() * Math.PI * 2;
+      var spd = 1.4 + Math.random() * 2.6;
+      parts.push({ x: size / 2, y: size / 2, vx: Math.cos(ang) * spd,
+                   vy: Math.sin(ang) * spd - 1, r: 2 + Math.random() * 2,
+                   c: colors[i % colors.length] });
+    }
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var t = (ts - start) / 500;
+      ctx.clearRect(0, 0, size, size);
+      var life = 1 - t;
+      for (var j = 0; j < parts.length; j++) {
+        var p = parts[j];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+        ctx.globalAlpha = Math.max(0, life);
+        ctx.fillStyle = p.c;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (t < 1) requestAnimationFrame(frame);
+      else canvas.remove();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Brief bottom-of-screen toast confirming a cheer was sent.
+  function showCheerToast(name) {
+    var toast = document.createElement('div');
+    toast.className = 'cheer-toast';
+    toast.textContent = 'Cheer sent to ' + name + '!';
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () { toast.classList.add('is-visible'); });
+    setTimeout(function () {
+      toast.classList.remove('is-visible');
+      setTimeout(function () { toast.remove(); }, 300);
+    }, 2000);
   }
 
   // Big centre-screen confetti cannon (used by the cheer pop-up).

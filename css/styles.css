@@ -604,6 +604,51 @@ img.topbar-avatar,
   color: var(--cream);
 }
 
+/* ---------- Messages screen header ---------- */
+#board-screen { gap: 16px; }
+
+.board-head {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.board-brand {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: var(--orange);
+}
+
+.board-welcome {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--cream);
+  text-shadow: 0 0 16px rgba(232, 98, 26, 0.45);
+}
+
+.board-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--cream);
+  opacity: 0.6;
+  transition: opacity 0.4s ease;
+  min-height: 18px;
+}
+
+/* Sparse ember particles behind the whole screen (above the dark overlay). */
+.board-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .banner {
   width: 100%;
   background: rgba(232, 98, 26, 0.12);
@@ -1420,10 +1465,15 @@ img.topbar-avatar,
 .squad-ring {
   position: relative;
   display: flex;
-  padding: 4px;            /* ring thickness around the avatar */
+  padding: 3px;            /* ring thickness around the avatar */
   border-radius: 50%;
   overflow: hidden;        /* clip the spinning gradient to a circle */
 }
+
+/* Status glow makes the ring colour clearer at a glance. */
+.ring-complete { box-shadow: 0 0 9px rgba(39, 174, 96, 0.6); }
+.ring-incomplete { box-shadow: 0 0 9px rgba(255, 68, 68, 0.55); }
+.ring-rest { box-shadow: 0 0 7px rgba(120, 120, 120, 0.4); }
 
 .squad-ring::before {
   content: '';
@@ -1462,7 +1512,7 @@ img.topbar-avatar,
 
 .squad-moon {
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -1482,8 +1532,19 @@ img.topbar-avatar,
   white-space: nowrap;
 }
 
+/* Discreet status legend below the squad grid. */
+.squad-legend {
+  width: 100%;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
 /* ---------- Shared mini avatars ---------- */
-.squad-avatar, .mini-avatar, .react-avatar {
+.squad-avatar, .mini-avatar, .react-avatar, .feed-avatar, .chat-avatar {
   border-radius: 50%;
   object-fit: cover;
   object-position: center center;
@@ -1491,11 +1552,14 @@ img.topbar-avatar,
   flex-shrink: 0;
 }
 
-img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
+img.squad-avatar, img.mini-avatar, img.react-avatar,
+img.feed-avatar, img.chat-avatar { display: block; }
 
 /* Squad photos fill a fixed 60px circle and can never render smaller. */
 .squad-avatar { width: 60px; height: 60px; min-width: 60px; min-height: 60px; }
 .mini-avatar { width: 36px; height: 36px; }
+.feed-avatar { width: 32px; height: 32px; }
+.chat-avatar { width: 24px; height: 24px; }
 .react-avatar { width: 20px; height: 20px; }
 
 .avatar-ph {
@@ -1510,6 +1574,8 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 
 .squad-avatar.avatar-ph { font-size: 22px; }
 .mini-avatar.avatar-ph { font-size: 15px; }
+.feed-avatar.avatar-ph { font-size: 14px; }
+.chat-avatar.avatar-ph { font-size: 11px; }
 .react-avatar.avatar-ph { font-size: 10px; }
 
 /* ---------- Feed ---------- */
@@ -1523,6 +1589,15 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   gap: 10px;
 }
 
+/* Feed items fade up on render (staggered via inline animation-delay). */
+@keyframes feedIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.feed-card, .chat-row { animation: feedIn 300ms ease-out both; }
+
+/* ---- Activity (session-complete) cards ---- */
 .feed-card {
   display: flex;
   gap: 10px;
@@ -1534,21 +1609,14 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 }
 
 .feed-activity { border-left: 3px solid var(--orange); }
-.feed-message { border-left: 3px solid var(--cream); }
 
 .feed-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.feed-name {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  letter-spacing: 0.5px;
-  color: var(--cream);
+  gap: 6px;
+  padding-top: 4px;
 }
 
 .feed-text {
@@ -1559,10 +1627,23 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   word-break: break-word;
 }
 
+/* Right-hand column: prominent mood, cheer button, timestamp. */
+.feed-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.feed-side .feed-mood svg { width: 26px; height: 26px; }
+
 .feed-time {
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--dim);
+  font-size: 10px;
+  color: var(--cream);
+  opacity: 0.4;
+  text-align: right;
 }
 
 .feed-reactions {
@@ -1574,10 +1655,18 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 .react-btn {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
-  align-self: center;
   flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.react-btn.react-pop { animation: reactPop 220ms ease-out; }
+
+@keyframes reactPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 .feed-del {
@@ -1596,6 +1685,52 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
   font-family: 'DM Sans', sans-serif;
   padding: 24px;
 }
+
+/* ---- Chat messages (messenger style) ---- */
+.chat-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.chat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 78%;
+}
+
+.chat-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--orange);
+}
+
+.chat-bubble {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--cream);
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 9px 12px;
+  word-break: break-word;
+}
+
+.chat-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+/* Current user's own messages mirror to the right with an orange bubble border. */
+.chat-own { flex-direction: row-reverse; }
+.chat-own .chat-col { align-items: flex-end; }
+.chat-own .chat-bubble { border-color: var(--orange); }
 
 /* ---------- Message input (fixed at bottom) ---------- */
 .board-input {
@@ -1641,6 +1776,35 @@ img.squad-avatar, img.mini-avatar, img.react-avatar { display: block; }
 @keyframes confettiFly {
   to { transform: translate(var(--dx), var(--dy)) rotate(360deg); opacity: 0; }
 }
+
+/* Mini canvas confetti burst on the cheer button. */
+.mini-confetti {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1001;
+}
+
+/* Brief "cheer sent" toast at the bottom of the screen. */
+.cheer-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 12px);
+  z-index: 1002;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--cream);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.cheer-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 
 /* ===================================================================
    Canvas particle-fire on buttons + countdown timer
