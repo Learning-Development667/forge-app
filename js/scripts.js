@@ -13,7 +13,7 @@
   // When true, shows a subtle "Dev Login" button that bypasses the magic-link
   // flow and signs straight in as Mark. Set to false for production — never
   // remove this constant.
-  const DEV_MODE = true;
+  const DEV_MODE = false;
 
   // ---- Constants ----------------------------------------------------
   var MAX_USERS = 10;
