@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.72</p>
+      <p class="brand-version">v0.2.73</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -70,37 +70,15 @@
       </label>
 
       <label class="field">
-        <span class="field-label">Email address</span>
-        <input id="reg-email" name="email" type="email" autocomplete="email" required />
-      </label>
-
-      <label class="field">
         <span class="field-label">Invite code</span>
         <input id="reg-code" name="code" type="text" autocomplete="off" required />
       </label>
 
-      <button type="submit" class="btn-forge">Create account</button>
+      <button type="submit" class="btn-forge">Register</button>
       <button type="button" id="register-back" class="btn-link">Back</button>
       <p id="register-message" class="message" role="status" aria-live="polite"></p>
-      <p id="register-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
+      <p id="register-junk" class="junk-note hidden"></p>
     </form>
-  </main>
-
-  <!-- ===================== EMAIL CONFIRMATION (magic link) ===================== -->
-  <main id="confirm-screen" class="screen hidden">
-    <header class="brand brand--compact">
-      <h1 class="brand-name">FORGE</h1>
-      <p class="brand-tagline">Almost there.</p>
-    </header>
-    <div class="confirm-box">
-      <p class="confirm-text">Confirm your email address to finish signing in.</p>
-      <label class="field">
-        <span class="field-label">Email address</span>
-        <input id="confirm-email" type="email" autocomplete="email" inputmode="email" />
-      </label>
-      <button id="confirm-btn" class="btn-forge" type="button">Confirm sign in</button>
-      <p id="confirm-message" class="message" role="status" aria-live="polite"></p>
-    </div>
   </main>
 
   <!-- ===================== DASHBOARD (placeholder) ===================== -->
@@ -115,9 +93,8 @@
     </div>
   </main>
 
-  <!-- Firebase SDK (compat) -->
+  <!-- Firebase SDK (compat) — Firestore only; Authentication is no longer used -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- Chart.js (progress graphs) -->
