@@ -2443,3 +2443,11 @@ button:focus { outline: none; }
   text-align: center;
   cursor: pointer;
 }
+
+/* ---------- Plank timer ---------- */
+/* Large MM:SS in Bebas Neue (the shared .ring-label is DM Mono). */
+.ring-label--bebas {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 3px;
+}
+#plank-timer-screen { background-image: url('../images/bg-training.png'); }

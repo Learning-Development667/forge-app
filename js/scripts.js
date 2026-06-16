@@ -834,6 +834,10 @@
   function soundStart()  { playTone(150, 2.0, 'sine', 0.6); }   // deep forge bell
   function soundStrike() { playTone(300, 0.8, 'triangle', 0.5); } // mid strike
   function soundBeep()   { playTone(500, 0.1, 'square', 0.4); }  // sharp final beep
+  // Plank countdown: short sharp 880Hz beep each of the final seconds, and a
+  // longer 1046Hz success tone on the last second.
+  function soundPlankBeep() { playTone(880, 0.08, 'square', 0.4); }
+  function soundPlankDone() { playTone(1046, 0.3, 'sine', 0.5); }
 
   // ===================================================================
   // Date / progression / schedule maths
@@ -1399,7 +1403,7 @@
       .catch(function (err) { console.error('Failed to store routine flag:', err); });
   }
 
-  function saveLog(exKey, repsCompleted, target, mood, isBestEffort, bonusExercise) {
+  function saveLog(exKey, repsCompleted, target, mood, isBestEffort, bonusExercise, plankDuration) {
     var sched = todaySchedule();
     var wasComplete = allDueLoggedToday(sched); // before this log
     var entry = {
@@ -1412,6 +1416,7 @@
       bonusExercise: !!bonusExercise,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (plankDuration != null) entry.plankDuration = plankDuration; // seconds held (Friday plank)
     return db.collection('users').doc(state.user.id).collection('logs').add(entry)
       .then(function (ref) {
         entry._id = ref.id;
@@ -1598,7 +1603,11 @@
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('.forge-laser'), staggerLaser);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-log]'), function (btn) {
       btn.addEventListener('click', function () {
-        openLogScreen(btn.getAttribute('data-log'), btn.getAttribute('data-best') === '1', false);
+        var k = btn.getAttribute('data-log');
+        var best = btn.getAttribute('data-best') === '1';
+        // Plank shows its dedicated timer first; other exercises log directly.
+        if (k === 'plank') openPlankTimer(best);
+        else openLogScreen(k, best, false);
       });
       addFire(btn);
     });
@@ -1814,7 +1823,9 @@
           '<input id="' + inputId + '" type="number" inputmode="numeric" min="0" ' +
             'placeholder="' + esc(String(opts.targetDisplay)) + '" />' +
         '</label>'
-      : '<p class="log-confirm-q">Did you complete ' + esc(String(opts.targetDisplay)) + '?</p>';
+      : '<p class="log-confirm-q">' +
+          esc(opts.confirmText || ('Did you complete ' + String(opts.targetDisplay) + '?')) +
+        '</p>';
 
     container.innerHTML =
       topBlock +
@@ -1855,6 +1866,135 @@
       }
       opts.onConfirm(value, selectedMood);
     });
+  }
+
+  // "Target: 20s" / "Target: 1m 30s"
+  function plankTargetText(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    if (m === 0) return s + 's';
+    if (s === 0) return m + 'm';
+    return m + 'm ' + s + 's';
+  }
+
+  // Plank timer shown before the plank logging flow. On scheduled plank days
+  // (Mon/Wed/Thu/Sun) it counts DOWN to the day's target; on Best Effort Friday
+  // it counts UP from zero. plankTimerActive gates cheer pop-ups while it runs.
+  function openPlankTimer(isBestEffort) {
+    var ex = EXERCISES.plank;
+    var day = challengeDay(new Date());
+    var target = targetFor(ex, day); // seconds
+    var countUp = !!isBestEffort;
+    var screen = ensureScreen('plank-timer-screen');
+
+    screen.innerHTML =
+      '<header class="topbar">' +
+        '<button type="button" class="btn-link back-btn">← Back</button>' +
+        '<button type="button" class="btn-link form-link">Form Guide</button>' +
+      '</header>' +
+      '<h1 class="log-title">PLANK</h1>' +
+      (countUp ? '' : '<p class="log-target">Target: ' + esc(plankTargetText(target)) + '</p>') +
+      '<div class="timer-zone">' +
+        '<div class="ring-wrap">' +
+          '<svg class="ring" viewBox="0 0 120 120">' +
+            '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
+            '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
+          '</svg>' +
+          '<span class="ring-label ring-label--bebas">' + (countUp ? '0:00' : clock(target)) + '</span>' +
+        '</div>' +
+        '<button type="button" class="btn-forge plank-start">Start</button>' +
+        '<button type="button" class="btn-outline plank-stop hidden">Stop</button>' +
+      '</div>' +
+      '<div class="log-flow hidden"></div>';
+
+    showScreen(screen); // (sets plankTimerActive = false until Start is pressed)
+
+    var ringFg = screen.querySelector('.ring-fg');
+    var ringLabel = screen.querySelector('.ring-label');
+    var startBtn = screen.querySelector('.plank-start');
+    var stopBtn = screen.querySelector('.plank-stop');
+    var flow = screen.querySelector('.log-flow');
+    var C = 2 * Math.PI * 54;
+    var iv = null;
+
+    function cancelTimer() { if (iv) { clearInterval(iv); iv = null; } plankTimerActive = false; }
+
+    screen.querySelector('.back-btn').addEventListener('click', function () {
+      cancelTimer();
+      renderDashboard();
+    });
+    screen.querySelector('.form-link').addEventListener('click', function () {
+      cancelTimer();
+      openFormGuide(ex.name, 'plank',
+        function () { openPlankTimer(isBestEffort); },
+        function () { openPlankTimer(isBestEffort); });
+    });
+
+    addFire(startBtn);
+
+    function finish(held, auto) {
+      cancelTimer();
+      startBtn.classList.add('hidden');
+      stopBtn.classList.add('hidden');
+      if (auto && navigator.vibrate) { try { navigator.vibrate(200); } catch (e) {} }
+      showPlankLog(flow, ex, target, isBestEffort, held);
+    }
+
+    startBtn.addEventListener('click', function () {
+      ensureAudio(); // unlock Web Audio on the user gesture
+      startBtn.classList.add('hidden');
+      stopBtn.classList.remove('hidden');
+      plankTimerActive = true;
+      ringFg.style.strokeDasharray = C;
+      ringFg.style.strokeDashoffset = 0;
+
+      if (countUp) {
+        var elapsed = 0;
+        ringLabel.textContent = clock(0);
+        iv = setInterval(function () {
+          elapsed++;
+          ringLabel.textContent = clock(elapsed);
+        }, 1000);
+        stopBtn.onclick = function () { finish(elapsed, false); };
+      } else {
+        var total = target, remaining = target;
+        ringLabel.textContent = clock(remaining);
+        iv = setInterval(function () {
+          remaining--;
+          ringLabel.textContent = clock(Math.max(0, remaining));
+          ringFg.style.strokeDashoffset = C * (1 - remaining / total); // ring depletes
+          if (remaining <= 10 && remaining >= 2) soundPlankBeep();
+          else if (remaining === 1) soundPlankDone();
+          if (remaining <= 0) { finish(total, true); }
+        }, 1000);
+        stopBtn.onclick = function () { finish(total - remaining, false); };
+      }
+    });
+  }
+
+  // Reveal the plank logging flow after the timer. Friday records the held time
+  // as plankDuration; other days confirm the day's target.
+  function showPlankLog(flow, ex, target, isBestEffort, held) {
+    flow.classList.remove('hidden');
+    if (isBestEffort) {
+      buildLogFlow(flow, {
+        requireInput: false,
+        confirmText: 'Log your ' + plankTargetText(held) + ' plank hold?',
+        targetDisplay: plankTargetText(held),
+        confirmValue: held,
+        onConfirm: function (value, mood) {
+          saveLog('plank', value, target, mood, true, false, held).then(renderDashboard);
+        }
+      });
+    } else {
+      buildLogFlow(flow, {
+        requireInput: false,
+        targetDisplay: formatTarget(ex, target),
+        confirmValue: target,
+        onConfirm: function (value, mood) {
+          saveLog('plank', value, target, mood, false, false).then(renderDashboard);
+        }
+      });
+    }
   }
 
   function startCountdown(seconds, ringEl, labelEl, fireEl, onDone) {
