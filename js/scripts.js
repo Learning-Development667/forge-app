@@ -551,6 +551,7 @@
   var boardActivities = [];
   var squadStatus = {}; // userId -> [logged exercise keys today]
   var boardSubtitleTimer = null; // rotating Messages-header subtitle interval
+  var seenFeedIds = new Set(); // feed item ids already rendered — only new ones animate
 
   // ===================================================================
   // Screen helpers
@@ -3609,8 +3610,12 @@
       return tsMillis(b) - tsMillis(a);
     }).slice(0, 40);
 
-    feed.innerHTML = entries.map(function (e, i) {
-      var delay = Math.min(i, 10) * 40; // staggered fade-in, capped
+    var newCount = 0;
+    feed.innerHTML = entries.map(function (e) {
+      // Only items absent from the previous render fade in (staggered, capped).
+      var isNew = !seenFeedIds.has(e._id);
+      var newCls = isNew ? ' feed-new' : '';
+      var animStyle = isNew ? ' style="animation-delay:' + (Math.min(newCount++, 10) * 40) + 'ms"' : '';
       var del = isAdmin()
         ? '<button type="button" class="feed-del" data-del-kind="' + e._kind +
           '" data-del-id="' + e._id + '" aria-label="Delete">×</button>'
@@ -3626,7 +3631,7 @@
           ? esc(e.message)
           : '<strong>' + esc(feedName) + '</strong> completed ' +
             esc(e.exercise) + ' — ' + esc(e.repsCompleted || '');
-        return '<div class="feed-card feed-activity" style="animation-delay:' + delay + 'ms">' +
+        return '<div class="feed-card feed-activity' + newCls + '"' + animStyle + '>' +
                  avatarMarkup(feedName, 'feed-avatar') +
                  '<div class="feed-body">' +
                    '<p class="feed-text">' + text + '</p>' +
@@ -3641,7 +3646,7 @@
       }
       var msgName = cleanName(e.userName);
       var isOwn = !!(state.user && e.userId && e.userId === state.user.id);
-      return '<div class="chat-row' + (isOwn ? ' chat-own' : '') + '" style="animation-delay:' + delay + 'ms">' +
+      return '<div class="chat-row' + (isOwn ? ' chat-own' : '') + newCls + '"' + animStyle + '>' +
                avatarMarkup(msgName, 'chat-avatar') +
                '<div class="chat-col">' +
                  '<span class="chat-name">' + esc(msgName) + '</span>' +
@@ -3650,6 +3655,9 @@
                '</div>' + del +
              '</div>';
     }).join('') || '<p class="feed-empty">No activity yet — be the first to post!</p>';
+
+    // Remember the ids rendered this pass so they won't re-animate next render.
+    seenFeedIds = new Set(entries.map(function (e) { return e._id; }));
 
     Array.prototype.forEach.call(feed.querySelectorAll('[data-react]'), function (btn) {
       btn.addEventListener('click', function () {
