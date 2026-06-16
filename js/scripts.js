@@ -446,19 +446,19 @@
         : '<button type="button" class="btn-link faceid-back">Back</button>') +
       '<p class="pin-error message" role="status" aria-live="polite"></p>';
     showScreen(screen);
-    var errEl = screen.querySelector('.pin-error');
     var enableBtn = screen.querySelector('.faceid-enable');
     enableBtn.addEventListener('click', function () {
-      if (!webauthnSupported) { finishLogin(identity); return; } // no WebAuthn → allow in
+      if (!webauthnSupported) { showBiometricFallback(identity); return; } // no WebAuthn → confirm fallback
       enableBtn.disabled = true;
       registerBiometric()
         .then(function () { finishLogin(identity); })
         .catch(function () {
           // Enrolment cancelled/failed. A known returning user (Skip allowed)
-          // may proceed; a new user must enrol — let them retry or go back.
+          // may proceed; otherwise WebAuthn genuinely failed here (e.g. a desktop
+          // with no biometrics) — offer the non-biometric fallback rather than
+          // locking the user out behind a dead-end retry.
           if (allowSkip) { finishLogin(identity); return; }
-          enableBtn.disabled = false;
-          setMessage(errEl, 'Face ID is needed to sign in. Try again or go back.', true);
+          showBiometricFallback(identity);
         });
     });
     var skipBtn = screen.querySelector('.faceid-skip');
@@ -483,19 +483,40 @@
       '<button type="button" class="btn-link faceid-setup-no">Not me</button>' +
       '<p class="pin-error message" role="status" aria-live="polite"></p>';
     showScreen(screen);
-    var errEl = screen.querySelector('.pin-error');
     var yesBtn = screen.querySelector('.faceid-setup-yes');
     yesBtn.addEventListener('click', function () {
-      if (!webauthnSupported) { finishLogin(identity); return; }
+      if (!webauthnSupported) { showBiometricFallback(identity); return; }
       yesBtn.disabled = true;
       registerBiometric() // creates a new credential + updates biometricCredentialId
         .then(function () { finishLogin(identity); })
         .catch(function () {
-          yesBtn.disabled = false;
-          setMessage(errEl, 'Could not set up Face ID. Try again or tap Not me.', true);
+          // Registration genuinely failed (no platform authenticator / Windows
+          // Hello unavailable). Offer the non-biometric fallback rather than a
+          // dead-end retry that would lock the user out.
+          showBiometricFallback(identity);
         });
     });
     screen.querySelector('.faceid-setup-no').addEventListener('click', function () { backToCarousel(identity.name); });
+    addFire(yesBtn);
+  }
+
+  // Non-biometric fallback: shown only when WebAuthn genuinely fails or is
+  // unsupported on this device (never on devices where biometrics work). Lets a
+  // recognised user confirm and sign in directly instead of being locked out.
+  function showBiometricFallback(identity) {
+    state.user = { id: identity.uid, name: identity.name, email: '', avatar: identity.avatar || null };
+    var screen = ensureScreen('biometric-fallback-screen');
+    screen.innerHTML =
+      '<header class="brand brand--compact"><h1 class="brand-name">FORGE</h1></header>' +
+      '<div class="lock-id">' + avatarMarkup(identity.name, 'lock-avatar') +
+        '<p class="lock-name">' + esc(identity.name) + '</p></div>' +
+      '<p class="pin-subtext">Biometrics not available on this device.</p>' +
+      '<button type="button" class="btn-forge bio-fallback-yes">That\'s me — continue</button>' +
+      '<button type="button" class="btn-link bio-fallback-no">Not me</button>';
+    showScreen(screen);
+    var yesBtn = screen.querySelector('.bio-fallback-yes');
+    yesBtn.addEventListener('click', function () { finishLogin(identity); }); // stores forgeLastAvatar
+    screen.querySelector('.bio-fallback-no').addEventListener('click', function () { backToCarousel(identity.name); });
     addFire(yesBtn);
   }
 
@@ -1289,6 +1310,9 @@
       }
       var identity = { uid: existing.id, name: existing.name, email: '', avatar: existing.avatar || null };
       if (existing.biometricCredentialId) {
+        // This device can't do WebAuthn at all (e.g. desktop without Windows
+        // Hello) → skip the verify attempt and offer the non-biometric fallback.
+        if (!webauthnSupported) { showBiometricFallback(identity); return; }
         // Stored credential — verify Face ID on this device.
         authBiometric(existing.biometricCredentialId)
           .then(function (cred) {
