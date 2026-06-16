@@ -2429,3 +2429,17 @@ button:focus { outline: none; }
   width: auto;
   min-width: 160px;
 }
+
+/* ---------- Discreet install link (login screen) ---------- */
+.install-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 4px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.4;
+  text-align: center;
+  cursor: pointer;
+}

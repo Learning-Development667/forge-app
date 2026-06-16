@@ -2861,10 +2861,15 @@
       devFridayBtn.addEventListener('click', devFridayLogin);
     }
 
-    if (installBtn) installBtn.addEventListener('click', openInstall);
+    if (installBtn) {
+      installBtn.addEventListener('click', openInstall);
+      // Hide the install link entirely when already running as an installed PWA.
+      var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                       window.navigator.standalone === true;
+      if (standalone) installBtn.classList.add('hidden');
+    }
 
-    addFire(forgeBtn);
-    addFire(installBtn);
+    addFire(forgeBtn); // discreet install link gets no fire animation
 
     buildNav();       // one persistent top nav, reused across screens
     renderCarousel(); // static team list — independent of Firestore

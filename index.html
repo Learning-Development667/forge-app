@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v0.2.77</p>
+      <p class="brand-version">v0.2.78</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -39,15 +39,16 @@
 
     <button id="forge-btn" class="btn-forge" type="button">Let's Forge</button>
 
-    <!-- Install instructions button (secondary) -->
-    <button id="install-btn" class="btn-outline" type="button">Install App</button>
-
     <!-- Developer-only shortcuts; shown by scripts.js when DEV_MODE is true -->
     <button id="dev-login-btn" class="dev-login hidden" type="button">Dev Login</button>
     <button id="dev-friday-btn" class="dev-login hidden" type="button">Dev - Friday Mode</button>
 
     <p id="login-message" class="message" role="status" aria-live="polite"></p>
     <p id="login-junk" class="junk-note hidden">Can't find it? Check your junk or spam folder.</p>
+
+    <!-- Discreet install link at the bottom; hidden by scripts.js when the app is
+         already running as an installed PWA. -->
+    <button id="install-btn" class="install-link" type="button">Install app</button>
   </main>
 
   <!-- Face ID enrolment + other auth screens are rendered dynamically by
