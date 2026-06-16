@@ -2546,96 +2546,269 @@
     });
   }
 
+  // ---- Plan screen helpers -----------------------------------------
+  // Animate an element's number from `from` to `to` over `dur` ms (easeOutCubic);
+  // handles both count-up and count-down.
+  function animateValue(el, from, to, dur) {
+    from = Math.round(Number(from) || 0);
+    to = Math.round(Number(to) || 0);
+    dur = dur || 800;
+    var t0 = null;
+    function step(ts) {
+      if (t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(from + (to - from) * e));
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = String(to);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Compact target label for the Plan screen (plank shown as minutes/seconds).
+  function planTargetText(ex, val) {
+    if (ex.kind === 'time') return plankTargetText(val);
+    if (ex.kind === 'legs') return val + '/leg';
+    return val + ' reps';
+  }
+
+  // Sparse, slow ember particles behind the Plan hero (very subtle, 7 of them).
+  // Self-stops when the canvas detaches on screen re-render, like startFire.
+  function startEmbers(canvas) {
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var W = 0, H = 0;
+    function resize() {
+      W = canvas.clientWidth || 0;
+      H = canvas.clientHeight || 0;
+      canvas.width = Math.max(1, Math.round(W * dpr));
+      canvas.height = Math.max(1, Math.round(H * dpr));
+    }
+    resize();
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    var parts = [];
+    function spawn(p, initial) {
+      p.x = rand(0, W || 1);
+      p.y = initial ? rand(0, H || 1) : (H || 1) + rand(2, 14);
+      p.r = rand(1, 2.4);
+      p.vx = rand(-0.1, 0.1);
+      p.vy = rand(-0.28, -0.08); // slow rise
+      p.life = rand(0.4, 1);
+      p.fade = rand(0.0009, 0.0024);
+      return p;
+    }
+    for (var i = 0; i < 7; i++) parts.push(spawn({}, true));
+    function frame() {
+      if (!canvas.isConnected) return; // screen re-render → stop
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (W > 0 && H > 0) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.globalCompositeOperation = 'lighter';
+        for (var j = 0; j < parts.length; j++) {
+          var p = parts[j];
+          p.x += p.vx; p.y += p.vy; p.life -= p.fade;
+          if (p.y < -6 || p.life <= 0) spawn(p, false);
+          var a = Math.min(1, p.life) * 0.35; // very subtle
+          var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
+          g.addColorStop(0, 'rgba(255,150,70,' + a + ')');
+          g.addColorStop(1, 'rgba(232,98,26,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
   function openPlan() {
     var screen = ensureScreen('plan-screen');
     var day = challengeDay(new Date());
-    var dayLabel = day < 1 ? '0' : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
+    var dayClamped = Math.max(0, Math.min(TOTAL_DAYS, day));
+    var dayLabel = day < 1 ? 0 : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
+    var endDate = new Date(2026, 8, 20); // Day 90 — 20 September 2026
+    var daysRemaining = Math.max(0, daysBetween(new Date(), endDate));
+    var elapsedPct = Math.round(dayClamped / TOTAL_DAYS * 100);
 
-    var flame = '<svg class="day-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.3 3.7 4.7 4.7 4.7 8.6a4.7 4.7 0 0 1-9.4 0c0-1.7.6-2.8 1.6-3.7.3 2 1.7 2 1.7.2 0-1.7-.6-2.7 1.4-5.3z"/></svg>';
-    var moon = '<svg class="day-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 12.5A7 7 0 0 1 8 5a7 7 0 1 0 7.5 7.5z"/></svg>';
+    var trophy = '<svg class="pl-goal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3 3 0 0 0 7 9.5M17 5h3v1.5a3 3 0 0 1-3 3"/>' +
+      '<path d="M12 13v3M9.5 21h5l-.7-4h-3.6z"/></svg>';
+    var chev = '<svg class="pl-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 
+    // SECTION 2 — end-of-challenge goal targets.
+    var goalHTML = ORDER.map(function (k) {
+      var ex = EXERCISES[k];
+      return '<div class="pl-goal-item">' +
+               '<span class="pl-goal-ex">' + esc(ex.name) + '</span>' +
+               '<span class="pl-goal-val">' + esc(formatTarget(ex, ex.end)) + '</span>' +
+             '</div>';
+    }).join('');
+
+    // SECTION 4 — weekly structure (Mon→Sun; today's index marked).
     var WEEK = [
-      { d: 'Monday', a: 'Press-ups, Sit-ups, Plank', r: 'Lunges' },
-      { d: 'Tuesday', a: 'Press-ups, Sit-ups, Lunges', r: 'Plank' },
-      { d: 'Wednesday', a: 'Sit-ups, Plank, Lunges', r: 'Press-ups' },
-      { d: 'Thursday', a: 'Press-ups, Plank, Lunges', r: 'Sit-ups' },
-      { d: 'Friday', t: 'best' },
-      { d: 'Saturday', t: 'rest' },
-      { d: 'Sunday', a: 'Press-ups, Sit-ups, Plank', r: 'Lunges' }
+      { d: 'Monday', active: ['Press-ups', 'Sit-ups', 'Plank'], rest: 'Lunges' },
+      { d: 'Tuesday', active: ['Press-ups', 'Sit-ups', 'Lunges'], rest: 'Plank' },
+      { d: 'Wednesday', active: ['Sit-ups', 'Plank', 'Lunges'], rest: 'Press-ups' },
+      { d: 'Thursday', active: ['Press-ups', 'Plank', 'Lunges'], rest: 'Sit-ups' },
+      { d: 'Friday', type: 'best' },
+      { d: 'Saturday', type: 'rest' },
+      { d: 'Sunday', active: ['Press-ups', 'Sit-ups', 'Plank'], rest: 'Lunges' }
     ];
-    var weekHTML = WEEK.map(function (w) {
-      if (w.t === 'best') {
-        return '<div class="day-card day-best">' + flame +
-                 '<div class="day-body"><span class="day-name">Friday</span>' +
-                 '<span class="day-detail">BEST EFFORT — all 4 exercises · 2 min timer each</span></div></div>';
+    var todayIdx = (new Date().getDay() + 6) % 7; // getDay 0=Sun → WEEK index (Mon-first)
+    function pill(name, extra) { return '<span class="pl-pill' + (extra || '') + '">' + esc(name) + '</span>'; }
+    var weekHTML = WEEK.map(function (w, idx) {
+      var isToday = idx === todayIdx;
+      var badge = isToday ? '<span class="pl-today-badge">TODAY</span>' : '';
+      var cls = 'pl-day';
+      if (w.type === 'best') cls += ' pl-day--best forge-laser';
+      else if (w.type === 'rest') cls += ' pl-day--rest';
+      if (isToday) cls += ' pl-day--today';
+      var inner;
+      if (w.type === 'best') {
+        inner = '<div class="pl-day-head"><span class="pl-day-name">Friday</span><span class="pl-day-emoji">🔥</span></div>' +
+          '<div class="pl-pills">' + ORDER.map(function (k) { return pill(EXERCISES[k].name); }).join('') + '</div>' +
+          '<span class="pl-day-note">Best effort — 2 min each</span>';
+      } else if (w.type === 'rest') {
+        inner = '<div class="pl-day-head"><span class="pl-day-name">Saturday</span><span class="pl-day-emoji">🌙</span></div>' +
+          '<span class="pl-day-note">Full rest day</span>';
+      } else {
+        inner = '<div class="pl-day-head"><span class="pl-day-name">' + esc(w.d) + '</span></div>' +
+          '<div class="pl-pills">' + w.active.map(function (n) { return pill(n); }).join('') +
+            pill('Rest: ' + w.rest, ' pl-pill--rest') + '</div>';
       }
-      if (w.t === 'rest') {
-        return '<div class="day-card day-restday">' + moon +
-                 '<div class="day-body"><span class="day-name">Saturday</span>' +
-                 '<span class="day-detail">FULL REST</span></div></div>';
-      }
-      return '<div class="day-card"><div class="day-body"><span class="day-name">' + w.d + '</span>' +
-               '<span class="day-detail"><span class="day-active">' + w.a + '</span> · rest: ' + w.r + '</span></div></div>';
+      return '<div class="' + cls + '" style="animation-delay:' + (idx * 80) + 'ms">' + badge + inner + '</div>';
     }).join('');
 
-    var PROG = [
-      { name: 'Press-ups', steps: ['Day 1: 5 reps', 'Week 4: 16 reps', 'Week 7: 28 reps', 'Week 10: 39 reps', 'Day 90: 50 reps'] },
-      { name: 'Sit-ups', steps: ['Day 1: 10 reps', 'Week 4: 33 reps', 'Week 7: 56 reps', 'Week 10: 79 reps', 'Day 90: 100 reps'] },
-      { name: 'Plank', steps: ['Day 1: 20 sec', 'Week 4: 1 min', 'Week 7: 1 min 45 sec', 'Week 10: 2 min 30 sec', 'Day 90: 3 min'] },
-      { name: 'Lunges', steps: ['Day 1: 5 each leg', 'Week 4: 9 each leg', 'Week 7: 13 each leg', 'Week 10: 17 each leg', 'Day 90: 20 each leg'] }
-    ];
-    var progHTML = PROG.map(function (p) {
-      var steps = p.steps.map(function (s) {
-        var parts = s.split(': ');
-        return '<div class="prog-step"><span class="prog-dot"></span>' +
-                 '<span class="prog-when">' + esc(parts[0]) + '</span>' +
-                 '<span class="prog-val">' + esc(parts[1] || '') + '</span></div>';
-      }).join('');
-      return '<div class="prog-row"><p class="prog-ex-name">' + esc(p.name) + '</p>' +
-               '<div class="prog-track">' + steps + '</div></div>';
+    // SECTION 5 — progression bars (current interpolated target vs Day 90).
+    var progHTML = ORDER.map(function (k, i) {
+      var ex = EXERCISES[k];
+      var curr = targetFor(ex, Math.max(1, dayClamped || 1));
+      var pct = Math.max(2, Math.min(100, Math.round(curr / ex.end * 100)));
+      return '<div class="pl-prog">' +
+               '<span class="pl-prog-name">' + esc(ex.name) + '</span>' +
+               '<div class="pl-prog-bar"><div class="pl-prog-fill" data-w="' + pct +
+                 '" style="transition-delay:' + (i * 120) + 'ms"></div></div>' +
+               '<div class="pl-prog-vals">' +
+                 '<span class="pl-prog-curr">' + esc(planTargetText(ex, curr)) + '</span>' +
+                 '<span class="pl-prog-end">Day 90: ' + esc(planTargetText(ex, ex.end)) + '</span>' +
+               '</div>' +
+             '</div>';
     }).join('');
 
-    var bonusHTML = BONUS_EXERCISES.map(function (b, i) {
-      return '<div class="plan-bonus"><span class="plan-bonus-name">' + (i + 1) + '. ' + esc(b.name) + '</span>' +
-               '<span class="plan-bonus-target">' + esc(b.target) + '</span></div>';
-    }).join('');
-
+    // SECTION 6 — points + bonus (accordion bodies).
     var POINTS = [
       ['Log any exercise', 10], ['All exercises due that day', 25],
       ['Friday best effort (all 4)', 50], ['7-day streak', 100],
       ['30-day streak', 500], ['Bonus exercise', 20]
     ];
     var pointsHTML = POINTS.map(function (p) {
-      return '<div class="plan-points-row"><span class="set-label">' + esc(p[0]) + '</span>' +
-               '<span class="plan-pts">+' + p[1] + '</span></div>';
+      return '<div class="pl-acc-row"><span class="pl-acc-label">' + esc(p[0]) +
+               '</span><span class="pl-acc-pts">+' + p[1] + '</span></div>';
+    }).join('');
+    var bonusHTML = BONUS_EXERCISES.map(function (b, i) {
+      return '<div class="pl-acc-row"><span class="pl-acc-label">' + (i + 1) + '. ' + esc(b.name) +
+               '</span><span class="pl-acc-target">' + esc(b.target) + '</span></div>';
     }).join('');
 
     screen.innerHTML =
-      '<h1 class="settings-title">THE PLAN</h1>' +
-      '<p class="plan-sub">90 days. Built together.</p>' +
+      // SECTION 1 — hero header
+      '<section class="pl-hero">' +
+        '<canvas class="pl-hero-embers"></canvas>' +
+        '<div class="pl-hero-inner">' +
+          '<h1 class="pl-hero-title">THE PLAN</h1>' +
+          '<p class="pl-hero-sub">90 days. Built together.</p>' +
+          '<div class="pl-countdown">' +
+            '<span class="pl-countdown-num" data-from="' + (daysRemaining + 30) + '" data-to="' + daysRemaining + '">' +
+              (daysRemaining + 30) + '</span>' +
+            '<span class="pl-countdown-label">DAYS REMAINING</span>' +
+          '</div>' +
+          '<div class="pl-hero-bar"><div class="pl-hero-bar-fill" data-w="' + elapsedPct + '"></div></div>' +
+        '</div>' +
+      '</section>' +
 
-      '<p class="section-heading">Challenge overview</p>' +
-      '<div class="plan-card">' +
-        '<div class="plan-ov-row"><span>Start</span><span class="plan-ov-val">Tue 23 June 2026</span></div>' +
-        '<div class="plan-ov-row"><span>End</span><span class="plan-ov-val">Sun 20 September 2026</span></div>' +
-        '<div class="plan-ov-row"><span>Total days</span><span class="plan-ov-val">90</span></div>' +
-        '<div class="plan-ov-row"><span>Current day</span><span class="plan-ov-current">' + dayLabel + ' / 90</span></div>' +
-      '</div>' +
+      // SECTION 2 — your goal
+      '<section class="pl-section pl-anim-rise">' +
+        '<div class="pl-goal">' +
+          '<div class="pl-goal-head">' + trophy + '<span class="pl-goal-title">YOUR GOAL</span></div>' +
+          '<div class="pl-goal-grid">' + goalHTML + '</div>' +
+        '</div>' +
+      '</section>' +
 
-      '<p class="section-heading">Weekly structure</p>' +
-      '<div class="day-cards">' + weekHTML + '</div>' +
+      // SECTION 3 — challenge overview timeline
+      '<section class="pl-section">' +
+        '<p class="section-heading">Challenge overview</p>' +
+        '<div class="pl-timeline">' +
+          '<div class="pl-tl-track">' +
+            '<div class="pl-tl-fill" data-w="' + elapsedPct + '"></div>' +
+            '<span class="pl-tl-dot pl-tl-start"></span>' +
+            '<span class="pl-tl-dot pl-tl-end"></span>' +
+            '<span class="pl-tl-marker" style="left:' + elapsedPct + '%"></span>' +
+          '</div>' +
+          '<div class="pl-tl-labels">' +
+            '<div class="pl-tl-label"><span class="pl-tl-when">23 Jun 2026</span><span class="pl-tl-cap">START</span></div>' +
+            '<div class="pl-tl-label pl-tl-label--right"><span class="pl-tl-when">20 Sep 2026</span><span class="pl-tl-cap">END</span></div>' +
+          '</div>' +
+          '<p class="pl-tl-current">Day ' + dayLabel + ' of ' + TOTAL_DAYS + '</p>' +
+        '</div>' +
+      '</section>' +
 
-      '<p class="section-heading">Progression targets</p>' +
-      '<div class="plan-card">' + progHTML + '</div>' +
+      // SECTION 4 — weekly structure
+      '<section class="pl-section">' +
+        '<p class="section-heading">Weekly structure</p>' +
+        '<div class="pl-days">' + weekHTML + '</div>' +
+      '</section>' +
 
-      '<p class="section-heading">Bonus exercises</p>' +
-      '<div class="plan-card">' + bonusHTML + '</div>' +
+      // SECTION 5 — progression targets
+      '<section class="pl-section">' +
+        '<p class="section-heading">Progression targets</p>' +
+        '<div class="pl-progs">' + progHTML + '</div>' +
+      '</section>' +
 
-      '<p class="section-heading">Points system</p>' +
-      '<div class="plan-card">' + pointsHTML + '</div>';
+      // SECTION 6 — points + bonus accordions
+      '<section class="pl-section">' +
+        '<div class="pl-acc">' +
+          '<button type="button" class="pl-acc-head"><span class="pl-acc-htitle">Points system</span>' + chev + '</button>' +
+          '<div class="pl-acc-body"><div class="pl-acc-inner">' + pointsHTML + '</div></div>' +
+        '</div>' +
+        '<div class="pl-acc">' +
+          '<button type="button" class="pl-acc-head"><span class="pl-acc-htitle">Bonus exercises</span>' + chev + '</button>' +
+          '<div class="pl-acc-body"><div class="pl-acc-inner">' + bonusHTML + '</div></div>' +
+        '</div>' +
+      '</section>';
 
     showScreen(screen);
     showNav('plan');
+
+    // Accordions — toggle open/closed (collapsed by default).
+    Array.prototype.forEach.call(screen.querySelectorAll('.pl-acc-head'), function (head) {
+      head.addEventListener('click', function () { head.parentNode.classList.toggle('is-open'); });
+    });
+
+    requestAnimationFrame(function () { runPlanAnimations(screen, daysRemaining); });
+  }
+
+  // Trigger the Plan entrance animations once the screen is visible.
+  function runPlanAnimations(screen, daysRemaining) {
+    var cd = screen.querySelector('.pl-countdown-num');
+    if (cd) animateValue(cd, Number(cd.getAttribute('data-from')), Number(cd.getAttribute('data-to')), 800);
+
+    // Hero bar, timeline fill and progression bars all transition from width:0.
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(screen.querySelectorAll('[data-w]'), function (el) {
+        el.style.width = (Number(el.getAttribute('data-w')) || 0) + '%';
+      });
+    });
+
+    var embers = screen.querySelector('.pl-hero-embers');
+    if (embers) startEmbers(embers);
   }
 
   function openSettings() {
