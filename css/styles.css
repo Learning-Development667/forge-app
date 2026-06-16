@@ -1908,43 +1908,398 @@ button:focus { outline: none; }
 .form-mistakes strong { color: var(--orange); }
 
 /* ===================================================================
-   Progress screen graphs
+   Progress screen — premium animated overhaul
    =================================================================== */
-.progress-graphs {
+/* Tighten the inter-section gap (the base .screen gap of 32px is too airy for
+   this dense, multi-section layout) and group each heading with its content. */
+#progress-screen { gap: 22px; }
+
+.pr-section {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.graph-card {
+/* ---- Section 1: hero stats row ---- */
+.pr-hero {
+  position: relative;
   width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 6px;
+  background: #161616;
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 22px 12px 16px;
+  overflow: hidden;
+}
+
+/* Ember glow behind the centre (hero) stat. */
+.pr-hero-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 260px;
+  height: 260px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(232, 98, 26, 0.32) 0%, rgba(232, 98, 26, 0) 68%);
+  pointer-events: none;
+}
+
+.pr-hero-stat {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pr-hero-main { flex: 1.25; }
+
+.pr-stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+.pr-stat-num--big {
+  font-size: 72px;
+  text-shadow: 0 0 18px rgba(232, 98, 26, 0.45);
+}
+
+.pr-days-total {
+  color: var(--cream);
+  opacity: 0.45;
+  font-size: 0.55em;
+}
+
+.pr-hero-fire {
+  display: block;
+  width: 60px;
+  height: 40px;
+}
+
+.pr-hero-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--cream);
+  opacity: 0.5;
+}
+
+.pr-hero-main .pr-hero-label { opacity: 0.75; }
+
+/* ---- Section 2: challenge-completion ring ---- */
+.pr-ring-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+
+.pr-ring-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+/* Slow, subtle rotating conic glow (reuses the forge-laser --forgeAngle). */
+.pr-ring-glow {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              rgba(232, 98, 26, 0) 0deg,
+              rgba(232, 98, 26, 0.45) 80deg,
+              rgba(255, 140, 0, 0.7) 130deg,
+              rgba(232, 98, 26, 0.45) 180deg,
+              rgba(232, 98, 26, 0) 260deg,
+              rgba(232, 98, 26, 0) 360deg);
+  filter: blur(13px);
+  opacity: 0.4;
+  animation: forgTrace 8s linear infinite;
+  pointer-events: none;
+}
+
+.pr-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* start the arc at 12 o'clock */
+}
+
+.pr-ring-track {
+  fill: none;
+  stroke: #2a2a2a;
+  stroke-width: 12;
+}
+
+.pr-ring-arc {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 12;
+  stroke-linecap: round;
+  /* Start empty (circumference for r=88) until animateRing sweeps it in. */
+  stroke-dasharray: 552.92;
+  stroke-dashoffset: 552.92;
+}
+
+.pr-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pr-ring-avatar {
+  width: 80px;
+  height: 80px;
+  min-width: 80px;
+  min-height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  overflow: hidden;
+}
+
+.pr-ring-avatar.avatar-ph { font-size: 34px; }
+
+.pr-ring-pct {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.pr-ring-caption {
+  font-family: 'DM Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 1.5px;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
+/* ---- Section 3: personal stats ---- */
+.pr-stat-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #111;
+  border-left: 3px solid var(--orange);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.pr-card-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+.pr-card-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+.pr-flame {
+  width: 24px;
+  height: 24px;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.pr-stat-rows {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #111;
+  border-left: 3px solid var(--orange);
+  border-radius: 12px;
+  padding: 13px 16px;
+}
+
+.pr-row-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+.pr-row-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+/* ---- Section 4: best effort ---- */
+.pr-be-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pr-be-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 14px;
-  padding: 14px;
+  padding: 14px 16px;
 }
 
-.graph-title {
+.pr-be-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pr-be-name {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 24px;
   letter-spacing: 1px;
   color: var(--cream);
-  margin-bottom: 8px;
 }
 
-.graph-canvas-wrap {
-  position: relative;
+.pr-be-score {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px;
+  color: var(--orange);
+}
+
+.pr-be-bar {
   width: 100%;
-  height: 220px;
+  height: 12px;
+  background: #0c0c0c;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.graph-empty {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  color: var(--dim);
-  padding: 8px 0 4px;
+.pr-be-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #E8621A, #FF8C00);
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+.pr-be-target {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--cream);
+  opacity: 0.5;
+}
+
+.pr-be-locked .pr-be-name { opacity: 0.7; }
+
+.pr-be-lock {
+  width: 20px;
+  height: 20px;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+.pr-be-bar--empty {
+  background: #0c0c0c;
+  border: 1px dashed rgba(245, 240, 232, 0.12);
+}
+
+.pr-be-locktext {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+/* ---- Section 5: squad average comparison ---- */
+.pr-squad {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.pr-squad-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pr-squad-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pr-squad-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--cream);
+  opacity: 0.7;
+}
+
+.pr-squad-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--cream);
+}
+
+.pr-squad-track {
+  width: 100%;
+  height: 14px;
+  background: #0c0c0c;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.pr-squad-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 7px;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pr-squad-you { background: var(--orange); }
+.pr-squad-avg { background: rgba(245, 240, 232, 0.5); }
 
 /* ===================================================================
    Plan screen

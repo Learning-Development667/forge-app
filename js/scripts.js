@@ -2218,11 +2218,6 @@
   // ===================================================================
   // Progress / Plan placeholders + Settings
   // ===================================================================
-  var progressCharts = [];
-  var progressGroupCache = null;       // cached cross-user best-effort logs
-  var progressGroupAt = 0;
-  var PROGRESS_GROUP_TTL = 5 * 60 * 1000; // 5 minutes
-
   function moodScore(label) {
     var i = MOODS.indexOf(label);
     return i < 0 ? null : (5 - i); // Crushed it = 5 … Really tough = 1
@@ -2257,143 +2252,252 @@
     return count;
   }
 
+  // ---- Progress animation helpers ----------------------------------
+  // Count an element's text up from 0 to `to` over `dur` ms (easeOutCubic),
+  // via requestAnimationFrame. Triggered when the Progress screen is shown.
+  function animateCount(el, to, dur) {
+    to = Math.round(Number(to) || 0);
+    dur = dur || 800;
+    if (to <= 0) { el.textContent = '0'; return; }
+    var t0 = null;
+    function step(ts) {
+      if (t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(to * e));
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = String(to);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Draw the challenge-completion ring: sweep the stroke and count the % label
+  // together over `dur` ms. r=88 (matches the 200-viewBox ring in the markup).
+  function animateRing(arc, label, pct, dur) {
+    var C = 2 * Math.PI * 88;
+    pct = Math.max(0, Math.min(100, pct));
+    arc.style.strokeDasharray = C;
+    arc.style.strokeDashoffset = C;
+    var t0 = null;
+    function step(ts) {
+      if (t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 3);
+      arc.style.strokeDashoffset = C * (1 - (pct / 100) * e);
+      label.textContent = Math.round(pct * e) + '%';
+      if (p < 1) requestAnimationFrame(step);
+      else { arc.style.strokeDashoffset = C * (1 - pct / 100); label.textContent = Math.round(pct) + '%'; }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Best-effort score in its display unit (time → m/s, legs → "/leg", reps → n).
+  function beScoreText(ex, val) {
+    if (ex.kind === 'time') return plankTargetText(val);
+    if (ex.kind === 'legs') return val + '/leg';
+    return String(val);
+  }
+
   function openProgress() {
     var screen = ensureScreen('progress-screen');
-    var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
-    var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
     var u = state.user || {};
     var name = u.name || 'Forger';
-    var photo = AVATARS[name];
-    var avatarHTML = photo
-      ? '<img class="ucard-avatar profile-avatar" src="' + photo + '" alt="">'
-      : '<span class="ucard-avatar ucard-avatar--placeholder profile-avatar">' +
-          esc(name.charAt(0).toUpperCase()) + '</span>';
+    var streak = u.currentStreak || 0;
+    var points = u.totalPoints || 0;
+    var longest = u.longestStreak || 0;
+    var totalExercises = state.logs.filter(function (l) { return !l.bonusExercise; }).length;
+    var totalBonus = state.logs.filter(function (l) { return l.bonusExercise; }).length;
+    var daysDone = computeDaysCompleted();
+    var daysPct = Math.round(daysDone / TOTAL_DAYS * 100);
+
+    // User best-effort best score per exercise (null when never logged).
+    var userBE = state.logs.filter(function (l) { return l.isBestEffort; });
+    function userBest(key) {
+      var v = userBE.filter(function (l) { return l.exercise === key; })
+        .map(function (l) { return Number(l.repsCompleted) || 0; });
+      return v.length ? Math.max.apply(null, v) : null;
+    }
+
+    var flameSVG = '<svg class="pr-flame" viewBox="0 0 24 24" fill="currentColor">' +
+      '<path d="M12 2c1.3 3.7 4.7 4.7 4.7 8.6a4.7 4.7 0 0 1-9.4 0c0-1.7.6-2.8 1.6-3.7.3 2 1.7 2 1.7.2 0-1.7-.6-2.7 1.4-5.3z"/></svg>';
+    var lockSVG = '<svg class="pr-be-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+    // SECTION 4 — best-effort cards (locked until the first Friday session).
+    var beHTML = ORDER.map(function (key) {
+      var ex = EXERCISES[key];
+      var best = userBest(key);
+      var target = targetFor(ex, TOTAL_DAYS); // the Day 90 goal
+      if (best == null) {
+        return '<div class="pr-be-card pr-be-locked">' +
+                 '<div class="pr-be-head">' +
+                   '<span class="pr-be-name">' + esc(ex.name) + '</span>' + lockSVG +
+                 '</div>' +
+                 '<div class="pr-be-bar pr-be-bar--empty"></div>' +
+                 '<span class="pr-be-locktext">Complete your first Best Effort Friday to unlock</span>' +
+               '</div>';
+      }
+      var pct = Math.max(2, Math.min(100, Math.round(best / target * 100)));
+      return '<div class="pr-be-card">' +
+               '<div class="pr-be-head">' +
+                 '<span class="pr-be-name">' + esc(ex.name) + '</span>' +
+                 '<span class="pr-be-score">' + esc(beScoreText(ex, best)) + '</span>' +
+               '</div>' +
+               '<div class="pr-be-bar"><div class="pr-be-fill" data-fill="' + pct + '"></div></div>' +
+               '<span class="pr-be-target">Day 90 target: ' + esc(formatTarget(ex, target)) + '</span>' +
+             '</div>';
+    }).join('');
 
     screen.innerHTML =
-      '<div class="profile-head">' +
-        avatarHTML +
-        '<h1 class="profile-name">' + esc(name) + '</h1>' +
-      '</div>' +
-      '<p class="section-heading">Best Effort</p>' +
-      '<div id="progress-graphs" class="progress-graphs"></div>' +
-      '<section class="profile-section">' +
+      // SECTION 1 — hero stats row
+      '<section class="pr-hero">' +
+        '<div class="pr-hero-glow"></div>' +
+        '<div class="pr-hero-stat">' +
+          '<span class="pr-stat-num" data-count="' + streak + '" data-dur="800">0</span>' +
+          '<canvas class="pr-hero-fire"></canvas>' +
+          '<span class="pr-hero-label">STREAK</span>' +
+        '</div>' +
+        '<div class="pr-hero-stat pr-hero-main">' +
+          '<span class="pr-stat-num pr-stat-num--big" data-count="' + points + '" data-dur="1000">0</span>' +
+          '<span class="pr-hero-label">POINTS</span>' +
+        '</div>' +
+        '<div class="pr-hero-stat">' +
+          '<span class="pr-stat-num"><span data-count="' + daysDone + '" data-dur="600">0</span>' +
+            '<span class="pr-days-total"> / ' + TOTAL_DAYS + '</span></span>' +
+          '<span class="pr-hero-label">DAYS</span>' +
+        '</div>' +
+      '</section>' +
+
+      // SECTION 2 — challenge-completion ring
+      '<section class="pr-ring-section">' +
+        '<div class="pr-ring-wrap">' +
+          '<div class="pr-ring-glow"></div>' +
+          '<svg class="pr-ring-svg" viewBox="0 0 200 200">' +
+            '<circle class="pr-ring-track" cx="100" cy="100" r="88"></circle>' +
+            '<circle class="pr-ring-arc" cx="100" cy="100" r="88"></circle>' +
+          '</svg>' +
+          '<div class="pr-ring-center">' +
+            avatarMarkup(name, 'pr-ring-avatar') +
+            '<span class="pr-ring-pct">0%</span>' +
+            '<span class="pr-ring-caption">OF CHALLENGE COMPLETE</span>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      // SECTION 3 — personal stats grid
+      '<section class="pr-section">' +
         '<p class="section-heading">Personal Stats</p>' +
-        '<div class="profile-stats">' +
-          statRow('Total points', u.totalPoints || 0) +
-          statRow('Current streak', u.currentStreak || 0) +
-          statRow('Longest streak', u.longestStreak || 0) +
-          statRow('Exercises logged', totalExercises) +
-          statRow('Bonus exercises', totalBonus) +
-          statRow('Days completed', computeDaysCompleted() + ' / ' + TOTAL_DAYS) +
+        '<div class="pr-stat-grid">' +
+          '<div class="pr-card">' +
+            '<span class="pr-card-label">Total Points</span>' +
+            '<span class="pr-card-value">' + points + '</span>' +
+          '</div>' +
+          '<div class="pr-card">' +
+            '<span class="pr-card-label">Current Streak</span>' +
+            '<span class="pr-card-value">' + flameSVG + streak + '</span>' +
+          '</div>' +
+          '<div class="pr-card">' +
+            '<span class="pr-card-label">Longest Streak</span>' +
+            '<span class="pr-card-value">' + longest + '</span>' +
+          '</div>' +
+          '<div class="pr-card">' +
+            '<span class="pr-card-label">Exercises Logged</span>' +
+            '<span class="pr-card-value">' + totalExercises + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pr-stat-rows">' +
+          '<div class="pr-row">' +
+            '<span class="pr-row-label">Days Completed</span>' +
+            '<span class="pr-row-value">' + daysDone + ' / ' + TOTAL_DAYS + '</span>' +
+          '</div>' +
+          '<div class="pr-row">' +
+            '<span class="pr-row-label">Bonus Exercises</span>' +
+            '<span class="pr-row-value">' + totalBonus + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      // SECTION 4 — best effort
+      '<section class="pr-section">' +
+        '<p class="section-heading">Best Effort</p>' +
+        '<div class="pr-be-list">' + beHTML + '</div>' +
+      '</section>' +
+
+      // SECTION 5 — squad average comparison
+      '<section class="pr-section">' +
+        '<p class="section-heading">Squad Comparison</p>' +
+        '<div class="pr-squad">' +
+          '<div class="pr-squad-row">' +
+            '<div class="pr-squad-meta">' +
+              '<span class="pr-squad-label">YOU</span>' +
+              '<span class="pr-squad-val pr-squad-you-val">' + points + '</span>' +
+            '</div>' +
+            '<div class="pr-squad-track"><div class="pr-squad-fill pr-squad-you"></div></div>' +
+          '</div>' +
+          '<div class="pr-squad-row">' +
+            '<div class="pr-squad-meta">' +
+              '<span class="pr-squad-label">SQUAD AVG</span>' +
+              '<span class="pr-squad-val pr-squad-avg-val">—</span>' +
+            '</div>' +
+            '<div class="pr-squad-track"><div class="pr-squad-fill pr-squad-avg"></div></div>' +
+          '</div>' +
         '</div>' +
       '</section>';
 
     showScreen(screen);
     showNav('progress');
-    loadProgressGraphs();
+
+    // Trigger all entrance animations now the screen is visible.
+    requestAnimationFrame(function () { runProgressAnimations(screen, daysPct); });
+    loadSquadComparison(screen);
   }
 
-  function loadProgressGraphs() {
-    var container = document.getElementById('progress-graphs');
-    if (!container) return;
-    progressCharts.forEach(function (c) { try { c.destroy(); } catch (e) { /* no-op */ } });
-    progressCharts = [];
-    container.innerHTML = '';
+  // Kick off the hero counters, ring sweep, best-effort bars and streak fire.
+  function runProgressAnimations(screen, daysPct) {
+    Array.prototype.forEach.call(screen.querySelectorAll('[data-count]'), function (el) {
+      animateCount(el, Number(el.getAttribute('data-count')), Number(el.getAttribute('data-dur')));
+    });
 
-    var userBE = state.logs.filter(function (l) { return l.isBestEffort; });
+    var arc = screen.querySelector('.pr-ring-arc');
+    var pctEl = screen.querySelector('.pr-ring-pct');
+    if (arc && pctEl) animateRing(arc, pctEl, daysPct, 1200);
 
-    function draw(groupBE) {
-      ORDER.forEach(function (k) { buildExerciseGraph(container, k, userBE, groupBE); });
-    }
-
-    // Cache the cross-user best-effort query (TTL) — avoids re-reading every
-    // best-effort log each time the Progress tab is opened.
-    if (progressGroupCache && (Date.now() - progressGroupAt) < PROGRESS_GROUP_TTL) {
-      draw(progressGroupCache);
-      return;
-    }
-    db.collectionGroup('logs').where('isBestEffort', '==', true).get()
-      .then(function (snap) {
-        var groupBE = [];
-        snap.forEach(function (doc) { groupBE.push(doc.data()); });
-        progressGroupCache = groupBE;
-        progressGroupAt = Date.now();
-        draw(groupBE);
-      })
-      .catch(function (err) {
-        console.error('Group best-effort load failed:', err);
-        draw(progressGroupCache || []);
+    // Bars start at width:0 (CSS) and transition to their target width.
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(screen.querySelectorAll('.pr-be-fill[data-fill]'), function (el) {
+        el.style.width = (Number(el.getAttribute('data-fill')) || 0) + '%';
       });
+    });
+
+    var fire = screen.querySelector('.pr-hero-fire');
+    if (fire) startFire(fire); // small particle fire beneath the streak number
   }
 
-  function buildExerciseGraph(container, key, userBE, groupBE) {
-    var ex = EXERCISES[key];
-    var card = document.createElement('div');
-    card.className = 'graph-card';
-    card.innerHTML = '<p class="graph-title">' + esc(ex.name) + '</p>';
+  // SECTION 5 data: squad average total points across the users collection,
+  // compared with the current user. Bars are sized relative to the larger value.
+  function loadSquadComparison(screen) {
+    var youFill = screen.querySelector('.pr-squad-you');
+    var avgFill = screen.querySelector('.pr-squad-avg');
+    var avgValEl = screen.querySelector('.pr-squad-avg-val');
+    if (!youFill || !avgFill) return;
+    var you = (state.user && state.user.totalPoints) || 0;
 
-    var ub = userBE.filter(function (l) { return l.exercise === key; });
-    if (!ub.length) {
-      card.innerHTML += '<p class="graph-empty">Best effort scores will appear here after your first Friday session</p>';
-      container.appendChild(card);
-      return;
-    }
-
-    var gb = groupBE.filter(function (l) { return l.exercise === key; });
-    function wk(l) { return weekNumber(challengeDay(parseKey(l.date))); }
-    function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : null; }
-
-    var weekSet = {};
-    ub.forEach(function (l) { weekSet[wk(l)] = true; });
-    gb.forEach(function (l) { var w = wk(l); if (w >= 1 && w <= TOTAL_WEEKS) weekSet[w] = true; });
-    var weeks = Object.keys(weekSet).map(Number).sort(function (a, b) { return a - b; });
-
-    var userData = weeks.map(function (w) {
-      var v = ub.filter(function (l) { return wk(l) === w; }).map(function (l) { return Number(l.repsCompleted) || 0; });
-      return v.length ? Math.max.apply(null, v) : null;
+    db.collection('users').get().then(function (snap) {
+      var total = 0, n = 0;
+      snap.forEach(function (d) { total += Number((d.data() || {}).totalPoints) || 0; n++; });
+      var avg = n ? Math.round(total / n) : 0;
+      var max = Math.max(you, avg, 1);
+      if (avgValEl) avgValEl.textContent = avg;
+      requestAnimationFrame(function () {
+        youFill.style.width = Math.round(you / max * 100) + '%';
+        avgFill.style.width = Math.round(avg / max * 100) + '%';
+      });
+    }).catch(function (err) {
+      console.error('Squad average load failed:', err);
+      if (avgValEl) avgValEl.textContent = '—';
+      requestAnimationFrame(function () { youFill.style.width = you > 0 ? '100%' : '0%'; });
     });
-    var groupData = weeks.map(function (w) {
-      return avg(gb.filter(function (l) { return wk(l) === w; }).map(function (l) { return Number(l.repsCompleted) || 0; }));
-    });
-    var moodData = weeks.map(function (w) {
-      return avg(ub.filter(function (l) { return wk(l) === w; })
-        .map(function (l) { return moodScore(l.mood); })
-        .filter(function (x) { return x != null; }));
-    });
-
-    var wrap = document.createElement('div');
-    wrap.className = 'graph-canvas-wrap';
-    var canvas = document.createElement('canvas');
-    wrap.appendChild(canvas);
-    card.appendChild(wrap);
-    container.appendChild(card);
-
-    if (typeof Chart === 'undefined') return;
-    var chart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: weeks.map(function (w) { return 'Week ' + w; }),
-        datasets: [
-          { label: 'You', data: userData, borderColor: '#E8621A', backgroundColor: '#E8621A', tension: 0.3, spanGaps: true, yAxisID: 'y' },
-          { label: 'Group avg', data: groupData, borderColor: '#F5F0E8', backgroundColor: '#F5F0E8', tension: 0.3, spanGaps: true, yAxisID: 'y' },
-          { label: 'Mood', data: moodData, borderColor: '#FF8C00', backgroundColor: '#FF8C00', tension: 0.3, spanGaps: true, yAxisID: 'mood' }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#F5F0E8', boxWidth: 12, font: { size: 10 } } } },
-        scales: {
-          x: { ticks: { color: '#F5F0E8' }, grid: { color: 'rgba(245,240,232,0.08)' } },
-          y: { position: 'left', beginAtZero: true,
-            ticks: { color: '#F5F0E8' }, grid: { color: 'rgba(245,240,232,0.08)' },
-            title: { display: true, text: ex.kind === 'time' ? 'seconds' : 'reps', color: '#F5F0E8' } },
-          mood: { position: 'right', min: 1, max: 5,
-            ticks: { color: '#FF8C00', stepSize: 1 }, grid: { drawOnChartArea: false } }
-        }
-      }
-    });
-    progressCharts.push(chart);
   }
 
   function openPlan() {
