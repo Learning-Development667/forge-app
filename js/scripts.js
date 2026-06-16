@@ -655,6 +655,9 @@
     var isLog = !!(canvas.parentNode && canvas.parentNode.classList &&
                    (canvas.parentNode.classList.contains('btn-log') ||
                     canvas.parentNode.classList.contains('board-post')));
+    // Progress-screen streak fire sits in a tiny 40px canvas — cap the flame
+    // size so it reads as a flame rather than a zoomed-in blob.
+    var isStreak = !!(canvas.classList && canvas.classList.contains('prog-streak-fire'));
 
     function resize() {
       // Button fire only (the timer 'ring-fire' is laid out by its own CSS).
@@ -710,7 +713,7 @@
       p.y = H;
       p.vx = rand(-0.2, 0.2);
       p.vy = rand(-1.7, -0.9);     // rises
-      p.size = isLog ? rand(3, 8) : rand(8, 18); // smaller flames on Log buttons
+      p.size = isStreak ? rand(2, 5) : (isLog ? rand(3, 8) : rand(8, 18)); // smaller flames on Log/streak
       p.life = 1;
       p.decay = rand(0.006, 0.018);
       return p;
@@ -2398,7 +2401,7 @@
         '<div class="pr-hero-glow"></div>' +
         '<div class="pr-hero-stat">' +
           '<span class="pr-stat-num" data-count="' + streak + '" data-dur="800">0</span>' +
-          '<canvas class="pr-hero-fire"></canvas>' +
+          '<canvas class="pr-hero-fire prog-streak-fire"></canvas>' +
           '<span class="pr-hero-label">STREAK</span>' +
         '</div>' +
         '<div class="pr-hero-stat pr-hero-main">' +
