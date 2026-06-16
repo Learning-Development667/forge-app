@@ -2376,8 +2376,6 @@
         '<p class="section-heading">Account</p>' +
         '<div class="profile-stat"><span class="profile-stat-label">Name</span>' +
           '<span class="set-value">' + esc(u.name || '') + '</span></div>' +
-        '<div class="profile-stat"><span class="profile-stat-label">Email</span>' +
-          '<span class="set-value">' + esc(u.email || '') + '</span></div>' +
         '<button type="button" class="btn-link set-signout">Sign out</button>' +
       '</section>' +
       '<p class="message set-msg" role="status" aria-live="polite"></p>';
