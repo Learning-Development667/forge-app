@@ -3144,6 +3144,18 @@
 
     var card = screen.querySelector('.fcard');
 
+    // iOS: request motion permission now — this runs inside the nav-tap user
+    // gesture, so the prompt appears as the screen opens. On grant, attach the
+    // orientation listener (immediately if the card is already flipped in).
+    var iosDOE = window.DeviceOrientationEvent;
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && iosDOE && typeof iosDOE.requestPermission === 'function') {
+      iosDOE.requestPermission().then(function (state) {
+        if (state !== 'granted') return; // denied → do nothing, silently
+        fcardMotionGranted = true;
+        if (card && card.isConnected && card.classList.contains('is-active')) setupFcardTilt(card);
+      }).catch(function () {});
+    }
+
     // Animate the attribute bars in.
     requestAnimationFrame(function () {
       Array.prototype.forEach.call(screen.querySelectorAll('.fcard-fill[data-w]'), function (el) {
@@ -3176,6 +3188,7 @@
 
   // ---- Forge Card 3D tilt (gyroscope on mobile, cursor on desktop) ----
   var fcardOrientHandler = null, fcardMouseHandler = null;
+  var fcardMotionGranted = false; // iOS motion permission granted this session
 
   function teardownFcardTilt() {
     if (fcardOrientHandler) { window.removeEventListener('deviceorientation', fcardOrientHandler); fcardOrientHandler = null; }
@@ -3197,33 +3210,20 @@
       applyTilt(Math.max(-6, Math.min(6, -dy * 6)), Math.max(-6, Math.min(6, dx * 6)));
     };
     window.addEventListener('mousemove', fcardMouseHandler);
-    // Mobile: gyroscope (max 8deg; iOS needs permission on a user gesture).
+    // Mobile: gyroscope (max 20deg for a dramatic tilt).
     function addOrient() {
       fcardOrientHandler = function (ev) {
         var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
-        applyTilt(Math.max(-8, Math.min(8, -(beta - 45) / 5)), Math.max(-8, Math.min(8, gamma / 5)));
+        applyTilt(Math.max(-20, Math.min(20, -(beta - 45) / 5)), Math.max(-20, Math.min(20, gamma / 5)));
       };
       window.addEventListener('deviceorientation', fcardOrientHandler);
     }
     var DOE = window.DeviceOrientationEvent;
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS && DOE && typeof DOE.requestPermission === 'function') {
-      // iOS: motion permission must be requested from a real user gesture, so
-      // show a hint and wait for a tap on the card rather than auto-starting.
-      var hint = document.createElement('p');
-      hint.className = 'fcard-tilt-hint';
-      hint.textContent = 'Tap card to enable tilt';
-      hint.style.cssText = 'font-family:"DM Mono",monospace;font-size:11px;' +
-        'letter-spacing:0.5px;color:var(--cream);opacity:0.3;text-align:center;margin-top:2px;';
-      var stage = (card.closest && card.closest('.fcard-stage')) || card.parentNode;
-      if (stage && stage.parentNode) stage.parentNode.insertBefore(hint, stage.nextSibling);
-      var removeHint = function () { if (hint.parentNode) hint.parentNode.removeChild(hint); };
-      card.addEventListener('click', function () {
-        DOE.requestPermission().then(function (state) {
-          if (state === 'granted') addOrient(); // start gyro tilt
-          removeHint();                          // granted or denied → drop the hint
-        }).catch(removeHint);                    // unavailable → drop the hint silently
-      }, { once: true });
+      // iOS: permission is requested in openForgeCard (the nav-tap gesture);
+      // attach the listener only once it has been granted.
+      if (fcardMotionGranted) addOrient();
     } else if (DOE) {
       addOrient(); // Android (and desktop, where no orientation events fire) — automatic
     }
