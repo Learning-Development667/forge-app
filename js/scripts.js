@@ -1859,15 +1859,18 @@
     // exercises only (Press-ups, Sit-ups, Lunges). Plank and Best Effort Friday
     // are untouched.
     var nonTimed = isActive && !isRest && !bestEffort && !isPlank;
-    var plankRegular = isActive && !isRest && !bestEffort && isPlank;
+    // Plank (training days AND Best Effort Friday) gets an in-card timer:
+    // countdown to the day's target on training days, count-up on Friday.
+    var plankCard = isActive && !isRest && isPlank;
 
-    // Right-hand action slot: rest badge / Best Effort start or tick.
+    // Right-hand action slot: rest badge / Best Effort start or tick. Plank is
+    // excluded — it drives everything from its in-card timer state block below.
     var statusEl = '';
     if (isRest) {
       statusEl = '<span class="badge badge-rest">REST</span>';
-    } else if (bestEffort && logged) {
+    } else if (bestEffort && !isPlank && logged) {
       statusEl = '<span class="tick" aria-label="Logged">✓</span>';
-    } else if (bestEffort && isActive) {
+    } else if (bestEffort && !isPlank && isActive) {
       statusEl = '<button type="button" class="btn-log" data-log="' + exKey + '" data-best="1">Start</button>';
     }
 
@@ -1884,10 +1887,20 @@
 
     // The below-the-row state block.
     var stateHtml = '', classExtra = '';
-    if (plankRegular) {
-      // Plank keeps its current direct mood buttons (unchanged).
-      stateHtml = '<div class="card-state">' + moodRowHTML(exKey, logged ? loggedMood(exKey) : null, logged) +
-        (logged ? '<p class="card-logged">Logged</p>' : '') + '</div>';
+    if (plankCard) {
+      classExtra = ' card-plank';
+      if (logged) {
+        // Logged — show the chosen mood (disabled) + Logged.
+        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, loggedMood(exKey), true) +
+          '<p class="card-logged">Logged</p></div>';
+      } else if (cardStates[exKey] === 'mood') {
+        // Timer finished (or stopped) — awaiting the mood tap (STATE 2).
+        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, null, false, true) + '</div>';
+      } else {
+        // READY — START TIMER kicks off the in-card countdown / count-up.
+        stateHtml = '<div class="card-state">' +
+          '<button type="button" class="card-start forge-laser" data-plank-start="' + exKey + '">START TIMER</button></div>';
+      }
     } else if (nonTimed) {
       classExtra = ' card-nontimed';
       if (logged) {
@@ -1937,6 +1950,10 @@
     // Non-timed START buttons → in-progress flow.
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-start]'), function (btn) {
       btn.addEventListener('click', function () { startExercise(btn, btn.getAttribute('data-start')); });
+    });
+    // Plank START TIMER → in-card countdown / count-up timer.
+    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-plank-start]'), function (btn) {
+      btn.addEventListener('click', function () { startPlankTimer(btn, btn.getAttribute('data-plank-start')); });
     });
     // Mood buttons (plank + non-timed in-progress/complete) log on tap.
     wireMoodButtons(dashboardScreen);
@@ -2012,7 +2029,106 @@
       Array.prototype.forEach.call(card.querySelectorAll('.mood-btn'), function (b) { b.disabled = true; });
     }
     var target = targetFor(EXERCISES[exKey], challengeDay(new Date()));
+    if (exKey === 'plank') {
+      // Plank logs the held seconds. Best Effort Friday flags isBestEffort so the
+      // hold feeds the Forge Card IRON CORE attribute; plankDuration carries the
+      // seconds either way.
+      var bestEffort = todaySchedule().type === 'besteffort';
+      var held = plankHeld[exKey] != null ? plankHeld[exKey] : target;
+      delete plankHeld[exKey];
+      saveLog('plank', held, target, mood, bestEffort, false, held).then(renderDashboard).catch(renderDashboard);
+      return;
+    }
     saveLog(exKey, target, target, mood, false).then(renderDashboard).catch(renderDashboard);
+  }
+
+  // Held-seconds bridge between the plank timer ending and the mood tap that
+  // logs it. Keyed by exKey ('plank'); cleared on log.
+  var plankHeld = {};
+
+  // Two short beeps at the end of a plank countdown (Web Audio).
+  function plankTwoBeep() {
+    playTone(880, 0.12, 'square', 0.4);
+    setTimeout(function () { playTone(880, 0.12, 'square', 0.4); }, 170);
+  }
+
+  // In-card plank timer. Training days count DOWN from the day's target to 0
+  // (then two-beep + auto-advance to the mood row); Best Effort Friday counts UP
+  // from 0:00 until the user taps STOP. Either way the held seconds are stashed
+  // in plankHeld and the card transitions to STATE 2 (HOW DID IT FEEL?).
+  function startPlankTimer(btn, exKey) {
+    var card = btn.closest && btn.closest('.card');
+    if (!card) return;
+    var stateEl = card.querySelector('.card-state');
+    if (!stateEl) return;
+    ensureAudio(); // unlock Web Audio on the user gesture
+
+    var day = challengeDay(new Date());
+    var countUp = todaySchedule().type === 'besteffort';
+    var target = targetFor(EXERCISES.plank, day); // seconds
+    var r = 52, C = 2 * Math.PI * r;
+
+    stateEl.innerHTML =
+      '<div class="plank-timer">' +
+        '<canvas class="plank-embers"></canvas>' +
+        '<div class="plank-ring-wrap">' +
+          '<svg class="plank-ring" viewBox="0 0 120 120">' +
+            '<circle class="plank-ring-bg" cx="60" cy="60" r="' + r + '"></circle>' +
+            '<circle class="plank-ring-fg" cx="60" cy="60" r="' + r + '"></circle>' +
+          '</svg>' +
+          '<span class="plank-time">' + (countUp ? '0:00' : clock(target)) + '</span>' +
+        '</div>' +
+        '<button type="button" class="plank-stop">' + (countUp ? 'STOP' : 'STOP EARLY') + '</button>' +
+      '</div>';
+
+    var embers = stateEl.querySelector('.plank-embers');
+    if (embers) startEmbers(embers, 9);
+    var ringFg = stateEl.querySelector('.plank-ring-fg');
+    var timeEl = stateEl.querySelector('.plank-time');
+    var stopBtn = stateEl.querySelector('.plank-stop');
+    ringFg.style.strokeDasharray = C;
+    ringFg.style.strokeDashoffset = countUp ? C : 0; // count-up fills, countdown drains
+
+    var iv = null;
+    function stopInterval() { if (iv) { clearInterval(iv); iv = null; } plankTimerActive = false; }
+
+    // Hand off to the mood row (STATE 2), stashing the held seconds.
+    function toMood(held) {
+      stopInterval();
+      plankHeld[exKey] = held;
+      cardStates[exKey] = 'mood';
+      if (!stateEl.isConnected) return;
+      stateEl.innerHTML = moodRowHTML(exKey, null, false, true);
+      var moods = stateEl.querySelector('.card-moods');
+      if (moods) {
+        moods.classList.add('card-moods--slide');
+        requestAnimationFrame(function () { moods.classList.add('is-in'); });
+      }
+      wireMoodButtons(card);
+    }
+
+    plankTimerActive = true;
+
+    if (countUp) {
+      var elapsed = 0;
+      stopBtn.addEventListener('click', function () { toMood(elapsed); });
+      iv = setInterval(function () {
+        if (!timeEl.isConnected) { stopInterval(); return; }
+        elapsed++;
+        timeEl.textContent = clock(elapsed);
+        ringFg.style.strokeDashoffset = C * (1 - (elapsed % 60) / 60); // 60s sweep, visual life
+      }, 1000);
+    } else {
+      var total = target, remaining = target;
+      stopBtn.addEventListener('click', function () { toMood(total - remaining); });
+      iv = setInterval(function () {
+        if (!timeEl.isConnected) { stopInterval(); return; }
+        remaining--;
+        timeEl.textContent = clock(Math.max(0, remaining));
+        ringFg.style.strokeDashoffset = C * (1 - remaining / total); // drain
+        if (remaining <= 0) { plankTwoBeep(); toMood(total); }
+      }, 1000);
+    }
   }
 
   // Small, fast orange particle burst from a button centre (tap feedback).

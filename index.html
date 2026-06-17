@@ -143,9 +143,22 @@
     .mood-btn:disabled:not(.is-selected) { animation: none; opacity: 0.4; }
     .card-nontimed .mood-btn:disabled:not(.is-selected) { opacity: 0.3; }
 
-    /* CHECK FORM button — nudge off the title + pulsing burnt-orange glow. */
+    /* CHECK FORM button — strip the legacy round-icon look (no circle, no
+       border, no fixed box) and render as a small plain pill. Keeps the
+       margin-left nudge + pulsing burnt-orange glow. */
     .card-info-btn {
       margin-left: 8px;
+      width: auto;
+      height: auto;
+      border: none;
+      border-radius: 6px;
+      background: none;
+      padding: 2px 6px;
+      font-style: normal;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      white-space: nowrap;
       animation: checkFormBreathe 2s ease-in-out infinite alternate;
     }
     @keyframes checkFormBreathe {
@@ -173,6 +186,77 @@
     .pl-pill:not(.pl-pill--rest) {
       animation: btnBreathe 2s ease-in-out infinite alternate;
     }
+
+    /* Plank in-card timer — countdown (training days) / count-up (Best Effort).
+       Dark centred display with an SVG progress ring + drifting embers behind
+       a big Bebas Neue burnt-orange number. */
+    .plank-timer {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 0 6px;
+      overflow: hidden;
+    }
+    .plank-embers {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .plank-ring-wrap {
+      position: relative;
+      z-index: 1;
+      width: 150px;
+      height: 150px;
+    }
+    .plank-ring {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg); /* start the arc at 12 o'clock */
+    }
+    .plank-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 5; }
+    .plank-ring-fg {
+      fill: none;
+      stroke: #E8611A;
+      stroke-width: 5;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 6px rgba(232, 97, 26, 0.85));
+      transition: stroke-dashoffset 1s linear;
+    }
+    .plank-time {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 64px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: #E8611A;
+      text-shadow: 0 0 16px rgba(232, 97, 26, 0.6);
+    }
+    .plank-stop {
+      position: relative;
+      z-index: 1;
+      background: none;
+      border: 1.5px solid rgba(232, 97, 26, 0.7);
+      border-radius: 10px;
+      color: #E8611A;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 18px;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    .plank-stop:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
@@ -181,7 +265,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.48</p>
+      <p class="brand-version">v1.0.49</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
