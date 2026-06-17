@@ -1119,23 +1119,28 @@
     var inner = document.createElement('div');
     inner.className = 'ucard-inner';
 
+    // Avatar sits in a ring wrapper (rotating laser on the centred card,
+    // a subtle grey ring otherwise — purely presentational).
+    var ring = document.createElement('div');
+    ring.className = 'ucard-avatar-ring';
     if (isRegister) {
       var plus = document.createElement('span');
       plus.className = 'ucard-avatar ucard-avatar--register';
       plus.textContent = '+';
-      inner.appendChild(plus);
+      ring.appendChild(plus);
     } else if (avatar) {
       var img = document.createElement('img');
       img.className = 'ucard-avatar';
       img.src = avatar;
       img.alt = '';
-      inner.appendChild(img);
+      ring.appendChild(img);
     } else {
       var ph = document.createElement('span');
       ph.className = 'ucard-avatar ucard-avatar--placeholder';
       ph.textContent = name.charAt(0).toUpperCase();
-      inner.appendChild(ph);
+      ring.appendChild(ph);
     }
+    inner.appendChild(ring);
 
     var label = document.createElement('span');
     label.className = 'ucard-name';
@@ -2758,7 +2763,7 @@
 
   // Sparse, slow ember particles behind the Plan hero (very subtle, 7 of them).
   // Self-stops when the canvas detaches on screen re-render, like startFire.
-  function startEmbers(canvas) {
+  function startEmbers(canvas, count) {
     var ctx = canvas.getContext && canvas.getContext('2d');
     if (!ctx) return;
     var dpr = window.devicePixelRatio || 1;
@@ -2783,7 +2788,8 @@
       p.fade = rand(0.0009, 0.0024);
       return p;
     }
-    for (var i = 0; i < 7; i++) parts.push(spawn({}, true));
+    var N = count || 7;
+    for (var i = 0; i < N; i++) parts.push(spawn({}, true));
     function frame() {
       if (!canvas.isConnected) return; // screen re-render → stop
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4225,6 +4231,15 @@
 
     buildNav();       // one persistent top nav, reused across screens
     renderCarousel(); // static team list — independent of Firestore
+
+    // Atmospheric drifting embers behind the login screen (behind all content,
+    // above the dark overlay so the forge background stays visible).
+    if (loginScreen && !loginScreen.querySelector('.login-embers')) {
+      var loginEmbers = document.createElement('canvas');
+      loginEmbers.className = 'login-embers';
+      loginScreen.insertBefore(loginEmbers, loginScreen.firstChild);
+      startEmbers(loginEmbers, 18);
+    }
 
     // Swipe-only navigation (arrow buttons removed); arrow keys still work.
     carousel.addEventListener('touchstart', onTouchStart, { passive: true });

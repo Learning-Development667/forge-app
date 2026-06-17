@@ -128,10 +128,11 @@ body {
 .brand-version {
   margin-top: 6px;
   font-family: 'DM Mono', monospace;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 1px;
   color: var(--cream);
-  opacity: 0.35;
+  opacity: 0.3;
+  text-align: center;
 }
 
 .brand--compact .brand-name {
@@ -278,6 +279,129 @@ img.topbar-avatar,
    card opacity set by JS. */
 .ucard.is-active .ucard-name {
   color: var(--cream);
+}
+
+/* ===================================================================
+   Login screen — atmospheric polish
+   =================================================================== */
+/* Drifting ember canvas behind everything (above the dark overlay). */
+.login-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Dramatic FORGE wordmark: bigger, pulsing glow, breathing letter-spacing. */
+#login-screen .brand-name {
+  font-size: clamp(84px, 26vw, 140px);
+  animation: forgeNameGlow 3s ease-in-out infinite, forgeBreathe 4s ease-in-out infinite;
+}
+
+@keyframes forgeNameGlow {
+  0%, 100% { text-shadow: 0 0 10px rgba(232, 98, 26, 0.4); }
+  50% { text-shadow: 0 0 24px rgba(232, 98, 26, 0.85), 0 0 48px rgba(232, 98, 26, 0.4); }
+}
+
+@keyframes forgeBreathe {
+  0%, 100% { letter-spacing: 4px; }
+  50% { letter-spacing: 12px; }
+}
+
+/* Subtitle: cream, centred, with an underline that draws in on load. */
+#login-screen .brand-tagline {
+  position: relative;
+  display: inline-block;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: var(--cream);
+  opacity: 0.9;
+  padding-bottom: 8px;
+}
+
+#login-screen .brand-tagline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--orange);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: taglineDraw 800ms ease-out 0.2s both;
+}
+
+@keyframes taglineDraw { to { transform: scaleX(1); } }
+
+/* Quote: larger italic with big faint orange quotation marks. */
+#login-screen .login-quote {
+  position: relative;
+  font-size: 16px;
+  opacity: 0.9;
+  padding: 6px 26px;
+}
+
+#login-screen .login-quote::before,
+#login-screen .login-quote::after {
+  position: absolute;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 52px;
+  line-height: 1;
+  color: var(--orange);
+  opacity: 0.22;
+}
+
+#login-screen .login-quote::before { content: '\201C'; left: -2px; top: -16px; }
+#login-screen .login-quote::after { content: '\201D'; right: -2px; bottom: -36px; }
+
+#login-screen .login-quote:empty::before,
+#login-screen .login-quote:empty::after { content: ''; }
+
+/* Carousel avatar ring — grey when inactive, rotating laser + scale when centred. */
+.ucard-avatar-ring {
+  position: relative;
+  display: flex;
+  border-radius: 50%;
+  transition: transform 0.4s ease;
+}
+
+.ucard-avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 240, 232, 0.18);
+  pointer-events: none;
+}
+
+.ucard.is-active .ucard-avatar-ring { transform: scale(1.1); }
+
+.ucard.is-active .ucard-avatar-ring::before {
+  border: none;
+  padding: 3px;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              #FFD700 0deg, #FF8C00 8deg,
+              rgba(232, 98, 26, 0.5) 22deg,
+              rgba(232, 98, 26, 0) 50deg,
+              rgba(232, 98, 26, 0) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: forgTrace 6s linear infinite;
+}
+
+/* Let's Forge button: gentle scale pulse (keeps its fire + laser border). */
+#forge-btn {
+  animation: forgeGlow 2s ease-in-out infinite, forgePulse 2s ease-in-out infinite;
+}
+
+@keyframes forgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
 }
 
 /* Burnt-orange navigation arrows at the vertical midpoint. */
@@ -3877,9 +4001,9 @@ button:focus { outline: none; }
   padding: 0;
   margin-top: 4px;
   font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--cream);
-  opacity: 0.4;
+  opacity: 0.3;
   text-align: center;
   cursor: pointer;
 }
