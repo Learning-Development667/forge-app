@@ -17,6 +17,132 @@
   />
 
   <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Premium animated mood buttons (STATE 2 on exercise cards). Loaded after
+       styles.css so these rules win for the redesigned pill look. -->
+  <style>
+    .card-moods-row {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    /* Tall rounded pill */
+    .mood-btn {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 4px;
+      background: #111;
+      border: 2px solid var(--glow);
+      border-radius: 16px;
+      cursor: pointer;
+      overflow: visible;
+      box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.6);
+      animation: moodBreathe 2s ease-in-out infinite alternate;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    /* Per-mood glow colours */
+    .mood-btn--crushed   { --glow: #FFD700; --glow-rgb: 255, 215, 0; }
+    .mood-btn--good      { --glow: #00C851; --glow-rgb: 0, 200, 81; }
+    .mood-btn--steady    { --glow: #3B82F6; --glow-rgb: 59, 130, 246; }
+    .mood-btn--struggled { --glow: #FF8C00; --glow-rgb: 255, 140, 0; }
+    .mood-btn--attempted { --glow: #9B59B6; --glow-rgb: 155, 89, 182; }
+
+    /* Staggered breathe so the glow ripples across the row */
+    .mood-btn:nth-child(1) { animation-delay: 0s; }
+    .mood-btn:nth-child(2) { animation-delay: 0.4s; }
+    .mood-btn:nth-child(3) { animation-delay: 0.8s; }
+    .mood-btn:nth-child(4) { animation-delay: 1.2s; }
+    .mood-btn:nth-child(5) { animation-delay: 1.6s; }
+
+    @keyframes moodBreathe {
+      from { box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.6); }
+      to   { box-shadow: 0 0 12px rgba(var(--glow-rgb), 1); }
+    }
+
+    /* Icon (upper portion) — no circle backing in the new design */
+    .mood-btn-circle {
+      width: auto;
+      height: auto;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      animation: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mood-btn-circle svg { width: 28px; height: 28px; color: var(--glow); }
+
+    .mood-btn-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--glow);
+      opacity: 1;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    /* Hover / tap — pause the breathe so the glow can explode */
+    .mood-btn:hover,
+    .mood-btn:active {
+      animation: none;
+      transform: scale(1.12);
+      box-shadow: 0 0 24px rgba(var(--glow-rgb), 1);
+    }
+    .mood-btn:active .mood-btn-circle { transform: none; } /* override old icon spring */
+
+    /* Selected state */
+    .mood-btn.is-selected {
+      animation: none;
+      transform: scale(1.08);
+      background: rgba(var(--glow-rgb), 0.25);
+      border-color: var(--glow);
+      box-shadow: 0 0 24px rgba(var(--glow-rgb), 1);
+    }
+    .mood-btn--attempted .mood-btn-circle,
+    .mood-btn.is-selected .mood-btn-circle,
+    .mood-btn--attempted.is-selected .mood-btn-circle {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .mood-btn.is-selected .mood-btn-circle svg { color: var(--glow); }
+    .mood-btn.is-selected .mood-btn-label { color: var(--glow); opacity: 1; }
+
+    /* One-shot halo ring on tap */
+    .mood-btn.tapped::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 18px;
+      border: 2px solid var(--glow);
+      pointer-events: none;
+      animation: moodHalo 0.5s ease-out forwards;
+    }
+    .mood-btn.tapped .mood-btn-circle { animation: none; }
+    @keyframes moodHalo {
+      from { transform: scale(1); opacity: 0.9; }
+      to   { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* Completed card — dim the unchosen pills and stop their breathe */
+    .mood-btn:disabled { cursor: default; }
+    .mood-btn:disabled:not(.is-selected) { animation: none; opacity: 0.4; }
+    .card-nontimed .mood-btn:disabled:not(.is-selected) { opacity: 0.3; }
+  </style>
 </head>
 <body>
   <!-- ===================== LOGIN / USER SELECTION ===================== -->
@@ -24,7 +150,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.40</p>
+      <p class="brand-version">v1.0.41</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->

@@ -99,15 +99,15 @@
   // One-tap mood buttons on the exercise cards. `mood` matches the MOODS array
   // (so the feed icon/label stays consistent); `label` is the on-card caption.
   var MOOD_BUTTONS = [
-    { mood: 'Crushed it', label: 'CRUSHED IT',
+    { mood: 'Crushed it', label: 'CRUSHED IT', cls: 'crushed',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>' },
-    { mood: 'Felt good', label: 'GOOD',
+    { mood: 'Felt good', label: 'GOOD', cls: 'good',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>' },
-    { mood: 'Got through it', label: 'STEADY',
+    { mood: 'Got through it', label: 'STEADY', cls: 'steady',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg>' },
-    { mood: 'Struggled', label: 'STRUGGLED',
+    { mood: 'Struggled', label: 'STRUGGLED', cls: 'struggled',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>' },
-    { mood: 'Gave it a go', label: 'ATTEMPTED',
+    { mood: 'Gave it a go', label: 'ATTEMPTED', cls: 'attempted',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/></svg>' }
   ];
 
@@ -1800,8 +1800,8 @@
         (showHint ? '<p class="card-moods-hint">Couldn\'t finish? Tap Attempted.</p>' : '') +
         '<div class="card-moods-row">' +
           MOOD_BUTTONS.map(function (m) {
-            var attemptedCls = m.mood === 'Gave it a go' ? ' mood-btn--attempted' : '';
-            return '<button type="button" class="mood-btn' + attemptedCls + (selMood === m.mood ? ' is-selected' : '') + '"' +
+            var moodCls = ' mood-btn--' + m.cls;
+            return '<button type="button" class="mood-btn' + moodCls + (selMood === m.mood ? ' is-selected' : '') + '"' +
               (logged ? ' disabled' : '') + ' data-mood-ex="' + exKey + '" data-mood="' + esc(m.mood) +
               '" aria-label="' + esc(m.label) + '">' +
               '<span class="mood-btn-circle">' + m.icon + '</span>' +
