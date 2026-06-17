@@ -4535,11 +4535,12 @@
     var sched = todaySchedule();
     var isRest = sched.type === 'rest';
 
-    // Deduplicate by name (case-insensitive) so a duplicate never shows twice.
+    // Deduplicate so no user can appear twice — normalise the name (trim,
+    // collapse whitespace, lowercase) so casing/whitespace variants also collapse.
     var seenNames = {};
     var uniqueTeam = TEAM.filter(function (name) {
-      var key = String(name).toLowerCase();
-      if (seenNames[key]) return false;
+      var key = String(name).trim().replace(/\s+/g, ' ').toLowerCase();
+      if (!key || seenNames[key]) return false;
       seenNames[key] = true;
       return true;
     });
