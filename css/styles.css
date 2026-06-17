@@ -4897,3 +4897,216 @@ button:focus { outline: none; }
 
 .admin-modal-confirm--danger { background: #ff5a5a; }
 .admin-modal-confirm:disabled { opacity: 0.7; cursor: default; }
+
+/* ===================================================================
+   Post-workout mood photo — camera prompt, preview, upload, lightbox
+   =================================================================== */
+.cam-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.cam-overlay.is-visible { opacity: 1; }
+.cam-overlay.is-closing { opacity: 0; transition: opacity 0.3s ease; }
+
+.cam-card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: #0f0f0f;
+  border-radius: 16px;
+  padding: 28px 24px;
+  overflow: hidden;
+  transform: translateY(40px);
+  opacity: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.cam-overlay.is-visible .cam-card { transform: translateY(0); opacity: 1; }
+.cam-overlay.is-closing .cam-card { transform: translateY(40px); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
+
+/* Rotating forge-laser border. */
+.cam-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              #FFD700 0deg, #FF8C00 10deg,
+              rgba(232, 98, 26, 0.5) 26deg,
+              rgba(232, 98, 26, 0) 60deg,
+              rgba(232, 98, 26, 0) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: forgTrace 6s linear infinite;
+  pointer-events: none;
+}
+
+.cam-icon-wrap { display: flex; justify-content: center; }
+
+.cam-icon {
+  width: 80px;
+  height: 80px;
+  animation: camIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes camIconPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(232, 98, 26, 0.5)); }
+  50% { filter: drop-shadow(0 0 16px rgba(232, 98, 26, 0.95)); }
+}
+
+.cam-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--cream);
+  text-align: center;
+}
+
+.cam-sub {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--cream);
+  opacity: 0.6;
+  text-align: center;
+}
+
+.cam-skip {
+  background: none;
+  border: none;
+  color: var(--cream);
+  opacity: 0.5;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Preview */
+.cam-preview-ring {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 4px auto;
+  box-shadow: 0 0 0 3px #FFD700, 0 0 16px rgba(255, 215, 0, 0.5);
+  animation: camScaleIn 300ms ease-out;
+}
+
+.cam-preview-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+@keyframes camScaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Upload progress */
+.cam-upload-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 4px auto;
+}
+
+.cam-upload-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  animation: camIconPulse 2s ease-in-out infinite;
+}
+
+.cam-progress { width: 120px; height: 120px; transform: rotate(-90deg); }
+.cam-progress-bg { fill: none; stroke: #2a2a2a; stroke-width: 6; }
+.cam-progress-fg {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s ease;
+}
+
+/* Feed thumbnail */
+.feed-side-top { display: flex; align-items: center; gap: 8px; }
+
+.feed-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #FFD700;
+  background: #141414;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Lightbox */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.95);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.lightbox-overlay.is-visible { opacity: 1; }
+
+.lightbox-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.lightbox-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--cream);
+  opacity: 0.55;
+}
+
+.lightbox-img {
+  max-width: 80vw;
+  max-height: 80vh;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: var(--cream);
+  cursor: pointer;
+  padding: 6px;
+}
+
+.lightbox-close svg { width: 26px; height: 26px; }

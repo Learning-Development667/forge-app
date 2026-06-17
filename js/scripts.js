@@ -351,6 +351,21 @@
   // (forgeUser). Users are added to the Firestore users collection by the squad
   // admin; login is carousel tap + optional Face ID. Firestore = data storage.
 
+  // Firebase Storage holds post-workout mood photos. Guarded so a missing or
+  // mismatched Storage SDK can never break the rest of the app.
+  // Storage security rules — paste into Firebase console → Storage → Rules:
+  //   rules_version = '2';
+  //   service firebase.storage {
+  //     match /b/{bucket}/o {
+  //       match /{allPaths=**} {
+  //         allow read, write: if true;
+  //       }
+  //     }
+  //   }
+  var storage = null;
+  try { storage = firebase.storage(); }
+  catch (e) { console.error('Firebase Storage init failed:', e); }
+
   // ---- Local identity (localStorage) -------------------------------
   function getForgeUser() {
     try {
@@ -1580,6 +1595,9 @@
       mood: avgMoodLabel(todays), // label → matching icon in the feed
       reactions: [],
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function (ref) {
+      // Offer a post-workout mood photo ~1s after the session-complete moment.
+      if (storage) setTimeout(function () { showCameraPrompt(ref.id); }, 1000);
     }).catch(function (err) { console.error('Failed to write activity:', err); });
   }
 
@@ -4284,6 +4302,14 @@
           ? esc(e.message)
           : '<strong>' + esc(feedName) + '</strong> completed ' +
             esc(e.exercise) + ' — ' + esc(e.repsCompleted || '');
+        // Mood photo thumbnail (to the right of the mood icon), opens a lightbox.
+        var photoHtml = '';
+        if (e.photoThumb) {
+          var pdate = (e.timestamp && e.timestamp.toDate) ? shortDate(e.timestamp.toDate()) : '';
+          photoHtml = '<img class="feed-photo" src="' + esc(e.photoThumb) + '" alt="Workout photo" ' +
+            'data-full="' + esc(e.photoFull || e.photoThumb) + '" data-name="' + esc(feedName) +
+            '" data-date="' + esc(pdate) + '">';
+        }
         return '<div class="feed-card feed-activity' + newCls + '"' + animStyle + '>' +
                  avatarMarkup(feedName, 'feed-avatar') +
                  '<div class="feed-body">' +
@@ -4291,7 +4317,7 @@
                    (reacts ? '<div class="feed-reactions">' + reacts + '</div>' : '') +
                  '</div>' +
                  '<div class="feed-side">' +
-                   moodIcon +
+                   '<div class="feed-side-top">' + moodIcon + photoHtml + '</div>' +
                    '<button type="button" class="react-btn" data-react="' + e._id + '">🎉</button>' +
                    '<span class="feed-time">' + feedTime(e.timestamp) + '</span>' +
                  '</div>' + del +
@@ -4311,6 +4337,12 @@
 
     // Remember the ids rendered this pass so they won't re-animate next render.
     seenFeedIds = new Set(entries.map(function (e) { return e._id; }));
+
+    Array.prototype.forEach.call(feed.querySelectorAll('.feed-photo'), function (img) {
+      img.addEventListener('click', function () {
+        showPhotoLightbox(img.getAttribute('data-full'), img.getAttribute('data-name'), img.getAttribute('data-date'));
+      });
+    });
 
     Array.prototype.forEach.call(feed.querySelectorAll('[data-react]'), function (btn) {
       btn.addEventListener('click', function () {
@@ -4413,10 +4445,11 @@
   }
 
   // Brief bottom-of-screen toast confirming a cheer was sent.
-  function showCheerToast(name) {
+  // Standard Forge toast — brief bottom-of-screen confirmation.
+  function showToast(text) {
     var toast = document.createElement('div');
     toast.className = 'cheer-toast';
-    toast.textContent = 'Cheer sent to ' + name + '!';
+    toast.textContent = text;
     document.body.appendChild(toast);
     requestAnimationFrame(function () { toast.classList.add('is-visible'); });
     setTimeout(function () {
@@ -4424,6 +4457,8 @@
       setTimeout(function () { toast.remove(); }, 300);
     }, 2000);
   }
+
+  function showCheerToast(name) { showToast('Cheer sent to ' + name + '!'); }
 
   // Big centre-screen confetti cannon (used by the cheer pop-up).
   function fireConfettiCannon() {
@@ -4552,6 +4587,209 @@
     var last = window.localStorage.getItem(FORGE_LAST_AVATAR_KEY);
     if (last) setIndexByName(last); // carousel still defaults to them
     showLoginEntry();
+  }
+
+  // ===================================================================
+  // Post-workout mood photo (Firebase Storage). No emoji — SVG/text only.
+  // ===================================================================
+  var CAM_ICON =
+    '<svg class="cam-icon" viewBox="0 0 64 64" fill="none" stroke="#E8621A" stroke-width="2.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M6 21a4 4 0 0 1 4-4h7l3-5h12l3 5h7a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z"/>' +
+      '<circle cx="32" cy="34" r="12"/><circle cx="32" cy="34" r="7.5"/>' +
+      '<circle cx="32" cy="34" r="3.5" fill="#E8621A" stroke="none"/>' +
+      '<circle cx="48" cy="24" r="1.6" fill="#E8621A" stroke="none"/></svg>';
+  var CAM_UPLOAD_ICON =
+    '<svg class="cam-upload-icon" viewBox="0 0 64 64" fill="none" stroke="#E8621A" stroke-width="2.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M20 45a11 11 0 0 1-1-21.95 15 15 0 0 1 28.55 3.2A9 9 0 0 1 46 45"/>' +
+      '<path d="M32 50V29"/><path d="M24 37l8-8 8 8"/></svg>';
+  var CLOSE_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+      '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
+
+  function shortDate(d) {
+    var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function closeCameraOverlay() {
+    var overlay = document.getElementById('camera-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('is-visible');
+    overlay.classList.add('is-closing');
+    setTimeout(function () {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('is-closing');
+      overlay.innerHTML = '';
+    }, 300);
+  }
+
+  // PART 2 — camera prompt overlay, shown after a session completes.
+  function showCameraPrompt(activityId) {
+    var overlay = document.getElementById('camera-overlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div class="cam-card">' +
+        '<div class="cam-icon-wrap">' + CAM_ICON + '</div>' +
+        '<h2 class="cam-heading">HOW ARE YOU LOOKING?</h2>' +
+        '<p class="cam-sub">Share your post-workout face with the squad</p>' +
+        '<button type="button" class="btn-forge cam-take">TAKE PHOTO</button>' +
+        '<button type="button" class="cam-skip">Skip for now</button>' +
+      '</div>';
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
+
+    // Hidden file input (front camera). Lives on the overlay so it survives the
+    // card content being replaced for the preview/retake steps.
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.setAttribute('capture', 'user');
+    fileInput.className = 'hidden';
+    overlay.appendChild(fileInput);
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      processPhoto(file, function (result) {
+        if (result) showCameraPreview(overlay, activityId, result, fileInput);
+      });
+    });
+
+    var takeBtn = overlay.querySelector('.cam-take');
+    addFire(takeBtn);
+    takeBtn.addEventListener('click', function () { fileInput.click(); });
+    overlay.querySelector('.cam-skip').addEventListener('click', closeCameraOverlay);
+  }
+
+  // PART 3 — resize the chosen photo into a 150px thumbnail and an 800px full.
+  function processPhoto(file, cb) {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        // Thumbnail: 150x150 centre-cropped square, JPEG 70%.
+        var side = Math.min(img.width, img.height);
+        var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+        var tc = document.createElement('canvas');
+        tc.width = 150; tc.height = 150;
+        tc.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, 150, 150);
+        // Full: max 800px, aspect maintained, JPEG 85%.
+        var scale = Math.min(1, 800 / Math.max(img.width, img.height));
+        var fw = Math.max(1, Math.round(img.width * scale));
+        var fh = Math.max(1, Math.round(img.height * scale));
+        var fc = document.createElement('canvas');
+        fc.width = fw; fc.height = fh;
+        fc.getContext('2d').drawImage(img, 0, 0, fw, fh);
+        var previewUrl = fc.toDataURL('image/jpeg', 0.85);
+        tc.toBlob(function (thumbBlob) {
+          fc.toBlob(function (fullBlob) {
+            cb({ thumbBlob: thumbBlob, fullBlob: fullBlob, previewUrl: previewUrl });
+          }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 0.7);
+      } catch (e) { console.error('Photo processing failed:', e); cb(null); }
+      if (img.src.indexOf('blob:') === 0) URL.revokeObjectURL(img.src);
+    };
+    img.onerror = function () { cb(null); };
+    img.src = URL.createObjectURL(file);
+  }
+
+  function showCameraPreview(overlay, activityId, result, fileInput) {
+    var card = overlay.querySelector('.cam-card');
+    if (!card) return;
+    card.innerHTML =
+      '<div class="cam-preview-ring"><img class="cam-preview-img" src="' + result.previewUrl + '" alt=""></div>' +
+      '<h2 class="cam-heading">LOOKING GOOD!</h2>' +
+      '<button type="button" class="btn-forge cam-share">SHARE WITH SQUAD</button>' +
+      '<button type="button" class="btn-outline cam-retake">RETAKE</button>';
+    var shareBtn = card.querySelector('.cam-share');
+    addFire(shareBtn);
+    shareBtn.addEventListener('click', function () { startPhotoUpload(overlay, activityId, result); });
+    card.querySelector('.cam-retake').addEventListener('click', function () {
+      fileInput.value = '';
+      fileInput.click();
+    });
+  }
+
+  // PART 4 — upload both images, save URLs on the activity, toast + dismiss.
+  function startPhotoUpload(overlay, activityId, result) {
+    var card = overlay.querySelector('.cam-card');
+    if (!card) return;
+    card.innerHTML =
+      '<div class="cam-upload-wrap">' + CAM_UPLOAD_ICON +
+        '<svg class="cam-progress" viewBox="0 0 120 120">' +
+          '<circle class="cam-progress-bg" cx="60" cy="60" r="52"></circle>' +
+          '<circle class="cam-progress-fg" cx="60" cy="60" r="52"></circle>' +
+        '</svg>' +
+      '</div>' +
+      '<h2 class="cam-heading">UPLOADING...</h2>';
+    var fg = card.querySelector('.cam-progress-fg');
+    var C = 2 * Math.PI * 52;
+    fg.style.strokeDasharray = C;
+    fg.style.strokeDashoffset = C;
+
+    uploadPhoto(activityId, result.thumbBlob, result.fullBlob,
+      function (pct) { fg.style.strokeDashoffset = C * (1 - Math.max(0, Math.min(1, pct))); },
+      function () { closeCameraOverlay(); showToast('Photo shared with the squad!'); },
+      function (err) {
+        console.error('Photo upload failed:', err);
+        card.innerHTML =
+          '<h2 class="cam-heading">UPLOAD FAILED</h2>' +
+          '<p class="cam-sub">' + esc(friendlyError(err)) + '</p>' +
+          '<button type="button" class="cam-skip">Close</button>';
+        card.querySelector('.cam-skip').addEventListener('click', closeCameraOverlay);
+      });
+  }
+
+  function uploadPhoto(activityId, thumbBlob, fullBlob, onProgress, onDone, onError) {
+    if (!storage || !state.user) { onError(new Error('Storage unavailable')); return; }
+    var base = 'photos/' + state.user.id + '/';
+    var date = dateKey(new Date());
+    var fullRef = storage.ref(base + date + '.jpg');
+    var thumbRef = storage.ref(base + date + '_thumb.jpg');
+    var meta = { contentType: 'image/jpeg' };
+
+    var fullTask = fullRef.put(fullBlob, meta);
+    fullTask.on('state_changed',
+      function (snap) { onProgress(snap.totalBytes ? (snap.bytesTransferred / snap.totalBytes) * 0.85 : 0); },
+      onError,
+      function () {
+        var thumbTask = thumbRef.put(thumbBlob, meta);
+        thumbTask.on('state_changed',
+          function (snap) { onProgress(0.85 + (snap.totalBytes ? (snap.bytesTransferred / snap.totalBytes) * 0.15 : 0)); },
+          onError,
+          function () {
+            Promise.all([fullRef.getDownloadURL(), thumbRef.getDownloadURL()]).then(function (urls) {
+              var save = activityId
+                ? db.collection('activities').doc(activityId)
+                    .set({ photoFull: urls[0], photoThumb: urls[1] }, { merge: true })
+                : Promise.resolve();
+              save.then(function () { onProgress(1); onDone(); }).catch(onError);
+            }).catch(onError);
+          });
+      });
+  }
+
+  // PART 5 — full-screen lightbox for a feed photo.
+  function showPhotoLightbox(fullUrl, name, dateStr) {
+    var lb = document.getElementById('photo-lightbox');
+    if (!lb) return;
+    lb.innerHTML =
+      '<button type="button" class="lightbox-close" aria-label="Close">' + CLOSE_ICON + '</button>' +
+      '<div class="lightbox-inner">' +
+        '<p class="lightbox-meta">' + esc(name || '') + (dateStr ? ' · ' + esc(dateStr) : '') + '</p>' +
+        '<img class="lightbox-img" src="' + esc(fullUrl) + '" alt="">' +
+      '</div>';
+    lb.classList.remove('hidden');
+    requestAnimationFrame(function () { lb.classList.add('is-visible'); });
+    function close() {
+      lb.classList.remove('is-visible');
+      setTimeout(function () { lb.classList.add('hidden'); lb.innerHTML = ''; }, 300);
+    }
+    lb.querySelector('.lightbox-close').addEventListener('click', close);
+    lb.addEventListener('click', function (e) {
+      // Tap outside the photo (the overlay or its padded inner) closes.
+      if (e.target === lb || e.target.classList.contains('lightbox-inner')) close();
+    });
   }
 
   // ===================================================================

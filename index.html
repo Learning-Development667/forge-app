@@ -24,7 +24,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.28</p>
+      <p class="brand-version">v1.0.29</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -82,9 +82,14 @@
   <!-- Bonus spin full-screen experience (filled + toggled by scripts.js: openSpin) -->
   <div id="spin-overlay" class="spin-overlay hidden" role="dialog" aria-modal="true"></div>
 
-  <!-- Firebase SDK (compat) — Firestore only; Authentication is no longer used -->
+  <!-- Post-workout mood photo (camera prompt + lightbox; rendered by scripts.js) -->
+  <div id="camera-overlay" class="cam-overlay hidden" role="dialog" aria-modal="true"></div>
+  <div id="photo-lightbox" class="lightbox-overlay hidden" role="dialog" aria-modal="true"></div>
+
+  <!-- Firebase SDK (compat) — Firestore + Storage; Authentication is no longer used -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
   <!-- Chart.js (progress graphs) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
