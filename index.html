@@ -152,6 +152,14 @@
       from { box-shadow: 0 0 6px rgba(232, 97, 26, 0.6); }
       to   { box-shadow: 0 0 14px rgba(232, 97, 26, 1); }
     }
+
+    /* Plan screen — animated Friday flame + Saturday moon icons. */
+    .day-icon-flame { display: inline-block; vertical-align: middle; margin-left: 6px; filter: drop-shadow(0 0 4px #FF6B00); }
+    .day-icon-moon { display: inline-block; vertical-align: middle; margin-left: 6px; filter: drop-shadow(0 0 4px #B8C4E8); animation: moonPulse 3s ease-in-out infinite; }
+    @keyframes moonPulse {
+      0%, 100% { filter: drop-shadow(0 0 4px #B8C4E8); }
+      50% { filter: drop-shadow(0 0 10px #B8C4E8); }
+    }
   </style>
 </head>
 <body>
@@ -160,7 +168,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.45</p>
+      <p class="brand-version">v1.0.46</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->

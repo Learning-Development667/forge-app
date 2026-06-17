@@ -3156,6 +3156,8 @@
     ];
     var todayIdx = (new Date().getDay() + 6) % 7; // getDay 0=Sun → WEEK index (Mon-first)
     function pill(name, extra) { return '<span class="pl-pill' + (extra || '') + '">' + esc(name) + '</span>'; }
+    var PLAN_FLAME_SVG = '<svg class="day-icon-flame" width="18" height="22" viewBox="0 0 18 22" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="flameGrad" cx="50%" cy="80%" r="60%"><stop offset="0%" stop-color="#FFD700"/><stop offset="50%" stop-color="#FF6B00"/><stop offset="100%" stop-color="#FF2200" stop-opacity="0"/></radialGradient></defs><path d="M9 2 C9 2 13 7 13 11 C13 11 11 9 10 10 C10 10 12 5 9 2Z" fill="url(#flameGrad)" opacity="0.9"/><path d="M5 8 C5 8 13 12 12 17 C12 20 9 22 9 22 C9 22 11 19 10 17 C9 15 6 15 5 12 C4 10 5 8 5 8Z" fill="url(#flameGrad)"/><path d="M9 22 C9 22 4 19 4 15 C4 12 6 11 6 11 C6 11 5 14 7 16 C8 17 9 22 9 22Z" fill="#FF8C00" opacity="0.8"/><animateTransform attributeName="transform" type="scale" values="1,1;1.05,1.08;1,1" dur="1.2s" repeatCount="indefinite" additive="sum" transformOrigin="9 22"/></svg>';
+    var PLAN_MOON_SVG = '<svg class="day-icon-moon" width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><defs><filter id="moonGlow"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M13 2 C8 2 4 5.5 4 10 C4 14.5 8 18 13 18 C10 16.5 8 13.5 8 10 C8 6.5 10 3.5 13 2Z" fill="#B8C4E8" filter="url(#moonGlow)"/><animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/></svg>';
     var weekHTML = WEEK.map(function (w, idx) {
       var isToday = idx === todayIdx;
       var badge = isToday ? '<span class="pl-today-badge">TODAY</span>' : '';
@@ -3165,11 +3167,11 @@
       if (isToday) cls += ' pl-day--today';
       var inner;
       if (w.type === 'best') {
-        inner = '<div class="pl-day-head"><span class="pl-day-name">Friday</span><span class="pl-day-emoji">🔥</span></div>' +
+        inner = '<div class="pl-day-head"><span class="pl-day-name">Friday</span>' + PLAN_FLAME_SVG + '</div>' +
           '<div class="pl-pills">' + ORDER.map(function (k) { return pill(EXERCISES[k].name); }).join('') + '</div>' +
           '<span class="pl-day-note">Best effort — 2 min each</span>';
       } else if (w.type === 'rest') {
-        inner = '<div class="pl-day-head"><span class="pl-day-name">Saturday</span><span class="pl-day-emoji">🌙</span></div>' +
+        inner = '<div class="pl-day-head"><span class="pl-day-name">Saturday</span>' + PLAN_MOON_SVG + '</div>' +
           '<span class="pl-day-note">Full rest day</span>';
       } else {
         inner = '<div class="pl-day-head"><span class="pl-day-name">' + esc(w.d) + '</span></div>' +
