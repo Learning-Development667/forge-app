@@ -1172,7 +1172,28 @@
   // ===================================================================
   // Rolodex carousel — login screen
   // ===================================================================
+  // Normalised name key — trims, collapses whitespace, lowercases. Used so any
+  // names differing only by whitespace/casing collapse to one.
+  function normName(name) {
+    return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
+  // Remove duplicate names from TEAM in place (keeps the first occurrence). The
+  // array reference is preserved since other code closes over TEAM.
+  function dedupeTeam() {
+    var seen = {}, out = [];
+    TEAM.forEach(function (name) {
+      var key = normName(name);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(name);
+    });
+    TEAM.length = 0;
+    Array.prototype.push.apply(TEAM, out);
+  }
+
   function renderCarousel() {
+    dedupeTeam(); // never build duplicate carousel cards
     carousel.innerHTML = '';
     cards = [];
 
@@ -1364,15 +1385,17 @@
           var data = doc.data() || {};
           var name = cleanName(data.name, data.email);
           if (!name) return;
-          // Only add a name that isn't already in TEAM (case-insensitive), so a
+          // Only add a name that isn't already in TEAM (normalised), so a
           // duplicate Firestore doc never adds a second carousel/squad entry.
-          var exists = TEAM.some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
+          var key = normName(name);
+          var exists = TEAM.some(function (n) { return normName(n) === key; });
           if (!exists) TEAM.push(name);
           if (data.avatar) {
             var av = String(data.avatar);
             AVATARS[name] = av.indexOf('/') >= 0 ? av : 'images/' + av;
           }
         });
+        dedupeTeam();     // normalise + dedupe TEAM before it is used anywhere
         renderCarousel(); // re-render to reflect the current squad
       })
       .catch(function (err) {
