@@ -1837,7 +1837,7 @@
     }
 
     var infoBtn = isRest ? '' :
-      '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">i</button>';
+      '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">CHECK FORM</button>';
 
     // Logged: non-timed cards get a green checkmark SVG; plank/Best Effort keep ✓.
     var checkPrefix = '';
