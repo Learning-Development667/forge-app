@@ -1334,7 +1334,10 @@
           var data = doc.data() || {};
           var name = cleanName(data.name, data.email);
           if (!name) return;
-          if (TEAM.indexOf(name) < 0) TEAM.push(name); // add anyone not already known
+          // Only add a name that isn't already in TEAM (case-insensitive), so a
+          // duplicate Firestore doc never adds a second carousel/squad entry.
+          var exists = TEAM.some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
+          if (!exists) TEAM.push(name);
           if (data.avatar) {
             var av = String(data.avatar);
             AVATARS[name] = av.indexOf('/') >= 0 ? av : 'images/' + av;
@@ -3738,8 +3741,8 @@
     'stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="42 60"/></svg>';
   var ADMIN_CHECK = '<svg class="admin-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
-  var ADMIN_RESET_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 0 1 14.5-6l2 2"/>' +
+  var ADMIN_RESET_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 0 1 14.5-6l2 2"/>' +
     '<polyline points="20.5 3 20.5 8 15.5 8"/><path d="M20.5 12a8.5 8.5 0 0 1-14.5 6l-2-2"/>' +
     '<polyline points="3.5 21 3.5 16 8.5 16"/></svg>';
 
@@ -3958,9 +3961,19 @@
         try { loggedToday[doc.ref.parent.parent.id] = true; } catch (e) { /* no-op */ }
       });
 
-      var docs = res[0].docs.slice().sort(function (a, b) {
-        return ((b.data() || {}).totalPoints || 0) - ((a.data() || {}).totalPoints || 0);
+      // Deduplicate by name — if a name has two docs, keep the most recent
+      // joinedAt and discard the other (e.g. a duplicate "Liisa").
+      var byName = {};
+      res[0].docs.forEach(function (d) {
+        var u = d.data() || {};
+        var key = cleanName(u.name, u.email).toLowerCase();
+        var jt = (u.joinedAt && u.joinedAt.toMillis) ? u.joinedAt.toMillis() : 0;
+        if (!byName[key] || jt > byName[key].jt) byName[key] = { doc: d, jt: jt };
       });
+      var docs = Object.keys(byName).map(function (k) { return byName[k].doc; })
+        .sort(function (a, b) {
+          return ((b.data() || {}).totalPoints || 0) - ((a.data() || {}).totalPoints || 0);
+        });
 
       var rows = docs.map(function (d, i) {
         var u = d.data() || {};
@@ -3982,8 +3995,8 @@
                  '</div>' +
                  '<span class="admin-user-pts">' + pts + ' pts</span>' +
                  '<div class="admin-user-actions">' +
-                   '<button type="button" class="admin-user-reset" data-reset-id="' + esc(d.id) +
-                     '" data-reset-name="' + esc(name) + '" aria-label="Reset ' + esc(name) + '">' + ADMIN_RESET_ICON + '</button>' +
+                   '<button type="button" class="admin-user-reset" data-uid="' + esc(d.id) +
+                     '" data-name="' + esc(name) + '" aria-label="Reset ' + esc(name) + '">' + ADMIN_RESET_ICON + '</button>' +
                    '<button type="button" class="admin-user-remove" data-remove-id="' + esc(d.id) +
                      '" data-remove-name="' + esc(name) + '" aria-label="Remove ' + esc(name) + '">×</button>' +
                  '</div>' +
@@ -3994,8 +4007,8 @@
       // Per-user reset — clears one user's logs/points/streaks + their activities.
       Array.prototype.forEach.call(container.querySelectorAll('.admin-user-reset'), function (btn) {
         btn.addEventListener('click', function () {
-          var id = btn.getAttribute('data-reset-id');
-          var nm = btn.getAttribute('data-reset-name');
+          var id = btn.getAttribute('data-uid');
+          var nm = btn.getAttribute('data-name');
           showAdminConfirm({
             title: 'Reset Challenge Data',
             body: 'Reset ' + nm + "'s challenge data? This will clear their logs, points and " +
@@ -4307,7 +4320,16 @@
     var sched = todaySchedule();
     var isRest = sched.type === 'rest';
 
-    row.innerHTML = TEAM.map(function (name) {
+    // Deduplicate by name (case-insensitive) so a duplicate never shows twice.
+    var seenNames = {};
+    var uniqueTeam = TEAM.filter(function (name) {
+      var key = String(name).toLowerCase();
+      if (seenNames[key]) return false;
+      seenNames[key] = true;
+      return true;
+    });
+
+    row.innerHTML = uniqueTeam.map(function (name) {
       var user = registeredUser(name);
       var ringClass, overlay = '';
       if (isRest) {

@@ -4726,6 +4726,7 @@ button:focus { outline: none; }
   position: absolute;
   top: 7px;
   right: 9px;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4733,6 +4734,8 @@ button:focus { outline: none; }
 
 .admin-user-reset {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--orange);
