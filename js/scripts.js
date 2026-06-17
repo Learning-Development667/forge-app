@@ -3159,9 +3159,18 @@
       return attrRow(a.label, score, locked, delta);
     }).join('');
 
-    // CONSISTENCY is computed live (streak + days completed) — never locked.
+    // CONSISTENCY is computed live and never locked. It reflects the user's
+    // current streak plus every distinct day they have completed all due
+    // exercises — counted straight from their logs, so it works from Day 1 (and
+    // soft launch), not only within the fixed challenge window.
     var streak = u.currentStreak || 0;
-    var daysDone = computeDaysCompleted();
+    var cByDate = logsByDate(state.logs);
+    var daysDone = 0;
+    Object.keys(cByDate).forEach(function (dk) {
+      var cd = parseKey(dk);
+      var csched = scheduleForDay(cd.getDay());
+      if (csched.active.length && dayCompleted(cd, cByDate)) daysDone++;
+    });
     var consistency = Math.min(100, Math.round((streak / 30 * 50) + (daysDone / 90 * 50)));
     scores.push(consistency);
     rowsHTML += attrRow('CONSISTENCY', consistency, false, null);
