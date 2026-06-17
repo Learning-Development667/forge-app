@@ -860,7 +860,16 @@
         typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission()
-        .then(function (result) { fcardMotionGranted = result === 'granted'; })
+        .then(function (result) {
+          fcardMotionGranted = result === 'granted';
+          // The flip may have already finished (setupFcardTilt ran with the flag
+          // still false) — re-attach now if the card screen is still visible.
+          var fcScreen = document.getElementById('forgecard-screen');
+          var fcCard = fcScreen && fcScreen.querySelector('.fcard');
+          if (fcardMotionGranted && fcScreen && !fcScreen.classList.contains('hidden') && fcCard) {
+            setupFcardTilt(fcCard);
+          }
+        })
         .catch(function () {});
     }
     // Board listeners persist across navigation (subscribed once) to avoid
