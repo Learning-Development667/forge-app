@@ -142,6 +142,16 @@
     .mood-btn:disabled { cursor: default; }
     .mood-btn:disabled:not(.is-selected) { animation: none; opacity: 0.4; }
     .card-nontimed .mood-btn:disabled:not(.is-selected) { opacity: 0.3; }
+
+    /* CHECK FORM button — nudge off the title + pulsing burnt-orange glow. */
+    .card-info-btn {
+      margin-left: 8px;
+      animation: checkFormBreathe 2s ease-in-out infinite alternate;
+    }
+    @keyframes checkFormBreathe {
+      from { box-shadow: 0 0 6px rgba(232, 97, 26, 0.6); }
+      to   { box-shadow: 0 0 14px rgba(232, 97, 26, 1); }
+    }
   </style>
 </head>
 <body>
@@ -150,7 +160,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.44</p>
+      <p class="brand-version">v1.0.45</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
