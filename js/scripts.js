@@ -898,39 +898,10 @@
   }
 
   function navGo(dest) {
-    // iOS: request motion permission synchronously at the very start of the tap
-    // handler (no awaits/timeouts before it) so it counts as a direct user
-    // gesture. This is the ONLY place requestPermission is called.
-    if (dest === 'forgecard' &&
-        typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // The flip may have already finished (setupFcardTilt ran with the flag
-      // still false) — re-attach now if the card screen is still visible.
-      var attachTiltIfVisible = function () {
-        var fcScreen = document.getElementById('forgecard-screen');
-        var fcCard = fcScreen && fcScreen.querySelector('.fcard');
-        if (fcardMotionGranted && fcScreen && !fcScreen.classList.contains('hidden') && fcCard) {
-          setupFcardTilt(fcCard);
-        }
-      };
-      var cached = false;
-      try { cached = window.localStorage && localStorage.getItem('forgeMotionGranted') === 'true'; } catch (e) {}
-      if (cached) {
-        // Granted in a previous session — skip the prompt (only ever shows once).
-        fcardMotionGranted = true;
-        attachTiltIfVisible();
-      } else {
-        DeviceOrientationEvent.requestPermission()
-          .then(function (result) {
-            fcardMotionGranted = result === 'granted';
-            if (fcardMotionGranted) {
-              try { localStorage.setItem('forgeMotionGranted', 'true'); } catch (e) {}
-            }
-            attachTiltIfVisible();
-          })
-          .catch(function () {});
-      }
-    }
+    // iOS motion permission for the Forge Card tilt is requested on the first
+    // tap of the card itself (see setupFcardTilt) — iOS silently rejects
+    // requestPermission() unless it runs inside a direct user gesture.
+    //
     // Board listeners persist across navigation (subscribed once) to avoid
     // re-reading on every visit.
     if (dest === 'board') openBoard();
@@ -1683,6 +1654,20 @@
     lunges: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4.5" r="1.8"/><path d="M11 6.3v6"/><path d="M11 12.3L7 19"/><path d="M11 12.3l4 3v3.5"/><line x1="4" y1="20" x2="20" y2="20"/></svg>'
   };
 
+  // Animated flexing-arm icon for the "ALL DONE TODAY!" banner (replaces 💪).
+  var FLEX_ARM_SVG =
+    '<svg class="day-icon-flex" width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<radialGradient id="flexGrad" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%" stop-color="#FFB800"/>' +
+          '<stop offset="100%" stop-color="#E8611A"/>' +
+        '</radialGradient>' +
+      '</defs>' +
+      '<ellipse cx="11" cy="8" rx="5" ry="6" fill="url(#flexGrad)"/>' +
+      '<rect x="6" y="13" width="10" height="6" rx="3" fill="url(#flexGrad)"/>' +
+      '<animateTransform attributeName="transform" type="scale" values="1;1.15;1" dur="0.8s" repeatCount="indefinite" additive="sum" transformOrigin="11 11"/>' +
+    '</svg>';
+
   function renderDashboard() {
     var today = new Date();
     var day = challengeDay(today);
@@ -1778,7 +1763,7 @@
 
       bonusSpinHTML() +
 
-      (allDone ? '<div class="dash-alldone">ALL DONE TODAY! 💪</div>' : '') +
+      (allDone ? '<div class="dash-alldone">ALL DONE TODAY! ' + FLEX_ARM_SVG + '</div>' : '') +
 
       (routine ? '<button type="button" class="btn-outline forge-laser" data-action="cooldown">Cool Down</button>' : '');
 
@@ -3648,6 +3633,7 @@
     window.addEventListener('mousemove', fcardMouseHandler);
     // Mobile: gyroscope (max 30deg for a dramatic tilt).
     function addOrient() {
+      if (fcardOrientHandler) return; // already listening
       fcardOrientHandler = function (ev) {
         var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
         applyTilt(Math.max(-30, Math.min(30, -(beta - 45) / 5)), Math.max(-30, Math.min(30, gamma / 5)));
@@ -3655,13 +3641,30 @@
       window.addEventListener('deviceorientation', fcardOrientHandler);
     }
     var DOE = window.DeviceOrientationEvent;
-    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS && DOE && typeof DOE.requestPermission === 'function') {
-      // iOS: permission is requested synchronously in navGo (the nav-tap
-      // gesture); attach the listener only once it has been granted.
-      if (fcardMotionGranted) addOrient();
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      // iOS 13+: DeviceOrientationEvent.requestPermission() must be called from
+      // inside a direct user gesture, so attach it to the FIRST tap on the card.
+      // Calling it on screen load is silently rejected by iOS.
+      var cached = false;
+      try { cached = window.localStorage && localStorage.getItem('forgeMotionGranted') === 'true'; } catch (e) {}
+      if (cached || fcardMotionGranted) {
+        fcardMotionGranted = true;
+        addOrient(); // already granted (this or a previous session)
+      } else {
+        card.addEventListener('click', function onFirstTap() {
+          DOE.requestPermission()
+            .then(function (result) {
+              if (result === 'granted') {
+                fcardMotionGranted = true;
+                try { localStorage.setItem('forgeMotionGranted', 'true'); } catch (e) {}
+                addOrient();
+              }
+            })
+            .catch(function () {});
+        }, { once: true });
+      }
     } else if (DOE) {
-      addOrient(); // Android (and desktop, where no orientation events fire) — automatic
+      addOrient(); // Android / desktop — no permission gate, attach directly
     }
   }
 
