@@ -982,14 +982,24 @@ img.topbar-avatar,
   text-align: center;
 }
 
+/* Hint below the HOW DID IT FEEL? label — STATE 2 only. */
+.card-moods-hint {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--cream);
+  opacity: 0.45;
+  text-align: center;
+}
+
 .card-moods-row {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mood-btn {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -997,30 +1007,32 @@ img.topbar-avatar,
   background: none;
   border: none;
   padding: 0;
+  overflow: visible;
   cursor: pointer;
 }
 
 .mood-btn-circle {
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(245, 240, 232, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-.mood-btn-circle svg { width: 24px; height: 24px; color: var(--cream); }
+.mood-btn-circle svg { width: 26px; height: 26px; color: var(--cream); }
 
 .mood-btn-label {
   font-family: 'DM Mono', monospace;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.4px;
-  color: var(--cream);
-  opacity: 0.4;
+  color: #F5F0E8;
+  opacity: 0.7;
   text-align: center;
+  line-height: 1.1;
 }
 
 .mood-btn:active .mood-btn-circle { transform: scale(0.9); }

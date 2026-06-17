@@ -100,15 +100,15 @@
   // (so the feed icon/label stays consistent); `label` is the on-card caption.
   var MOOD_BUTTONS = [
     { mood: 'Crushed it', label: 'CRUSHED IT',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>' },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>' },
     { mood: 'Felt good', label: 'GOOD',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>' },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>' },
     { mood: 'Got through it', label: 'STEADY',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>' },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg>' },
     { mood: 'Struggled', label: 'STRUGGLED',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>' },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>' },
     { mood: 'Gave it a go', label: 'ATTEMPTED',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8" stroke-dasharray="40 14"/></svg>' }
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/></svg>' }
   ];
 
   // Non-timed exercise (Press-ups / Sit-ups / Lunges) card flow:
@@ -1793,10 +1793,11 @@
     return l ? l.mood : null;
   }
 
-  // The five inline mood buttons for an exercise.
-  function moodRowHTML(exKey, selMood, logged) {
+  // The five inline mood buttons for an exercise. showHint adds the STATE 2 hint.
+  function moodRowHTML(exKey, selMood, logged, showHint) {
     return '<div class="card-moods">' +
         '<p class="card-moods-label">HOW DID IT FEEL?</p>' +
+        (showHint ? '<p class="card-moods-hint">Couldn\'t finish? Tap Attempted.</p>' : '') +
         '<div class="card-moods-row">' +
           MOOD_BUTTONS.map(function (m) {
             var attemptedCls = m.mood === 'Gave it a go' ? ' mood-btn--attempted' : '';
@@ -1860,7 +1861,7 @@
           '<p class="card-logged">Logged</p></div>';
       } else if (cardStates[exKey] === 'progress') {
         classExtra += ' is-progress';
-        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, null, false) + '</div>';
+        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, null, false, true) + '</div>';
       } else {
         stateHtml = '<div class="card-state">' +
           '<button type="button" class="card-start forge-laser" data-start="' + exKey + '">START</button></div>';
@@ -1955,7 +1956,7 @@
         msgEl.classList.remove('is-in'); // fade out
         setTimeout(function () {
           if (!card.isConnected || !stateEl.isConnected) return;
-          stateEl.innerHTML = moodRowHTML(exKey, null, false);
+          stateEl.innerHTML = moodRowHTML(exKey, null, false, true);
           var moods = stateEl.querySelector('.card-moods');
           moods.classList.add('card-moods--slide');
           requestAnimationFrame(function () { moods.classList.add('is-in'); });
