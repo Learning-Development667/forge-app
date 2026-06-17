@@ -3235,13 +3235,13 @@
       applyTilt(Math.max(-6, Math.min(6, -dy * 6)), Math.max(-6, Math.min(6, dx * 6)));
     };
     window.addEventListener('mousemove', fcardMouseHandler);
-    // Mobile: gyroscope (max 20deg for a dramatic tilt).
+    // Mobile: gyroscope (max 30deg for a dramatic tilt).
     function addOrient() {
       console.log('TILT: attaching deviceorientation listener');
       fcardOrientHandler = function (ev) {
         console.log('TILT: event fired, beta=' + ev.beta + ' gamma=' + ev.gamma);
         var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
-        applyTilt(Math.max(-20, Math.min(20, -(beta - 45) / 5)), Math.max(-20, Math.min(20, gamma / 5)));
+        applyTilt(Math.max(-30, Math.min(30, -(beta - 45) / 5)), Math.max(-30, Math.min(30, gamma / 5)));
       };
       window.addEventListener('deviceorientation', fcardOrientHandler);
     }
