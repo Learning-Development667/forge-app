@@ -559,6 +559,8 @@
   function showScreen(screen) {
     plankTimerActive = false; // leaving any screen ends the timer context
     if (typeof drainCheerQueue === 'function') drainCheerQueue(); // show cheers queued during the timer
+    // Leaving the Forge Card detaches its 3D tilt listeners.
+    if (typeof teardownFcardTilt === 'function' && (!screen || screen.id !== 'forgecard-screen')) teardownFcardTilt();
     var all = document.querySelectorAll('.screen');
     Array.prototype.forEach.call(all, function (s) {
       s.classList.add('hidden');
@@ -3095,24 +3097,41 @@
       updated = d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
     }
 
+    var RUNES = ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚠ', 'ᚢ'];
+    var RUNE_POS = [
+      'top:5px;left:7px', 'top:4px;left:50%;transform:translateX(-50%)', 'top:5px;right:7px',
+      'top:50%;right:6px;transform:translateY(-50%)', 'bottom:5px;right:7px',
+      'bottom:4px;left:50%;transform:translateX(-50%)', 'bottom:5px;left:7px',
+      'top:50%;left:6px;transform:translateY(-50%)'
+    ];
+    var runesHTML = '<div class="fcard-runes">' + RUNES.map(function (r, i) {
+      return '<span class="fcard-rune" style="' + RUNE_POS[i] + '">' + r + '</span>';
+    }).join('') + '</div>';
+
     screen.innerHTML =
       '<h1 class="fcard-title">FORGE CARD</h1>' +
       '<p class="fcard-subtitle">Your attributes. Your progress.</p>' +
 
-      '<div class="fcard">' +
-        '<canvas class="fcard-embers"></canvas>' +
-        '<div class="fcard-body">' +
-          '<div class="fcard-head">' +
-            avatarMarkup(name, 'fcard-avatar') +
-            '<p class="fcard-name">' + esc(name) + '</p>' +
-            '<p class="fcard-role">FORGER</p>' +
-          '</div>' +
-          '<div class="fcard-divider"></div>' +
-          '<div class="fcard-attrs">' + rowsHTML + '</div>' +
-          '<div class="fcard-footer">' +
-            '<span class="fcard-total-label">TOTAL SCORE</span>' +
-            '<span class="fcard-total"><span class="fcard-total-num">' + total + '</span>' +
-              '<span class="fcard-total-max"> / 100</span></span>' +
+      '<div class="fcard-stage">' +
+        '<canvas class="fcard-halo"></canvas>' +
+        '<div class="fcard fcard--flip">' +
+          '<canvas class="fcard-embers"></canvas>' +
+          '<div class="fcard-highlight"></div>' +
+          runesHTML +
+          '<div class="fcard-sweep"></div>' +
+          '<div class="fcard-body">' +
+            '<div class="fcard-head">' +
+              avatarMarkup(name, 'fcard-avatar') +
+              '<p class="fcard-name">' + esc(name) + '</p>' +
+              '<p class="fcard-role">FORGER</p>' +
+            '</div>' +
+            '<div class="fcard-divider"></div>' +
+            '<div class="fcard-attrs">' + rowsHTML + '</div>' +
+            '<div class="fcard-footer">' +
+              '<span class="fcard-total-label">TOTAL SCORE</span>' +
+              '<span class="fcard-total"><span class="fcard-total-num">' + total + '</span>' +
+                '<span class="fcard-total-max"> / 100</span></span>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -3123,14 +3142,137 @@
     showScreen(screen);
     showNav('forgecard');
 
-    // Entrance is CSS; animate the bars + start the faint ember texture here.
+    var card = screen.querySelector('.fcard');
+
+    // Animate the attribute bars in.
     requestAnimationFrame(function () {
       Array.prototype.forEach.call(screen.querySelectorAll('.fcard-fill[data-w]'), function (el) {
         el.style.width = (Number(el.getAttribute('data-w')) || 0) + '%';
       });
     });
+
+    // Faint inner ember texture + orbiting particle halo around the card.
     var emb = screen.querySelector('.fcard-embers');
     if (emb) startEmbers(emb, 4);
+    var halo = screen.querySelector('.fcard-halo');
+    if (halo) startHalo(halo);
+
+    // Activate the borders + 3D tilt once the flip finishes (timeout fallback).
+    var activated = false;
+    function activate() {
+      if (activated || !card || !card.isConnected) return;
+      activated = true;
+      card.classList.remove('fcard--flip');
+      card.classList.add('is-active');
+      setupFcardTilt(card);
+    }
+    if (card) {
+      card.addEventListener('animationend', function (e) {
+        if (e.animationName === 'fcardFlip') activate();
+      });
+    }
+    setTimeout(activate, 900);
+  }
+
+  // ---- Forge Card 3D tilt (gyroscope on mobile, cursor on desktop) ----
+  var fcardOrientHandler = null, fcardMouseHandler = null;
+
+  function teardownFcardTilt() {
+    if (fcardOrientHandler) { window.removeEventListener('deviceorientation', fcardOrientHandler); fcardOrientHandler = null; }
+    if (fcardMouseHandler) { window.removeEventListener('mousemove', fcardMouseHandler); fcardMouseHandler = null; }
+  }
+
+  function setupFcardTilt(card) {
+    teardownFcardTilt();
+    function applyTilt(rx, ry) {
+      if (!card.isConnected) { teardownFcardTilt(); return; }
+      card.style.transform = 'perspective(800px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+    }
+    // Desktop: follow the cursor (max 6deg).
+    fcardMouseHandler = function (e) {
+      var r = card.getBoundingClientRect();
+      if (!r.width) return;
+      var dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      var dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      applyTilt(Math.max(-6, Math.min(6, -dy * 6)), Math.max(-6, Math.min(6, dx * 6)));
+    };
+    window.addEventListener('mousemove', fcardMouseHandler);
+    // Mobile: gyroscope (max 8deg; iOS needs permission on a user gesture).
+    function addOrient() {
+      fcardOrientHandler = function (ev) {
+        var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
+        applyTilt(Math.max(-8, Math.min(8, -(beta - 45) / 5)), Math.max(-8, Math.min(8, gamma / 5)));
+      };
+      window.addEventListener('deviceorientation', fcardOrientHandler);
+    }
+    var DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      DOE.requestPermission().then(function (s) { if (s === 'granted') addOrient(); }).catch(function () {});
+    } else if (DOE) {
+      addOrient();
+    }
+  }
+
+  // ---- Forge Card energy particle halo (orbiting bright embers) ----
+  function startHalo(canvas) {
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var W = 0, H = 0;
+    function resize() {
+      W = canvas.clientWidth || 0;
+      H = canvas.clientHeight || 0;
+      canvas.width = Math.max(1, Math.round(W * dpr));
+      canvas.height = Math.max(1, Math.round(H * dpr));
+    }
+    resize();
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    var parts = [];
+    function spawn(p) {
+      p.ang = rand(0, Math.PI * 2);
+      p.spd = rand(0.002, 0.008) * (Math.random() < 0.5 ? 1 : -1);
+      p.rad = rand(0.8, 1.02);            // orbit radius factor
+      p.size = rand(2, 4);
+      p.color = Math.random() < 0.5 ? '232,98,26' : '255,215,0';
+      p.alpha = rand(0.5, 1);
+      p.life = 1;
+      p.shoot = 0;                        // outward burst velocity
+      p.shootR = 0;
+      return p;
+    }
+    for (var i = 0; i < 22; i++) parts.push(spawn({}));
+    function frame() {
+      if (!canvas.isConnected) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (W > 0 && H > 0) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.globalCompositeOperation = 'lighter';
+        var cx = W / 2, cy = H / 2, rx = W / 2 - 8, ry = H / 2 - 8;
+        for (var j = 0; j < parts.length; j++) {
+          var p = parts[j];
+          p.ang += p.spd;
+          if (p.shoot === 0 && Math.random() < 0.0018) p.shoot = rand(0.5, 1.1); // occasional shoot-out
+          if (p.shoot > 0) { p.shootR += p.shoot; p.shoot *= 0.97; p.life -= 0.02; }
+          var x = cx + Math.cos(p.ang) * (rx * p.rad + p.shootR);
+          var y = cy + Math.sin(p.ang) * (ry * p.rad + p.shootR);
+          if (p.life <= 0) { spawn(p); continue; }
+          var a = Math.min(1, p.life) * p.alpha;
+          var rr = p.size * 2.2;
+          var g = ctx.createRadialGradient(x, y, 0, x, y, rr);
+          g.addColorStop(0, 'rgba(' + p.color + ',' + a + ')');
+          g.addColorStop(1, 'rgba(' + p.color + ',0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, rr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
   }
 
   function openSettings() {
