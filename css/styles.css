@@ -922,9 +922,13 @@ img.topbar-avatar,
   gap: 12px;
 }
 
+/* When every exercise is logged, the completed cards stack like a deck. */
+.cards--deck { gap: 7px; }
+.cards--deck .card { box-shadow: inset 0 0 22px rgba(39, 174, 96, 0.1), 0 6px 14px rgba(0, 0, 0, 0.45); }
+
 .card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -932,6 +936,14 @@ img.topbar-avatar,
   border-radius: 12px;
   padding: 14px 16px;
   box-shadow: inset 0 0 22px rgba(232, 98, 26, 0.07); /* subtle orange glow */
+  transition: box-shadow 0.3s ease;
+}
+
+/* The top row: icon, name/target, and (rest/Best Effort only) action slot. */
+.card-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .card-icon {
@@ -944,6 +956,91 @@ img.topbar-avatar,
 
 .card-info { flex: 1; min-width: 0; }
 .card-action { flex-shrink: 0; }
+
+/* Brief scale pulse on a mood tap. */
+@keyframes cardTap {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.card.card-tap { animation: cardTap 200ms ease-out; }
+
+/* Inline mood buttons */
+.card-moods {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-moods-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.35;
+  text-align: center;
+}
+
+.card-moods-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.mood-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.mood-btn-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.mood-btn-circle svg { width: 20px; height: 20px; color: var(--cream); }
+
+.mood-btn-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.4px;
+  color: var(--cream);
+  opacity: 0.4;
+  text-align: center;
+}
+
+.mood-btn:active .mood-btn-circle { transform: scale(0.92); }
+
+.mood-btn.is-selected .mood-btn-circle {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+.mood-btn.is-selected .mood-btn-circle svg { color: var(--cream); }
+.mood-btn.is-selected .mood-btn-label { color: var(--orange); opacity: 0.85; }
+
+.mood-btn:disabled { cursor: default; }
+.mood-btn:disabled:not(.is-selected) { opacity: 0.45; }
+
+/* Tap-feedback particle burst canvas. */
+.mood-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1001;
+}
 
 /* Logged state: green left border + green glow, ✓ prefix on the name. */
 .card-done {

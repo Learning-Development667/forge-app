@@ -96,6 +96,21 @@
     '<svg viewBox="0 0 48 48" fill="currentColor"><path d="M24 4c2.5 7.5 9.5 9.5 9.5 17.5a9.5 9.5 0 0 1-19 0c0-3.2 1.2-5.4 3.2-7.4.6 3.8 3.3 3.8 3.3.5 0-3.2-1.1-5.4 3-10.6z"/></svg>'
   ];
 
+  // One-tap mood buttons on the exercise cards. `mood` matches the MOODS array
+  // (so the feed icon/label stays consistent); `label` is the on-card caption.
+  var MOOD_BUTTONS = [
+    { mood: 'Crushed it', label: 'CRUSHED IT',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>' },
+    { mood: 'Felt good', label: 'GOOD',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>' },
+    { mood: 'Got through it', label: 'STEADY',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>' },
+    { mood: 'Struggled', label: 'STRUGGLED',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>' },
+    { mood: 'Really tough', label: 'TOUGH',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16L12 6z"/></svg>' }
+  ];
+
   // Real form videos keyed by exercise (others fall back to the placeholder).
   var FORM_VIDEOS = {
     pressups: 'images/form-pressup.mp4',
@@ -1649,7 +1664,7 @@
                'Rest up — tomorrow you go again.</p>' +
              '</div>';
     } else {
-      body = '<div class="cards">' + ORDER.map(function (k) {
+      body = '<div class="cards' + (allDueLoggedToday(sched) ? ' cards--deck' : '') + '">' + ORDER.map(function (k) {
         return cardHTML(k, sched, day);
       }).join('') + '</div>';
     }
@@ -1750,6 +1765,12 @@
     return '<button type="button" class="btn-forge btn-spin" data-action="spin">★ Bonus Spin</button>';
   }
 
+  // The mood logged for an exercise today (or null if not logged yet).
+  function loggedMood(exKey) {
+    var l = todayLogs().filter(function (x) { return x.exercise === exKey && !x.bonusExercise; })[0];
+    return l ? l.mood : null;
+  }
+
   function cardHTML(exKey, sched, day) {
     var ex = EXERCISES[exKey];
     var isRest = sched.rest === exKey;
@@ -1757,18 +1778,18 @@
     var logged = isLogged(exKey);
     var target = targetFor(ex, day);
     var bestEffort = sched.type === 'besteffort';
+    // Regular weekdays use one-tap mood buttons; Best Effort Friday keeps its
+    // dedicated Start → timer / log-screen flow; rest days just show a badge.
+    var useMoods = isActive && !isRest && !bestEffort;
 
-    var statusEl;
+    // The right-hand action slot is only used for rest (badge) and Best Effort.
+    var statusEl = '';
     if (isRest) {
       statusEl = '<span class="badge badge-rest">REST</span>';
-    } else if (logged) {
+    } else if (bestEffort && logged) {
       statusEl = '<span class="tick" aria-label="Logged">✓</span>';
-    } else if (isActive) {
-      statusEl = '<button type="button" class="btn-log" data-log="' + exKey + '"' +
-                 (bestEffort ? ' data-best="1"' : '') + '>' +
-                 (bestEffort ? 'Start' : 'Log') + '</button>';
-    } else {
-      statusEl = '';
+    } else if (bestEffort && isActive) {
+      statusEl = '<button type="button" class="btn-log" data-log="' + exKey + '" data-best="1">Start</button>';
     }
 
     var infoBtn = isRest ? '' :
@@ -1777,20 +1798,41 @@
     // Logged cards prefix the name with a green ✓ (alongside the green styling).
     var checkPrefix = logged ? '<span class="card-check">✓</span> ' : '';
 
-    // Active cards carry an orange left border + subtle glow; logged → green;
-    // rest → muted grey. The laser is reserved for full-width standalone buttons.
+    // Inline mood row (regular active/logged cards). When logged it stays visible
+    // with the chosen mood highlighted and the buttons disabled.
+    var moodsHtml = '';
+    if (useMoods) {
+      var selMood = logged ? loggedMood(exKey) : null;
+      moodsHtml = '<div class="card-moods">' +
+          '<p class="card-moods-label">HOW DID IT FEEL?</p>' +
+          '<div class="card-moods-row">' +
+            MOOD_BUTTONS.map(function (m) {
+              return '<button type="button" class="mood-btn' + (selMood === m.mood ? ' is-selected' : '') + '"' +
+                (logged ? ' disabled' : '') + ' data-mood-ex="' + exKey + '" data-mood="' + esc(m.mood) +
+                '" aria-label="' + esc(m.label) + '">' +
+                '<span class="mood-btn-circle">' + m.icon + '</span>' +
+                '<span class="mood-btn-label">' + esc(m.label) + '</span>' +
+              '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+    }
+
     return '<div class="card' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
-             '<span class="card-icon">' + (EXERCISE_ICONS[exKey] || '') + '</span>' +
-             '<div class="card-info">' +
-               '<div class="card-name-row">' +
-                 '<h3 class="card-name">' + checkPrefix + ex.name + '</h3>' + infoBtn +
+             '<div class="card-main">' +
+               '<span class="card-icon">' + (EXERCISE_ICONS[exKey] || '') + '</span>' +
+               '<div class="card-info">' +
+                 '<div class="card-name-row">' +
+                   '<h3 class="card-name">' + checkPrefix + ex.name + '</h3>' + infoBtn +
+                 '</div>' +
+                 '<p class="card-target">' +
+                   (isRest ? 'Rest day for this one' :
+                     (bestEffort ? 'Max effort · 2:00' : formatTarget(ex, target))) +
+                 '</p>' +
                '</div>' +
-               '<p class="card-target">' +
-                 (isRest ? 'Rest day for this one' :
-                   (bestEffort ? 'Max effort · 2:00' : formatTarget(ex, target))) +
-               '</p>' +
+               (statusEl ? '<div class="card-action">' + statusEl + '</div>' : '') +
              '</div>' +
-             '<div class="card-action">' + statusEl + '</div>' +
+             moodsHtml +
            '</div>';
   }
 
@@ -1806,6 +1848,13 @@
         else openLogScreen(k, best, false);
       });
       addFire(btn);
+    });
+    // One-tap mood buttons (regular days) — log the exercise + mood immediately.
+    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-mood-ex]'), function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.disabled) return;
+        logMoodTap(btn, btn.getAttribute('data-mood-ex'), btn.getAttribute('data-mood'));
+      });
     });
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-info]'), function (btn) {
       btn.addEventListener('click', function () {
@@ -1823,6 +1872,64 @@
     if (warm) warm.addEventListener('click', function () { openRoutineScreen('warmup'); });
     var cool = dashboardScreen.querySelector('[data-action="cooldown"]');
     if (cool) cool.addEventListener('click', function () { openRoutineScreen('cooldown'); });
+  }
+
+  // One-tap mood log: visual feedback (fill, burst, card pulse) then saveLog.
+  // saveLog already fires writeSessionComplete when the day's last exercise lands.
+  function logMoodTap(btn, exKey, mood) {
+    btn.classList.add('is-selected');
+    moodBurst(btn);
+    var card = btn.closest && btn.closest('.card');
+    if (card) {
+      card.classList.remove('card-tap'); void card.offsetWidth; card.classList.add('card-tap');
+      Array.prototype.forEach.call(card.querySelectorAll('.mood-btn'), function (b) { b.disabled = true; });
+    }
+    var target = targetFor(EXERCISES[exKey], challengeDay(new Date()));
+    saveLog(exKey, target, target, mood, false).then(renderDashboard).catch(renderDashboard);
+  }
+
+  // Small, fast orange particle burst from a button centre (tap feedback).
+  function moodBurst(el) {
+    var rect = el.getBoundingClientRect();
+    var size = 60;
+    var canvas = document.createElement('canvas');
+    canvas.className = 'mood-burst';
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    canvas.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
+    canvas.style.top = (rect.top + rect.height / 2 - size / 2) + 'px';
+    document.body.appendChild(canvas);
+    var ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) { canvas.remove(); return; }
+    ctx.scale(dpr, dpr);
+    var parts = [];
+    var n = 9;
+    for (var i = 0; i < n; i++) {
+      var ang = (Math.PI * 2) * (i / n) + Math.random() * 0.4;
+      var spd = 1.2 + Math.random() * 1.5;
+      parts.push({ x: size / 2, y: size / 2, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, r: 1.4 + Math.random() * 1.6 });
+    }
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var t = (ts - start) / 400;
+      ctx.clearRect(0, 0, size, size);
+      var life = 1 - t;
+      for (var j = 0; j < parts.length; j++) {
+        var p = parts[j];
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95;
+        ctx.globalAlpha = Math.max(0, life);
+        ctx.fillStyle = '#E8621A';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (t < 1) requestAnimationFrame(frame); else canvas.remove();
+    }
+    requestAnimationFrame(frame);
   }
 
   function openRoutineScreen(type) {
