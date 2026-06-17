@@ -3927,6 +3927,37 @@ button:focus { outline: none; }
   text-align: center;
 }
 
+/* Animated inline "Mark 1 Apps" footer logo. */
+@keyframes m1BoltPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px #3B82F6); }
+  50% { filter: drop-shadow(0 0 14px #60A5FA) drop-shadow(0 0 28px #93C5FD); }
+}
+
+@keyframes m1TextGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(59, 130, 246, 0.4); }
+  50% { text-shadow: 0 0 18px rgba(96, 165, 250, 0.9), 0 0 36px rgba(147, 197, 253, 0.4); }
+}
+
+@keyframes m1Shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.m1-bolt { animation: m1BoltPulse 2.5s ease-in-out infinite; }
+
+.m1-logo-text {
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #60A5FA;
+  animation: m1TextGlow 2.5s ease-in-out infinite;
+  text-transform: uppercase;
+  text-align: center;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
 /* ===================================================================
    Onboarding
    =================================================================== */

@@ -3038,6 +3038,39 @@
       '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>' +
       '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
 
+    // Animated inline "Mark 1 Apps" logo (replaces the static PNG in the footer).
+    var m1Logo =
+      '<svg width="120" height="127" viewBox="0 0 180 190" style="display:block;margin:0 auto;">' +
+        '<g fill="#1d4ed8" stroke="#60A5FA" stroke-width="0.8" opacity="0.9">' +
+          '<ellipse cx="38" cy="145" rx="5" ry="11" transform="rotate(-80 38 145)" style="animation:m1Shimmer 2s infinite 0s"/>' +
+          '<ellipse cx="28" cy="128" rx="5" ry="11" transform="rotate(-65 28 128)" style="animation:m1Shimmer 2s infinite 0.15s"/>' +
+          '<ellipse cx="22" cy="108" rx="5" ry="11" transform="rotate(-50 22 108)" style="animation:m1Shimmer 2s infinite 0.3s"/>' +
+          '<ellipse cx="22" cy="87" rx="5" ry="11" transform="rotate(-35 22 87)" style="animation:m1Shimmer 2s infinite 0.45s"/>' +
+          '<ellipse cx="28" cy="67" rx="5" ry="11" transform="rotate(-20 28 67)" style="animation:m1Shimmer 2s infinite 0.6s"/>' +
+          '<ellipse cx="40" cy="50" rx="5" ry="11" transform="rotate(-5 40 50)" style="animation:m1Shimmer 2s infinite 0.75s"/>' +
+          '<ellipse cx="57" cy="38" rx="5" ry="11" transform="rotate(12 57 38)" style="animation:m1Shimmer 2s infinite 0.9s"/>' +
+          '<ellipse cx="142" cy="145" rx="5" ry="11" transform="rotate(80 142 145)" style="animation:m1Shimmer 2s infinite 0.08s"/>' +
+          '<ellipse cx="152" cy="128" rx="5" ry="11" transform="rotate(65 152 128)" style="animation:m1Shimmer 2s infinite 0.23s"/>' +
+          '<ellipse cx="158" cy="108" rx="5" ry="11" transform="rotate(50 158 108)" style="animation:m1Shimmer 2s infinite 0.38s"/>' +
+          '<ellipse cx="158" cy="87" rx="5" ry="11" transform="rotate(35 158 87)" style="animation:m1Shimmer 2s infinite 0.53s"/>' +
+          '<ellipse cx="152" cy="67" rx="5" ry="11" transform="rotate(20 152 67)" style="animation:m1Shimmer 2s infinite 0.68s"/>' +
+          '<ellipse cx="140" cy="50" rx="5" ry="11" transform="rotate(5 140 50)" style="animation:m1Shimmer 2s infinite 0.83s"/>' +
+          '<ellipse cx="123" cy="38" rx="5" ry="11" transform="rotate(-12 123 38)" style="animation:m1Shimmer 2s infinite 0.98s"/>' +
+        '</g>' +
+        '<g transform="translate(90,78)" class="m1-bolt">' +
+          '<polygon points="8,-28 -8,6 2,6 -6,28 10,-4 0,-4" fill="#3B82F6" stroke="#93C5FD" stroke-width="1"/>' +
+        '</g>' +
+        '<g transform="translate(90,138)">' +
+          '<ellipse cx="0" cy="0" rx="24" ry="15" fill="none" stroke="#3B82F6" stroke-width="1.6"/>' +
+          '<ellipse cx="0" cy="0" rx="11" ry="15" fill="none" stroke="#3B82F6" stroke-width="0.9" opacity="0.55"/>' +
+          '<line x1="-24" y1="0" x2="24" y2="0" stroke="#3B82F6" stroke-width="0.9" opacity="0.55" stroke-dasharray="3 2">' +
+            '<animate attributeName="stroke-dashoffset" from="0" to="-14" dur="2s" repeatCount="indefinite"/>' +
+          '</line>' +
+          '<line x1="0" y1="-15" x2="0" y2="15" stroke="#3B82F6" stroke-width="0.8" opacity="0.35"/>' +
+          '<ellipse cx="0" cy="0" rx="24" ry="8" fill="none" stroke="#3B82F6" stroke-width="0.7" opacity="0.3"/>' +
+        '</g>' +
+      '</svg>';
+
     screen.innerHTML =
       '<header class="set-header">' +
         '<canvas class="set-embers"></canvas>' +
@@ -3102,7 +3135,8 @@
       '<p class="message set-msg" role="status" aria-live="polite"></p>' +
 
       '<footer class="settings-footer">' +
-        '<img class="m1-logo" src="images/mark_one_log.png" alt="Mark One Apps" />' +
+        m1Logo +
+        '<p class="m1-logo-text">Mark 1 Apps</p>' +
         '<p class="settings-version">' + esc(appVersion()) + '</p>' +
         '<p class="m1-credit">Built by Mark One Apps</p>' +
       '</footer>';
