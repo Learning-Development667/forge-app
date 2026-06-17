@@ -1309,6 +1309,30 @@
       });
   }
 
+  // Merge Firestore-registered users (e.g. added via the Admin Panel) into the
+  // in-memory TEAM + AVATARS so they persist in the carousel across reloads. The
+  // hardcoded TEAM/AVATARS remain the fallback if the query fails.
+  function loadTeamFromFirestore() {
+    return db.collection('users').orderBy('joinedAt').get()
+      .then(function (snap) {
+        snap.forEach(function (doc) {
+          var data = doc.data() || {};
+          var name = cleanName(data.name, data.email);
+          if (!name) return;
+          if (TEAM.indexOf(name) < 0) TEAM.push(name); // add anyone not already known
+          if (data.avatar) {
+            var av = String(data.avatar);
+            AVATARS[name] = av.indexOf('/') >= 0 ? av : 'images/' + av;
+          }
+        });
+        renderCarousel(); // re-render to reflect the current squad
+      })
+      .catch(function (err) {
+        // Keep the hardcoded TEAM as the fallback.
+        console.error('Failed to load team from Firestore:', err);
+      });
+  }
+
   function registeredUser(name) {
     return users.filter(function (u) { return u.name === name; })[0] || null;
   }
@@ -4667,7 +4691,8 @@
     addFire(forgeBtn); // discreet install link gets no fire animation
 
     buildNav();       // one persistent top nav, reused across screens
-    renderCarousel(); // static team list — independent of Firestore
+    renderCarousel(); // initial render from the hardcoded TEAM (instant)
+    loadTeamFromFirestore(); // merge Firestore-registered users, then re-render
 
     // Atmospheric drifting embers behind the login screen (behind all content,
     // above the dark overlay so the forge background stays visible).
