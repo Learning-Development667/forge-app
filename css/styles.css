@@ -1046,6 +1046,10 @@ img.topbar-avatar,
 /* Non-timed complete cards dim the unchosen moods further. */
 .card-nontimed .mood-btn:disabled:not(.is-selected) { opacity: 0.3; }
 
+/* ATTEMPTED — dashed border suggesting "incomplete" (stays dashed when selected). */
+.mood-btn--attempted .mood-btn-circle { border-style: dashed; }
+.mood-btn--attempted.is-selected .mood-btn-circle { border-style: dashed; border-color: var(--orange); }
+
 /* Tap-feedback particle burst canvas. */
 .mood-burst {
   position: fixed;

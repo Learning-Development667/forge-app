@@ -45,7 +45,7 @@
   // if it exists — see loadOnboarding). Card 6 carries the "Let's Forge" CTA.
   var ONBOARDING_DEFAULT = [
     { heading: 'Welcome to Forge', body: '90 days. Built together. This is your squad’s fitness challenge — press-ups, sit-ups, plank and lunges, every day, getting stronger together.' },
-    { heading: 'How It Works', body: 'Each day you’ll see your exercises and targets. Complete them, log your effort, and tell us how you felt. Miss a day? No problem — just keep going.' },
+    { heading: 'How It Works', body: 'Each day you’ll see your exercises and targets. Complete them and log how it felt. If you gave it a go but couldn’t finish, tap Attempted — it still counts and the squad will cheer you on. Miss a day entirely? No problem — just keep going.' },
     { heading: 'Scoring', body: 'Log any exercise: +10 points. Complete all due exercises: +25 bonus. Friday Best Effort (all 4): +50 bonus. 7-day streak: +100. 30-day streak: +500. Bonus spin: +20.' },
     { heading: 'The Squad', body: 'You’re not doing this alone. Check the message board to see what your squad is up to, post messages, and cheer each other on with the confetti button.' },
     { heading: 'Best Effort Friday', body: 'Every Friday is Best Effort day — all four exercises, maximum effort. No targets, just give everything you’ve got. You’ll see your own numbers and the squad average — but your individual scores are private. Only you can see how many reps you did.' },
@@ -72,14 +72,14 @@
   };
   var ORDER = ['pressups', 'situps', 'plank', 'lunges'];
 
-  var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Really tough'];
+  var MOODS = ['Crushed it', 'Felt good', 'Got through it', 'Struggled', 'Gave it a go'];
 
   var MOOD_EMOJI = {
     'Crushed it': '💪',
     'Felt good': '😊',
     'Got through it': '😅',
     'Struggled': '😬',
-    'Really tough': '😤'
+    'Gave it a go': '👌'
   };
 
   // Custom 48x48 SVG icons, one per mood (colour via currentColor).
@@ -92,8 +92,8 @@
     '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><circle cx="18" cy="21" r="1.7" fill="currentColor" stroke="none"/><circle cx="30" cy="21" r="1.7" fill="currentColor" stroke="none"/><line x1="17" y1="30" x2="31" y2="30"/><path d="M38 11c-2.2 3-2.2 5.2 0 5.2s2.2-2.2 0-5.2z" fill="currentColor" stroke="none"/></svg>',
     // Struggled — grimace teeth + furrowed brow
     '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="18"/><line x1="14" y1="17" x2="20" y2="19.5"/><line x1="34" y1="17" x2="28" y2="19.5"/><rect x="16" y="28" width="16" height="5.5" rx="1"/><line x1="21" y1="28" x2="21" y2="33.5"/><line x1="27" y1="28" x2="27" y2="33.5"/></svg>',
-    // Really tough — flame
-    '<svg viewBox="0 0 48 48" fill="currentColor"><path d="M24 4c2.5 7.5 9.5 9.5 9.5 17.5a9.5 9.5 0 0 1-19 0c0-3.2 1.2-5.4 3.2-7.4.6 3.8 3.3 3.8 3.3.5 0-3.2-1.1-5.4 3-10.6z"/></svg>'
+    // Gave it a go — dashed incomplete circle (a circle with a gap)
+    '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="16" stroke-dasharray="80 28"/></svg>'
   ];
 
   // One-tap mood buttons on the exercise cards. `mood` matches the MOODS array
@@ -107,8 +107,8 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>' },
     { mood: 'Struggled', label: 'STRUGGLED',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>' },
-    { mood: 'Really tough', label: 'TOUGH',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16L12 6z"/></svg>' }
+    { mood: 'Gave it a go', label: 'ATTEMPTED',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8" stroke-dasharray="40 14"/></svg>' }
   ];
 
   // Non-timed exercise (Press-ups / Sit-ups / Lunges) card flow:
@@ -1140,9 +1140,9 @@
       var dayLogs = byDate[dk];
       var sched = scheduleFor(d);
 
-      // Per-exercise points (bonus spin exercise = 20, otherwise 10).
+      // Per-exercise points: bonus spin = 20, "Gave it a go" = 5, otherwise 10.
       dayLogs.forEach(function (l) {
-        points += l.bonusExercise ? 20 : 10;
+        points += l.bonusExercise ? 20 : (l.mood === 'Gave it a go' ? 5 : 10);
       });
 
       // All exercises due today logged.
@@ -1617,9 +1617,12 @@
   function writeSessionComplete(sched) {
     var todays = todayLogs().filter(function (l) { return !l.bonusExercise; });
     var bestEffort = sched.type === 'besteffort';
+    var anyAttempted = todays.some(function (l) { return l.mood === 'Gave it a go'; });
     var message = bestEffort
       ? state.user.name + ' gave it everything on Best Effort Friday 🔥'
-      : state.user.name + " crushed today's session 💪";
+      : (anyAttempted
+          ? state.user.name + ' gave it a go today'
+          : state.user.name + " crushed today's session 💪");
     db.collection('activities').add({
       userId: state.user.id,
       userName: state.user.name,
@@ -1796,7 +1799,8 @@
         '<p class="card-moods-label">HOW DID IT FEEL?</p>' +
         '<div class="card-moods-row">' +
           MOOD_BUTTONS.map(function (m) {
-            return '<button type="button" class="mood-btn' + (selMood === m.mood ? ' is-selected' : '') + '"' +
+            var attemptedCls = m.mood === 'Gave it a go' ? ' mood-btn--attempted' : '';
+            return '<button type="button" class="mood-btn' + attemptedCls + (selMood === m.mood ? ' is-selected' : '') + '"' +
               (logged ? ' disabled' : '') + ' data-mood-ex="' + exKey + '" data-mood="' + esc(m.mood) +
               '" aria-label="' + esc(m.label) + '">' +
               '<span class="mood-btn-circle">' + m.icon + '</span>' +
@@ -2729,7 +2733,7 @@
   // ===================================================================
   function moodScore(label) {
     var i = MOODS.indexOf(label);
-    return i < 0 ? null : (5 - i); // Crushed it = 5 … Really tough = 1
+    return i < 0 ? null : (5 - i); // Crushed it = 5 … Gave it a go = 1
   }
 
   // Average a set of logs' moods into a single mood label (rounded to nearest).
@@ -3363,7 +3367,16 @@
     Object.keys(cByDate).forEach(function (dk) {
       var cd = parseKey(dk);
       var csched = scheduleForDay(cd.getDay());
-      if (csched.active.length && dayCompleted(cd, cByDate)) daysDone++;
+      if (!csched.active.length || !dayCompleted(cd, cByDate)) return;
+      // Each completed day counts as 1.0, but exercises logged as "Gave it a go"
+      // weigh 0.5 — so an all-attempted day counts as half a completed day.
+      var dl = cByDate[dk];
+      var weight = 0;
+      csched.active.forEach(function (k) {
+        var l = dl.filter(function (x) { return x.exercise === k && !x.bonusExercise; })[0];
+        weight += (l && l.mood === 'Gave it a go') ? 0.5 : 1;
+      });
+      daysDone += weight / csched.active.length;
     });
     var consistency = Math.min(100, Math.round((streak / 30 * 50) + (daysDone / 90 * 50)));
     scores.push(consistency);
