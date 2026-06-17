@@ -1375,28 +1375,40 @@
       });
   }
 
-  // Merge Firestore-registered users (e.g. added via the Admin Panel) into the
-  // in-memory TEAM + AVATARS so they persist in the carousel across reloads. The
-  // hardcoded TEAM/AVATARS remain the fallback if the query fails.
+  // Rebuild TEAM entirely from the Firestore users collection (deduped,
+  // normalised, ordered by joinedAt). The hardcoded TEAM is only used as a
+  // fallback when Firestore returns no users (or the query fails), so a user
+  // removed from Firestore disappears from the carousel/squad everywhere.
   function loadTeamFromFirestore() {
-    return db.collection('users').orderBy('joinedAt').get()
+    return db.collection('users').get()
       .then(function (snap) {
-        snap.forEach(function (doc) {
+        // Oldest first (docs without joinedAt sort to the front).
+        var docs = snap.docs.slice().sort(function (a, b) {
+          var am = ((a.data() || {}).joinedAt && a.data().joinedAt.toMillis) ? a.data().joinedAt.toMillis() : 0;
+          var bm = ((b.data() || {}).joinedAt && b.data().joinedAt.toMillis) ? b.data().joinedAt.toMillis() : 0;
+          return am - bm;
+        });
+        var names = [], seen = {};
+        docs.forEach(function (doc) {
           var data = doc.data() || {};
           var name = cleanName(data.name, data.email);
           if (!name) return;
-          // Only add a name that isn't already in TEAM (normalised), so a
-          // duplicate Firestore doc never adds a second carousel/squad entry.
           var key = normName(name);
-          var exists = TEAM.some(function (n) { return normName(n) === key; });
-          if (!exists) TEAM.push(name);
+          if (seen[key]) return; // dedupe
+          seen[key] = true;
+          names.push(name);
           if (data.avatar) {
             var av = String(data.avatar);
             AVATARS[name] = av.indexOf('/') >= 0 ? av : 'images/' + av;
           }
         });
-        dedupeTeam();     // normalise + dedupe TEAM before it is used anywhere
-        renderCarousel(); // re-render to reflect the current squad
+        if (names.length) {
+          // Replace TEAM in place (keep the reference other code closes over).
+          TEAM.length = 0;
+          Array.prototype.push.apply(TEAM, names);
+        }
+        // else: Firestore empty → keep the hardcoded TEAM fallback as-is.
+        renderCarousel(); // reflect the current squad everywhere
       })
       .catch(function (err) {
         // Keep the hardcoded TEAM as the fallback.
@@ -4292,11 +4304,15 @@
               cBtn.innerHTML = ADMIN_SPINNER + 'Removing…';
               // Delete the user doc only — their logs subcollection is left intact.
               db.collection('users').doc(id).delete().then(function () {
-                var ti = TEAM.indexOf(nm);
-                if (ti >= 0) TEAM.splice(ti, 1); // drop from the carousel immediately
+                // 1. Splice the name out of TEAM immediately (normalised match).
+                var rkey = normName(nm);
+                for (var ti = TEAM.length - 1; ti >= 0; ti--) {
+                  if (normName(TEAM[ti]) === rkey) TEAM.splice(ti, 1);
+                }
                 usersLoaded = false;
                 renderCarousel();
                 close();
+                loadTeamFromFirestore(); // 3. refresh the squad everywhere from Firestore
                 loadAdminUsers(container);
               }).catch(function (err) {
                 cBtn.disabled = false;
