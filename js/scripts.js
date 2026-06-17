@@ -1582,6 +1582,7 @@
   // One consolidated "session complete" activity for the message board. The mood
   // shown is the average of every (non-bonus) mood logged today.
   function writeSessionComplete(sched) {
+    console.log('PHOTO: writeSessionComplete called');
     var todays = todayLogs().filter(function (l) { return !l.bonusExercise; });
     var bestEffort = sched.type === 'besteffort';
     var message = bestEffort
@@ -1596,8 +1597,9 @@
       reactions: [],
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function (ref) {
-      // Offer a post-workout mood photo ~1s after the session-complete moment.
-      if (storage) setTimeout(function () { showCameraPrompt(ref.id); }, 1000);
+      console.log('PHOTO: activity written, id = ' + ref.id);
+      // Offer a post-workout mood photo immediately on session complete.
+      showCameraPrompt(ref.id);
     }).catch(function (err) { console.error('Failed to write activity:', err); });
   }
 
@@ -4627,6 +4629,9 @@
 
   // PART 2 — camera prompt overlay, shown after a session completes.
   function showCameraPrompt(activityId) {
+    console.log('PHOTO: showCameraPrompt called, activityId = ' + activityId);
+    console.log('PHOTO: storage available = ' + !!storage);
+    if (!storage) return; // no Storage SDK → silently skip the prompt
     var overlay = document.getElementById('camera-overlay');
     if (!overlay) return;
     overlay.innerHTML =
