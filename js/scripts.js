@@ -859,18 +859,35 @@
     if (dest === 'forgecard' &&
         typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission()
-        .then(function (result) {
-          fcardMotionGranted = result === 'granted';
-          // The flip may have already finished (setupFcardTilt ran with the flag
-          // still false) — re-attach now if the card screen is still visible.
-          var fcScreen = document.getElementById('forgecard-screen');
-          var fcCard = fcScreen && fcScreen.querySelector('.fcard');
-          if (fcardMotionGranted && fcScreen && !fcScreen.classList.contains('hidden') && fcCard) {
-            setupFcardTilt(fcCard);
-          }
-        })
-        .catch(function () {});
+      // The flip may have already finished (setupFcardTilt ran with the flag
+      // still false) — re-attach now if the card screen is still visible.
+      var attachTiltIfVisible = function () {
+        var fcScreen = document.getElementById('forgecard-screen');
+        var fcCard = fcScreen && fcScreen.querySelector('.fcard');
+        if (fcardMotionGranted && fcScreen && !fcScreen.classList.contains('hidden') && fcCard) {
+          setupFcardTilt(fcCard);
+        }
+      };
+      var cached = false;
+      try { cached = window.localStorage && localStorage.getItem('forgeMotionGranted') === 'true'; } catch (e) {}
+      if (cached) {
+        // Granted in a previous session — skip the prompt (only ever shows once).
+        console.log('TILT: using cached permission');
+        fcardMotionGranted = true;
+        attachTiltIfVisible();
+      } else {
+        console.log('TILT: requesting permission');
+        DeviceOrientationEvent.requestPermission()
+          .then(function (result) {
+            console.log('TILT: permission result = ' + result);
+            fcardMotionGranted = result === 'granted';
+            if (fcardMotionGranted) {
+              try { localStorage.setItem('forgeMotionGranted', 'true'); } catch (e) {}
+            }
+            attachTiltIfVisible();
+          })
+          .catch(function () {});
+      }
     }
     // Board listeners persist across navigation (subscribed once) to avoid
     // re-reading on every visit.
@@ -3203,6 +3220,7 @@
   }
 
   function setupFcardTilt(card) {
+    console.log('TILT: setupFcardTilt called, fcardMotionGranted = ' + fcardMotionGranted);
     teardownFcardTilt();
     function applyTilt(rx, ry) {
       if (!card.isConnected) { teardownFcardTilt(); return; }
@@ -3219,7 +3237,9 @@
     window.addEventListener('mousemove', fcardMouseHandler);
     // Mobile: gyroscope (max 20deg for a dramatic tilt).
     function addOrient() {
+      console.log('TILT: attaching deviceorientation listener');
       fcardOrientHandler = function (ev) {
+        console.log('TILT: event fired, beta=' + ev.beta + ' gamma=' + ev.gamma);
         var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
         applyTilt(Math.max(-20, Math.min(20, -(beta - 45) / 5)), Math.max(-20, Math.min(20, gamma / 5)));
       };
