@@ -872,14 +872,11 @@
       try { cached = window.localStorage && localStorage.getItem('forgeMotionGranted') === 'true'; } catch (e) {}
       if (cached) {
         // Granted in a previous session — skip the prompt (only ever shows once).
-        console.log('TILT: using cached permission');
         fcardMotionGranted = true;
         attachTiltIfVisible();
       } else {
-        console.log('TILT: requesting permission');
         DeviceOrientationEvent.requestPermission()
           .then(function (result) {
-            console.log('TILT: permission result = ' + result);
             fcardMotionGranted = result === 'granted';
             if (fcardMotionGranted) {
               try { localStorage.setItem('forgeMotionGranted', 'true'); } catch (e) {}
@@ -3220,7 +3217,6 @@
   }
 
   function setupFcardTilt(card) {
-    console.log('TILT: setupFcardTilt called, fcardMotionGranted = ' + fcardMotionGranted);
     teardownFcardTilt();
     function applyTilt(rx, ry) {
       if (!card.isConnected) { teardownFcardTilt(); return; }
@@ -3237,9 +3233,7 @@
     window.addEventListener('mousemove', fcardMouseHandler);
     // Mobile: gyroscope (max 30deg for a dramatic tilt).
     function addOrient() {
-      console.log('TILT: attaching deviceorientation listener');
       fcardOrientHandler = function (ev) {
-        console.log('TILT: event fired, beta=' + ev.beta + ' gamma=' + ev.gamma);
         var gamma = ev.gamma || 0, beta = ev.beta || 0; // left-right, front-back
         applyTilt(Math.max(-30, Math.min(30, -(beta - 45) / 5)), Math.max(-30, Math.min(30, gamma / 5)));
       };
