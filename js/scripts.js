@@ -853,6 +853,16 @@
   }
 
   function navGo(dest) {
+    // iOS: request motion permission synchronously at the very start of the tap
+    // handler (no awaits/timeouts before it) so it counts as a direct user
+    // gesture. This is the ONLY place requestPermission is called.
+    if (dest === 'forgecard' &&
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(function (result) { fcardMotionGranted = result === 'granted'; })
+        .catch(function () {});
+    }
     // Board listeners persist across navigation (subscribed once) to avoid
     // re-reading on every visit.
     if (dest === 'board') openBoard();
@@ -3144,18 +3154,6 @@
 
     var card = screen.querySelector('.fcard');
 
-    // iOS: request motion permission now — this runs inside the nav-tap user
-    // gesture, so the prompt appears as the screen opens. On grant, attach the
-    // orientation listener (immediately if the card is already flipped in).
-    var iosDOE = window.DeviceOrientationEvent;
-    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && iosDOE && typeof iosDOE.requestPermission === 'function') {
-      iosDOE.requestPermission().then(function (state) {
-        if (state !== 'granted') return; // denied → do nothing, silently
-        fcardMotionGranted = true;
-        if (card && card.isConnected && card.classList.contains('is-active')) setupFcardTilt(card);
-      }).catch(function () {});
-    }
-
     // Animate the attribute bars in.
     requestAnimationFrame(function () {
       Array.prototype.forEach.call(screen.querySelectorAll('.fcard-fill[data-w]'), function (el) {
@@ -3221,8 +3219,8 @@
     var DOE = window.DeviceOrientationEvent;
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS && DOE && typeof DOE.requestPermission === 'function') {
-      // iOS: permission is requested in openForgeCard (the nav-tap gesture);
-      // attach the listener only once it has been granted.
+      // iOS: permission is requested synchronously in navGo (the nav-tap
+      // gesture); attach the listener only once it has been granted.
       if (fcardMotionGranted) addOrient();
     } else if (DOE) {
       addOrient(); // Android (and desktop, where no orientation events fire) — automatic
