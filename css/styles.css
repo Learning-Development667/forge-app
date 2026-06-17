@@ -974,11 +974,11 @@ img.topbar-avatar,
 
 .card-moods-label {
   font-family: 'DM Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--cream);
-  opacity: 0.35;
+  opacity: 0.5;
   text-align: center;
 }
 
@@ -1001,18 +1001,18 @@ img.topbar-avatar,
 }
 
 .mood-btn-circle {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #1a1a1a;
   border: 1px solid #333;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-.mood-btn-circle svg { width: 20px; height: 20px; color: var(--cream); }
+.mood-btn-circle svg { width: 24px; height: 24px; color: var(--cream); }
 
 .mood-btn-label {
   font-family: 'DM Mono', monospace;
@@ -1023,17 +1023,28 @@ img.topbar-avatar,
   text-align: center;
 }
 
-.mood-btn:active .mood-btn-circle { transform: scale(0.92); }
+.mood-btn:active .mood-btn-circle { transform: scale(0.9); }
+
+/* Spring on tap (transient — only on the live tap, not on re-render). */
+@keyframes moodPop {
+  0% { transform: scale(0.9); }
+  55% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.mood-btn.tapped .mood-btn-circle { animation: moodPop 320ms ease-out; }
 
 .mood-btn.is-selected .mood-btn-circle {
   background: var(--orange);
   border-color: var(--orange);
+  box-shadow: 0 0 12px rgba(232, 98, 26, 0.6);
 }
 .mood-btn.is-selected .mood-btn-circle svg { color: var(--cream); }
 .mood-btn.is-selected .mood-btn-label { color: var(--orange); opacity: 0.85; }
 
 .mood-btn:disabled { cursor: default; }
 .mood-btn:disabled:not(.is-selected) { opacity: 0.45; }
+/* Non-timed complete cards dim the unchosen moods further. */
+.card-nontimed .mood-btn:disabled:not(.is-selected) { opacity: 0.3; }
 
 /* Tap-feedback particle burst canvas. */
 .mood-burst {
@@ -1041,6 +1052,57 @@ img.topbar-avatar,
   pointer-events: none;
   z-index: 1001;
 }
+
+/* ---- Non-timed exercise state flow (READY / IN-PROGRESS / COMPLETE) ---- */
+.card-nontimed { background: #111; }
+.card-nontimed.is-progress { background: #1a1a1a; }
+
+.card-state { width: 100%; }
+
+.card-start {
+  width: 100%;
+  border: none; /* the forge-laser class supplies the border */
+  border-radius: 12px;
+  background: var(--orange);
+  color: var(--cream);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 2px;
+  padding: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.card-start.is-fading { opacity: 0; }
+
+.card-motivation {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  text-align: center;
+  padding: 8px 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.card-motivation.is-in { opacity: 1; }
+
+.card-moods--slide {
+  transform: translateY(12px);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.card-moods--slide.is-in { transform: translateY(0); opacity: 1; }
+
+.card-logged {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--green);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.card-check-icon { width: 16px; height: 16px; vertical-align: -2px; }
 
 /* Logged state: green left border + green glow, ✓ prefix on the name. */
 .card-done {

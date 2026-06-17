@@ -111,6 +111,21 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16L12 6z"/></svg>' }
   ];
 
+  // Non-timed exercise (Press-ups / Sit-ups / Lunges) card flow:
+  //   ready → in-progress (motivation → mood buttons) → complete.
+  // State persists per exercise for the current day so re-renders keep STATE 2.
+  var cardStates = {};       // exKey -> 'progress' (ready = absent, complete = isLogged)
+  var cardStatesDate = null; // resets the store when the day rolls over
+  var MOTIVATION = [
+    "You've got this!",
+    "Let's go! Give it everything.",
+    "Time to earn those points.",
+    "The squad is counting on you.",
+    "Make it count."
+  ];
+  var GREEN_CHECK = '<svg class="card-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+
   // Real form videos keyed by exercise (others fall back to the placeholder).
   var FORM_VIDEOS = {
     pressups: 'images/form-pressup.mp4',
@@ -1636,6 +1651,10 @@
     var sched = todaySchedule();
     var routine = todayRoutine();
 
+    // Reset the per-card state store when the day rolls over.
+    var todayKey = dateKey(today);
+    if (cardStatesDate !== todayKey) { cardStates = {}; cardStatesDate = todayKey; }
+
     var dayNum = day < 1 ? 0 : (day > TOTAL_DAYS ? TOTAL_DAYS : day);
     var weekNum = day < 1 ? 0 : Math.min(weekNumber(Math.min(day, TOTAL_DAYS)), TOTAL_WEEKS);
     var streakVal = state.user ? (state.user.currentStreak || 0) : 0;
@@ -1771,6 +1790,23 @@
     return l ? l.mood : null;
   }
 
+  // The five inline mood buttons for an exercise.
+  function moodRowHTML(exKey, selMood, logged) {
+    return '<div class="card-moods">' +
+        '<p class="card-moods-label">HOW DID IT FEEL?</p>' +
+        '<div class="card-moods-row">' +
+          MOOD_BUTTONS.map(function (m) {
+            return '<button type="button" class="mood-btn' + (selMood === m.mood ? ' is-selected' : '') + '"' +
+              (logged ? ' disabled' : '') + ' data-mood-ex="' + exKey + '" data-mood="' + esc(m.mood) +
+              '" aria-label="' + esc(m.label) + '">' +
+              '<span class="mood-btn-circle">' + m.icon + '</span>' +
+              '<span class="mood-btn-label">' + esc(m.label) + '</span>' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+
   function cardHTML(exKey, sched, day) {
     var ex = EXERCISES[exKey];
     var isRest = sched.rest === exKey;
@@ -1778,11 +1814,14 @@
     var logged = isLogged(exKey);
     var target = targetFor(ex, day);
     var bestEffort = sched.type === 'besteffort';
-    // Regular weekdays use one-tap mood buttons; Best Effort Friday keeps its
-    // dedicated Start → timer / log-screen flow; rest days just show a badge.
-    var useMoods = isActive && !isRest && !bestEffort;
+    var isPlank = exKey === 'plank';
+    // The new READY → IN-PROGRESS → COMPLETE flow is for non-timed regular-day
+    // exercises only (Press-ups, Sit-ups, Lunges). Plank and Best Effort Friday
+    // are untouched.
+    var nonTimed = isActive && !isRest && !bestEffort && !isPlank;
+    var plankRegular = isActive && !isRest && !bestEffort && isPlank;
 
-    // The right-hand action slot is only used for rest (badge) and Best Effort.
+    // Right-hand action slot: rest badge / Best Effort start or tick.
     var statusEl = '';
     if (isRest) {
       statusEl = '<span class="badge badge-rest">REST</span>';
@@ -1795,30 +1834,36 @@
     var infoBtn = isRest ? '' :
       '<button type="button" class="card-info-btn" data-info="' + exKey + '" aria-label="Form guide">i</button>';
 
-    // Logged cards prefix the name with a green ✓ (alongside the green styling).
-    var checkPrefix = logged ? '<span class="card-check">✓</span> ' : '';
-
-    // Inline mood row (regular active/logged cards). When logged it stays visible
-    // with the chosen mood highlighted and the buttons disabled.
-    var moodsHtml = '';
-    if (useMoods) {
-      var selMood = logged ? loggedMood(exKey) : null;
-      moodsHtml = '<div class="card-moods">' +
-          '<p class="card-moods-label">HOW DID IT FEEL?</p>' +
-          '<div class="card-moods-row">' +
-            MOOD_BUTTONS.map(function (m) {
-              return '<button type="button" class="mood-btn' + (selMood === m.mood ? ' is-selected' : '') + '"' +
-                (logged ? ' disabled' : '') + ' data-mood-ex="' + exKey + '" data-mood="' + esc(m.mood) +
-                '" aria-label="' + esc(m.label) + '">' +
-                '<span class="mood-btn-circle">' + m.icon + '</span>' +
-                '<span class="mood-btn-label">' + esc(m.label) + '</span>' +
-              '</button>';
-            }).join('') +
-          '</div>' +
-        '</div>';
+    // Logged: non-timed cards get a green checkmark SVG; plank/Best Effort keep ✓.
+    var checkPrefix = '';
+    if (logged) {
+      checkPrefix = nonTimed
+        ? '<span class="card-check">' + GREEN_CHECK + '</span> '
+        : '<span class="card-check">✓</span> ';
     }
 
-    return '<div class="card' + (isRest ? ' card-rest' : '') + (logged ? ' card-done' : '') + '">' +
+    // The below-the-row state block.
+    var stateHtml = '', classExtra = '';
+    if (plankRegular) {
+      // Plank keeps its current direct mood buttons (unchanged).
+      stateHtml = '<div class="card-state">' + moodRowHTML(exKey, logged ? loggedMood(exKey) : null, logged) +
+        (logged ? '<p class="card-logged">Logged</p>' : '') + '</div>';
+    } else if (nonTimed) {
+      classExtra = ' card-nontimed';
+      if (logged) {
+        classExtra += ' card-done';
+        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, loggedMood(exKey), true) +
+          '<p class="card-logged">Logged</p></div>';
+      } else if (cardStates[exKey] === 'progress') {
+        classExtra += ' is-progress';
+        stateHtml = '<div class="card-state">' + moodRowHTML(exKey, null, false) + '</div>';
+      } else {
+        stateHtml = '<div class="card-state">' +
+          '<button type="button" class="card-start forge-laser" data-start="' + exKey + '">START</button></div>';
+      }
+    }
+
+    return '<div class="card' + (isRest ? ' card-rest' : '') + ((logged && !nonTimed) ? ' card-done' : '') + classExtra + '">' +
              '<div class="card-main">' +
                '<span class="card-icon">' + (EXERCISE_ICONS[exKey] || '') + '</span>' +
                '<div class="card-info">' +
@@ -1832,7 +1877,7 @@
                '</div>' +
                (statusEl ? '<div class="card-action">' + statusEl + '</div>' : '') +
              '</div>' +
-             moodsHtml +
+             stateHtml +
            '</div>';
   }
 
@@ -1849,13 +1894,12 @@
       });
       addFire(btn);
     });
-    // One-tap mood buttons (regular days) — log the exercise + mood immediately.
-    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-mood-ex]'), function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.disabled) return;
-        logMoodTap(btn, btn.getAttribute('data-mood-ex'), btn.getAttribute('data-mood'));
-      });
+    // Non-timed START buttons → in-progress flow.
+    Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-start]'), function (btn) {
+      btn.addEventListener('click', function () { startExercise(btn, btn.getAttribute('data-start')); });
     });
+    // Mood buttons (plank + non-timed in-progress/complete) log on tap.
+    wireMoodButtons(dashboardScreen);
     Array.prototype.forEach.call(dashboardScreen.querySelectorAll('[data-info]'), function (btn) {
       btn.addEventListener('click', function () {
         var key = btn.getAttribute('data-info');
@@ -1874,10 +1918,53 @@
     if (cool) cool.addEventListener('click', function () { openRoutineScreen('cooldown'); });
   }
 
-  // One-tap mood log: visual feedback (fill, burst, card pulse) then saveLog.
-  // saveLog already fires writeSessionComplete when the day's last exercise lands.
+  // Wire any not-yet-wired mood buttons within a scope (re-render + dynamic insert).
+  function wireMoodButtons(scope) {
+    Array.prototype.forEach.call(scope.querySelectorAll('[data-mood-ex]'), function (btn) {
+      if (btn._moodWired) return;
+      btn._moodWired = true;
+      btn.addEventListener('click', function () {
+        if (btn.disabled) return;
+        logMoodTap(btn, btn.getAttribute('data-mood-ex'), btn.getAttribute('data-mood'));
+      });
+    });
+  }
+
+  // Non-timed READY → IN-PROGRESS: fade START out, show a motivational line for
+  // 1.5s, then slide the mood buttons up. State is recorded so a re-render keeps
+  // STATE 2 (mood buttons) rather than reverting to the START button.
+  function startExercise(btn, exKey) {
+    cardStates[exKey] = 'progress';
+    var card = btn.closest && btn.closest('.card');
+    if (!card) return;
+    var stateEl = card.querySelector('.card-state');
+    card.classList.add('is-progress');
+    btn.classList.add('is-fading');
+    setTimeout(function () {
+      if (!card.isConnected || !stateEl.isConnected) return;
+      var msg = MOTIVATION[Math.floor(Math.random() * MOTIVATION.length)];
+      stateEl.innerHTML = '<p class="card-motivation">' + esc(msg) + '</p>';
+      var msgEl = stateEl.querySelector('.card-motivation');
+      requestAnimationFrame(function () { msgEl.classList.add('is-in'); });
+      setTimeout(function () {
+        if (!card.isConnected || !stateEl.isConnected) return;
+        msgEl.classList.remove('is-in'); // fade out
+        setTimeout(function () {
+          if (!card.isConnected || !stateEl.isConnected) return;
+          stateEl.innerHTML = moodRowHTML(exKey, null, false);
+          var moods = stateEl.querySelector('.card-moods');
+          moods.classList.add('card-moods--slide');
+          requestAnimationFrame(function () { moods.classList.add('is-in'); });
+          wireMoodButtons(card);
+        }, 250);
+      }, 1500);
+    }, 200);
+  }
+
+  // One-tap mood log: visual feedback (fill, spring, burst, card pulse) then
+  // saveLog. saveLog fires writeSessionComplete when the day's last exercise lands.
   function logMoodTap(btn, exKey, mood) {
-    btn.classList.add('is-selected');
+    btn.classList.add('is-selected', 'tapped');
     moodBurst(btn);
     var card = btn.closest && btn.closest('.card');
     if (card) {
@@ -1906,7 +1993,7 @@
     if (!ctx) { canvas.remove(); return; }
     ctx.scale(dpr, dpr);
     var parts = [];
-    var n = 9;
+    var n = 15;
     for (var i = 0; i < n; i++) {
       var ang = (Math.PI * 2) * (i / n) + Math.random() * 0.4;
       var spd = 1.2 + Math.random() * 1.5;
