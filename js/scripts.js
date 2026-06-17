@@ -3738,6 +3738,10 @@
     'stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="42 60"/></svg>';
   var ADMIN_CHECK = '<svg class="admin-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+  var ADMIN_RESET_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 0 1 14.5-6l2 2"/>' +
+    '<polyline points="20.5 3 20.5 8 15.5 8"/><path d="M20.5 12a8.5 8.5 0 0 1-14.5 6l-2-2"/>' +
+    '<polyline points="3.5 21 3.5 16 8.5 16"/></svg>';
 
   // App-styled confirm modal. opts: { title, body, confirmLabel, danger, onConfirm(cBtn, close, overlay) }
   function showAdminConfirm(opts) {
@@ -3977,11 +3981,49 @@
                    faceBadge +
                  '</div>' +
                  '<span class="admin-user-pts">' + pts + ' pts</span>' +
-                 '<button type="button" class="admin-user-remove" data-remove-id="' + esc(d.id) +
-                   '" data-remove-name="' + esc(name) + '" aria-label="Remove ' + esc(name) + '">×</button>' +
+                 '<div class="admin-user-actions">' +
+                   '<button type="button" class="admin-user-reset" data-reset-id="' + esc(d.id) +
+                     '" data-reset-name="' + esc(name) + '" aria-label="Reset ' + esc(name) + '">' + ADMIN_RESET_ICON + '</button>' +
+                   '<button type="button" class="admin-user-remove" data-remove-id="' + esc(d.id) +
+                     '" data-remove-name="' + esc(name) + '" aria-label="Remove ' + esc(name) + '">×</button>' +
+                 '</div>' +
                '</div>';
       }).join('');
       container.innerHTML = rows || '<p class="feed-empty">No users registered yet.</p>';
+
+      // Per-user reset — clears one user's logs/points/streaks + their activities.
+      Array.prototype.forEach.call(container.querySelectorAll('.admin-user-reset'), function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-reset-id');
+          var nm = btn.getAttribute('data-reset-name');
+          showAdminConfirm({
+            title: 'Reset Challenge Data',
+            body: 'Reset ' + nm + "'s challenge data? This will clear their logs, points and " +
+              'streaks but keep their account. This cannot be undone.',
+            confirmLabel: 'Confirm Reset',
+            danger: true,
+            onConfirm: function (cBtn, close, overlay) {
+              cBtn.disabled = true;
+              cBtn.innerHTML = ADMIN_SPINNER + 'Resetting…';
+              resetUserData(id, nm).then(function () {
+                close();
+                var card = btn.parentNode && btn.parentNode.parentNode; // .admin-user
+                if (card && card.classList && card.classList.contains('admin-user')) {
+                  var ok = document.createElement('div');
+                  ok.className = 'admin-user-resetok';
+                  ok.innerHTML = ADMIN_CHECK + esc(nm) + ' reset successfully';
+                  card.appendChild(ok);
+                }
+                setTimeout(function () { loadAdminUsers(container); }, 2000); // revert to normal
+              }).catch(function (err) {
+                cBtn.disabled = false;
+                cBtn.textContent = 'Confirm Reset';
+                setMessage(overlay.querySelector('.admin-modal-msg'), friendlyError(err), true);
+              });
+            }
+          });
+        });
+      });
 
       Array.prototype.forEach.call(container.querySelectorAll('.admin-user-remove'), function (btn) {
         btn.addEventListener('click', function () {
@@ -4015,6 +4057,30 @@
     }).catch(function (err) {
       container.innerHTML = '<p class="message is-error">' + esc(friendlyError(err)) + '</p>';
     });
+  }
+
+  // Reset a single user's challenge data — scores, logs, and their feed activities.
+  // Does NOT touch any other user, and keeps the account in place.
+  function resetUserData(userId, userName) {
+    var userRef = db.collection('users').doc(userId);
+    return userRef.set({ totalPoints: 0, currentStreak: 0, longestStreak: 0 }, { merge: true })
+      .then(function () {
+        return userRef.collection('logs').get().then(function (snap) {
+          return Promise.all(snap.docs.map(function (l) { return l.ref.delete(); }));
+        });
+      })
+      .then(function () {
+        return db.collection('activities').where('userName', '==', userName).get().then(function (snap) {
+          return Promise.all(snap.docs.map(function (a) { return a.ref.delete(); }));
+        });
+      })
+      .then(function () {
+        // If the admin reset their own account, reflect it in the live session.
+        if (state.user && state.user.id === userId) {
+          state.user.totalPoints = 0; state.user.currentStreak = 0; state.user.longestStreak = 0;
+          state.logs = [];
+        }
+      });
   }
 
   // ===================================================================

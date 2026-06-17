@@ -4721,10 +4721,29 @@ button:focus { outline: none; }
   color: var(--orange);
 }
 
-.admin-user-remove {
+/* Top-right card actions: reset (orange) then remove (red). */
+.admin-user-actions {
   position: absolute;
   top: 7px;
   right: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-user-reset {
+  display: inline-flex;
+  background: none;
+  border: none;
+  color: var(--orange);
+  cursor: pointer;
+  opacity: 0.85;
+  padding: 0;
+}
+
+.admin-user-reset svg { width: 16px; height: 16px; }
+
+.admin-user-remove {
   background: none;
   border: none;
   color: #ff5a5a;
@@ -4732,8 +4751,25 @@ button:focus { outline: none; }
   line-height: 1;
   cursor: pointer;
   opacity: 0.7;
-  padding: 2px 4px;
+  padding: 0 2px;
 }
+
+/* Brief green success overlay shown on a card after a per-user reset. */
+.admin-user-resetok {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(17, 17, 17, 0.96);
+  border-radius: 12px;
+  color: var(--green);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+}
+
+.admin-user-resetok .admin-check { width: 16px; height: 16px; }
 
 /* Add-to-squad card */
 .admin-add-card {
