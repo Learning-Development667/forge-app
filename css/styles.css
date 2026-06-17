@@ -3548,76 +3548,145 @@ button:focus { outline: none; }
 }
 
 /* ===================================================================
-   Forge Card screen (coming soon)
+   Forge Card screen — Top Trumps style attribute card
    =================================================================== */
-#forgecard-screen { gap: 20px; }
+#forgecard-screen { gap: 14px; }
 
-.fc-title {
+.fcard-title {
   width: 100%;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 48px;
+  font-size: 44px;
   letter-spacing: 1.5px;
   line-height: 1;
   color: var(--cream);
   text-align: center;
+  text-shadow: 0 0 16px rgba(232, 98, 26, 0.5);
 }
 
-.fc-card {
+.fcard-subtitle {
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.5;
+  text-align: center;
+  margin-top: -4px;
+}
+
+/* The card */
+.fcard {
+  position: relative;
   width: 100%;
   max-width: 300px;
-  min-height: 180px;
+  border-radius: 16px;
+  background: #0f0f0f;
+  box-shadow: inset 0 0 32px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: fcardIn 500ms ease-out both;
+}
+
+@keyframes fcardIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Slow rotating forge-laser glow border. */
+.fcard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 16px;
+  padding: 2px;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              #FFD700 0deg, #FF8C00 10deg,
+              rgba(232, 98, 26, 0.5) 26deg,
+              rgba(232, 98, 26, 0) 60deg,
+              rgba(232, 98, 26, 0) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: forgTrace 10s linear infinite;
+  pointer-events: none;
+}
+
+.fcard-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.fcard-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 20px;
+}
+
+/* Header */
+.fcard-head {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: var(--card);
-  border-radius: 16px;
-  padding: 28px;
+  gap: 6px;
 }
 
-.fc-lock {
-  width: 46px;
-  height: 46px;
-  color: var(--orange);
-  opacity: 0.9;
+.fcard-avatar {
+  width: 90px;
+  height: 90px;
+  min-width: 90px;
+  min-height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  overflow: hidden;
 }
 
-.fc-locked {
+.fcard-avatar.avatar-ph { font-size: 38px; }
+
+.fcard-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.fcard-role {
   font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 3px;
-  color: var(--cream);
-  opacity: 0.4;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--orange);
 }
 
-.fc-text {
-  width: 100%;
-  max-width: 340px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--cream);
-  opacity: 0.8;
-  text-align: center;
+.fcard-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(232, 98, 26, 0), rgba(232, 98, 26, 0.6), rgba(232, 98, 26, 0));
 }
 
-.fc-attrs {
-  width: 100%;
-  max-width: 340px;
+/* Attribute rows */
+.fcard-attrs {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  opacity: 0.45; /* greyed out — locked preview */
+  gap: 13px;
 }
 
-.fc-attr {
+.fcard-attr-top {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
 }
 
-.fc-attr-name {
+.fcard-attr-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   letter-spacing: 2px;
@@ -3625,12 +3694,102 @@ button:focus { outline: none; }
   color: var(--cream);
 }
 
-.fc-attr-bar {
+.fcard-lock {
+  width: 13px;
+  height: 13px;
+  color: var(--cream);
+  opacity: 0.4;
+}
+
+.fcard-attr.is-locked .fcard-attr-name { opacity: 0.5; }
+
+.fcard-attr-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+.fcard-attr.is-locked .fcard-attr-score { color: rgba(245, 240, 232, 0.4); }
+
+.fcard-delta {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+}
+
+.fcard-delta--up { color: var(--green); }
+.fcard-delta--down { color: #ff5a5a; }
+
+.fcard-bar {
   width: 100%;
   height: 8px;
-  background: #2a2a2a;
-  border: 1px solid var(--card-border);
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
   border-radius: 4px;
+  overflow: hidden;
+}
+
+.fcard-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #E8621A, #FF8C00);
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Footer */
+.fcard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #2a2a2a;
+  padding-top: 14px;
+}
+
+.fcard-total-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
+.fcard-total-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--orange);
+}
+
+.fcard-total-max {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
+/* Below the card */
+.fcard-unlock {
+  width: 100%;
+  max-width: 300px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cream);
+  opacity: 0.6;
+  text-align: center;
+}
+
+.fcard-updated {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--cream);
+  opacity: 0.35;
+  text-align: center;
 }
 
 /* ---------- iOS email + copy-code sign-in ---------- */

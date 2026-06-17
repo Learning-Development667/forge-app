@@ -3004,31 +3004,133 @@
   // ===================================================================
   // Forge Card (coming soon)
   // ===================================================================
+  // ===================================================================
+  // Forge Card — Top Trumps style attribute card (Best Effort Friday data)
+  // ===================================================================
+  // Best-effort logs for an exercise, most recent first (date desc, then
+  // createdAt). repsCompleted holds reps (or held seconds for plank).
+  function bestEffortEntries(key) {
+    return state.logs
+      .filter(function (l) { return l.isBestEffort && l.exercise === key; })
+      .sort(function (a, b) {
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        var am = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+        var bm = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        return bm - am;
+      });
+  }
+
+  function forgeScore(value, denom) {
+    return Math.min(100, Math.round((Number(value) || 0) / denom * 100));
+  }
+
   function openForgeCard() {
     var screen = ensureScreen('forgecard-screen');
-    var lock = '<svg class="fc-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-      'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    var u = state.user || {};
+    var name = u.name || 'Forger';
+
+    // Day-90 denominators per attribute (plank uses held seconds).
+    var ATTRS = [
+      { key: 'pressups', label: 'STRENGTH', denom: 50 },
+      { key: 'situps', label: 'ENDURANCE', denom: 100 },
+      { key: 'plank', label: 'IRON CORE', denom: 180 },
+      { key: 'lunges', label: 'AGILITY', denom: 20 }
+    ];
+
+    var lockSvg = '<svg class="fcard-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
       '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-    var ATTRS = ['STRENGTH', 'ENDURANCE', 'IRON CORE', 'AGILITY', 'CONSISTENCY'];
-    var attrHTML = ATTRS.map(function (a) {
-      return '<div class="fc-attr">' +
-               '<span class="fc-attr-name">' + esc(a) + '</span>' +
-               '<div class="fc-attr-bar"></div>' +
+
+    var scores = [];        // displayed score per row (for the total)
+    var latestDate = null;  // most recent best-effort date across exercises
+    var anyData = false;
+
+    function deltaHTML(delta) {
+      if (delta == null || delta === 0) return '';
+      var up = delta > 0;
+      return '<span class="fcard-delta ' + (up ? 'fcard-delta--up' : 'fcard-delta--down') + '">' +
+               (up ? '↑' : '↓') + Math.abs(delta) + '</span>';
+    }
+
+    function attrRow(label, score, locked, delta) {
+      return '<div class="fcard-attr' + (locked ? ' is-locked' : '') + '">' +
+               '<div class="fcard-attr-top">' +
+                 '<span class="fcard-attr-name">' + (locked ? lockSvg : '') + esc(label) + '</span>' +
+                 '<span class="fcard-attr-score">' + score + deltaHTML(delta) + '</span>' +
+               '</div>' +
+               '<div class="fcard-bar"><div class="fcard-fill" data-w="' + score + '"></div></div>' +
              '</div>';
+    }
+
+    var rowsHTML = ATTRS.map(function (a) {
+      var entries = bestEffortEntries(a.key);
+      var locked = entries.length === 0;
+      var score = 0, delta = null;
+      if (!locked) {
+        anyData = true;
+        score = forgeScore(entries[0].repsCompleted, a.denom);
+        if (entries[0].date && (!latestDate || entries[0].date > latestDate)) latestDate = entries[0].date;
+        if (entries.length > 1) {
+          var prev = forgeScore(entries[1].repsCompleted, a.denom);
+          delta = score - prev;
+        }
+      }
+      scores.push(score);
+      return attrRow(a.label, score, locked, delta);
     }).join('');
 
+    // CONSISTENCY is computed live (streak + days completed) — never locked.
+    var streak = u.currentStreak || 0;
+    var daysDone = computeDaysCompleted();
+    var consistency = Math.min(100, Math.round((streak / 30 * 50) + (daysDone / 90 * 50)));
+    scores.push(consistency);
+    rowsHTML += attrRow('CONSISTENCY', consistency, false, null);
+
+    var total = Math.round(scores.reduce(function (s, x) { return s + x; }, 0) / scores.length);
+
+    var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var updated = 'Not yet recorded';
+    if (latestDate) {
+      var d = parseKey(latestDate);
+      updated = d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
     screen.innerHTML =
-      '<h1 class="fc-title">FORGE CARD</h1>' +
-      '<div class="fc-card forge-laser">' +
-        lock +
-        '<span class="fc-locked">LOCKED</span>' +
+      '<h1 class="fcard-title">FORGE CARD</h1>' +
+      '<p class="fcard-subtitle">Your attributes. Your progress.</p>' +
+
+      '<div class="fcard">' +
+        '<canvas class="fcard-embers"></canvas>' +
+        '<div class="fcard-body">' +
+          '<div class="fcard-head">' +
+            avatarMarkup(name, 'fcard-avatar') +
+            '<p class="fcard-name">' + esc(name) + '</p>' +
+            '<p class="fcard-role">FORGER</p>' +
+          '</div>' +
+          '<div class="fcard-divider"></div>' +
+          '<div class="fcard-attrs">' + rowsHTML + '</div>' +
+          '<div class="fcard-footer">' +
+            '<span class="fcard-total-label">TOTAL SCORE</span>' +
+            '<span class="fcard-total"><span class="fcard-total-num">' + total + '</span>' +
+              '<span class="fcard-total-max"> / 100</span></span>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
-      '<p class="fc-text">Your Forge Card is coming soon. Complete your first Best Effort ' +
-        'Friday to unlock your attributes.</p>' +
-      '<div class="fc-attrs">' + attrHTML + '</div>';
+
+      (anyData ? '' : '<p class="fcard-unlock">Complete your first Best Effort Friday to unlock your attributes</p>') +
+      '<p class="fcard-updated">Last updated: ' + esc(updated) + '</p>';
 
     showScreen(screen);
     showNav('forgecard');
+
+    // Entrance is CSS; animate the bars + start the faint ember texture here.
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(screen.querySelectorAll('.fcard-fill[data-w]'), function (el) {
+        el.style.width = (Number(el.getAttribute('data-w')) || 0) + '%';
+      });
+    });
+    var emb = screen.querySelector('.fcard-embers');
+    if (emb) startEmbers(emb, 4);
   }
 
   function openSettings() {
