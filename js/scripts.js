@@ -3206,10 +3206,26 @@
       window.addEventListener('deviceorientation', fcardOrientHandler);
     }
     var DOE = window.DeviceOrientationEvent;
-    if (DOE && typeof DOE.requestPermission === 'function') {
-      DOE.requestPermission().then(function (s) { if (s === 'granted') addOrient(); }).catch(function () {});
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS && DOE && typeof DOE.requestPermission === 'function') {
+      // iOS: motion permission must be requested from a real user gesture, so
+      // show a hint and wait for a tap on the card rather than auto-starting.
+      var hint = document.createElement('p');
+      hint.className = 'fcard-tilt-hint';
+      hint.textContent = 'Tap card to enable tilt';
+      hint.style.cssText = 'font-family:"DM Mono",monospace;font-size:11px;' +
+        'letter-spacing:0.5px;color:var(--cream);opacity:0.3;text-align:center;margin-top:2px;';
+      var stage = (card.closest && card.closest('.fcard-stage')) || card.parentNode;
+      if (stage && stage.parentNode) stage.parentNode.insertBefore(hint, stage.nextSibling);
+      var removeHint = function () { if (hint.parentNode) hint.parentNode.removeChild(hint); };
+      card.addEventListener('click', function () {
+        DOE.requestPermission().then(function (state) {
+          if (state === 'granted') addOrient(); // start gyro tilt
+          removeHint();                          // granted or denied → drop the hint
+        }).catch(removeHint);                    // unavailable → drop the hint silently
+      }, { once: true });
     } else if (DOE) {
-      addOrient();
+      addOrient(); // Android (and desktop, where no orientation events fire) — automatic
     }
   }
 
