@@ -160,6 +160,19 @@
       0%, 100% { filter: drop-shadow(0 0 4px #B8C4E8); }
       50% { filter: drop-shadow(0 0 10px #B8C4E8); }
     }
+
+    /* Breathing orange glow on primary orange action buttons + Plan exercise
+       pills. Colours/sizes/behaviour unchanged — only the box-shadow animates. */
+    @keyframes btnBreathe {
+      from { box-shadow: 0 0 8px rgba(232, 97, 26, 0.5); }
+      to   { box-shadow: 0 0 18px rgba(232, 97, 26, 0.9); }
+    }
+    .btn-forge:not(.btn-spin--used),
+    .card-start,
+    .btn-log,
+    .pl-pill:not(.pl-pill--rest) {
+      animation: btnBreathe 2s ease-in-out infinite alternate;
+    }
   </style>
 </head>
 <body>
@@ -168,7 +181,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.47</p>
+      <p class="brand-version">v1.0.48</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
