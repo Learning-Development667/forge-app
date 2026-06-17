@@ -3689,62 +3689,174 @@
   // ===================================================================
   // Admin panel (Mark only)
   // ===================================================================
+  // Spinner + checkmark SVGs for admin loading/success states.
+  var ADMIN_SPINNER = '<svg class="admin-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="42 60"/></svg>';
+  var ADMIN_CHECK = '<svg class="admin-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+
+  // App-styled confirm modal. opts: { title, body, confirmLabel, danger, onConfirm(cBtn, close, overlay) }
+  function showAdminConfirm(opts) {
+    var overlay = document.createElement('div');
+    overlay.className = 'admin-modal-overlay';
+    overlay.innerHTML =
+      '<div class="admin-modal">' +
+        '<p class="admin-modal-title">' + esc(opts.title || 'Confirm') + '</p>' +
+        '<p class="admin-modal-body">' + esc(opts.body || '') + '</p>' +
+        '<p class="admin-modal-msg message" role="status" aria-live="polite"></p>' +
+        '<div class="admin-modal-actions">' +
+          '<button type="button" class="btn-link admin-modal-cancel">Cancel</button>' +
+          '<button type="button" class="admin-modal-confirm' + (opts.danger ? ' admin-modal-confirm--danger' : '') +
+            '">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
+    function close() { overlay.classList.remove('is-visible'); setTimeout(function () { overlay.remove(); }, 200); }
+    overlay.querySelector('.admin-modal-cancel').addEventListener('click', close);
+    var cBtn = overlay.querySelector('.admin-modal-confirm');
+    cBtn.addEventListener('click', function () { opts.onConfirm(cBtn, close, overlay); });
+  }
+
   function openAdmin() {
     var screen = ensureScreen('admin-screen');
-    screen.innerHTML =
-      '<header class="topbar">' +
-        '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<span class="topbar-version">ADMIN</span>' +
-      '</header>' +
-      '<h1 class="settings-title">ADMIN PANEL</h1>' +
+    var backArrow = '<svg class="admin-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">Challenge Data</p>' +
-        '<button type="button" class="btn-danger admin-reset">Reset All Challenge Data</button>' +
-        '<div class="admin-confirm hidden">' +
-          '<p class="admin-confirm-text">This will delete all logs, reset all points and ' +
-          'streaks to zero, and clear the activity feed and message board. This cannot be ' +
-          'undone. Are you sure?</p>' +
-          '<button type="button" class="btn-link admin-cancel">Cancel</button>' +
-          '<button type="button" class="btn-danger admin-confirm-btn">Confirm Reset</button>' +
+    screen.innerHTML =
+      '<div class="admin-topbar"><button type="button" class="admin-back">' + backArrow + 'Back</button></div>' +
+
+      '<header class="admin-header">' +
+        '<canvas class="admin-embers"></canvas>' +
+        '<h1 class="admin-title">ADMIN PANEL</h1>' +
+        '<p class="admin-subtitle">Squad management. Challenge control.</p>' +
+        '<span class="admin-underline"></span>' +
+      '</header>' +
+
+      '<section class="admin-section">' +
+        '<p class="set-section-title">Challenge Data</p>' +
+        '<div class="admin-danger-card">' +
+          '<p class="admin-warn">Deletes all logs, resets every score and streak to zero, and clears the ' +
+            'activity feed and message board. This cannot be undone.</p>' +
+          '<button type="button" class="admin-reset">Reset All Challenge Data</button>' +
+          '<p class="admin-reset-msg" role="status" aria-live="polite"></p>' +
         '</div>' +
-        '<p class="message admin-msg" role="status" aria-live="polite"></p>' +
       '</section>' +
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">Registered Users</p>' +
+      '<section class="admin-section">' +
+        '<p class="set-section-title">Squad</p>' +
         '<div class="admin-users"><p class="feed-empty">Loading…</p></div>' +
+      '</section>' +
+
+      '<section class="admin-section">' +
+        '<p class="set-section-title">Add to Squad</p>' +
+        '<div class="admin-add-card">' +
+          '<label class="admin-field"><span class="admin-field-label">First name</span>' +
+            '<input type="text" class="admin-add-name" placeholder="e.g. Hayley" /></label>' +
+          '<label class="admin-field"><span class="admin-field-label">Avatar filename</span>' +
+            '<input type="text" class="admin-add-avatar" placeholder="e.g. hayley.png" /></label>' +
+          '<div class="admin-add-preview"></div>' +
+          '<button type="button" class="btn-forge admin-add-btn">Add to Squad</button>' +
+          '<p class="admin-add-msg message" role="status" aria-live="polite"></p>' +
+        '</div>' +
       '</section>';
 
     showScreen(screen);
 
-    screen.querySelector('.back-btn').addEventListener('click', openSettings);
+    screen.querySelector('.admin-back').addEventListener('click', openSettings);
 
-    var resetBtn = screen.querySelector('.admin-reset');
-    var confirm = screen.querySelector('.admin-confirm');
-    var confirmBtn = screen.querySelector('.admin-confirm-btn');
-    var cancelBtn = screen.querySelector('.admin-cancel');
-    var msg = screen.querySelector('.admin-msg');
+    // ---- Reset flow ----
+    screen.querySelector('.admin-reset').addEventListener('click', function () {
+      var rm = screen.querySelector('.admin-reset-msg');
+      showAdminConfirm({
+        title: 'Reset Challenge Data',
+        body: 'This deletes all logs and clears every score, streak, the activity feed and the message ' +
+          'board. This cannot be undone.',
+        confirmLabel: 'Reset Everything',
+        danger: true,
+        onConfirm: function (cBtn, close, overlay) {
+          cBtn.disabled = true;
+          cBtn.innerHTML = ADMIN_SPINNER + 'Resetting…';
+          resetChallengeData(function (ok, text) {
+            if (!ok) {
+              cBtn.disabled = false;
+              cBtn.textContent = 'Reset Everything';
+              setMessage(overlay.querySelector('.admin-modal-msg'), text, true);
+              return;
+            }
+            rm.innerHTML = ADMIN_CHECK + 'Challenge data reset.';
+            rm.className = 'admin-reset-msg admin-ok';
+            loadAdminUsers(screen.querySelector('.admin-users'));
+            close();
+          });
+        }
+      });
+    });
 
-    resetBtn.addEventListener('click', function () {
-      confirm.classList.remove('hidden');
-      resetBtn.classList.add('hidden');
-      setMessage(msg, '');
+    // ---- Add-to-squad flow ----
+    var addName = screen.querySelector('.admin-add-name');
+    var addAvatar = screen.querySelector('.admin-add-avatar');
+    var preview = screen.querySelector('.admin-add-preview');
+    var addMsg = screen.querySelector('.admin-add-msg');
+    function avatarPath(fn) {
+      fn = (fn || '').trim();
+      if (!fn) return '';
+      return fn.indexOf('/') >= 0 ? fn : 'images/' + fn;
+    }
+    addAvatar.addEventListener('input', function () {
+      var path = avatarPath(addAvatar.value);
+      if (!path) { preview.innerHTML = ''; return; }
+      preview.innerHTML = '<img class="admin-add-img" src="' + esc(path) + '" alt="" />' +
+        '<span class="admin-add-prevnote"></span>';
+      var img = preview.querySelector('img');
+      var note = preview.querySelector('.admin-add-prevnote');
+      img.addEventListener('error', function () {
+        img.classList.add('hidden');
+        note.textContent = 'Image not found in images/';
+        note.classList.add('is-error');
+      });
+      img.addEventListener('load', function () {
+        img.classList.remove('hidden');
+        note.textContent = 'Preview';
+        note.classList.remove('is-error');
+      });
     });
-    cancelBtn.addEventListener('click', function () {
-      confirm.classList.add('hidden');
-      resetBtn.classList.remove('hidden');
-    });
-    confirmBtn.addEventListener('click', function () {
-      resetChallengeData(confirmBtn, function (ok, text) {
-        confirm.classList.add('hidden');
-        resetBtn.classList.remove('hidden');
-        setMessage(msg, text, !ok);
-        if (ok) loadAdminUsers(screen.querySelector('.admin-users')); // refresh the points column
+
+    var addBtn = screen.querySelector('.admin-add-btn');
+    addBtn.addEventListener('click', function () {
+      var name = (addName.value || '').trim();
+      if (!name) { setMessage(addMsg, 'Enter a first name.', true); return; }
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+      var path = avatarPath(addAvatar.value);
+      addBtn.disabled = true;
+      db.collection('users').add({
+        name: name,
+        avatar: path || null,
+        totalPoints: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function () {
+        if (path) AVATARS[name] = path;        // photo shows in carousel + everywhere
+        if (TEAM.indexOf(name) < 0) TEAM.push(name);
+        usersLoaded = false;
+        renderCarousel();                       // new user appears in the login carousel now
+        fireConfettiCannon();
+        setMessage(addMsg, name + ' added to the squad!');
+        addName.value = ''; addAvatar.value = ''; preview.innerHTML = '';
+        addBtn.disabled = false;
+        loadAdminUsers(screen.querySelector('.admin-users'));
+      }).catch(function (err) {
+        addBtn.disabled = false;
+        setMessage(addMsg, friendlyError(err), true);
       });
     });
 
     loadAdminUsers(screen.querySelector('.admin-users'));
+    addFire(addBtn); // fire on the primary Add button
+
+    var emb = screen.querySelector('.admin-embers');
+    if (emb) startEmbers(emb); // subtle embers behind the header
   }
 
   // Delete every document in a top-level collection.
@@ -3755,9 +3867,8 @@
   }
 
   // Reset all challenge data (logs, points, streaks, feed, board, cheers).
-  function resetChallengeData(btn, done) {
-    btn.disabled = true;
-    btn.textContent = 'Resetting…';
+  // done(ok, text) — the caller manages the button/loading UI.
+  function resetChallengeData(done) {
     db.collection('users').get()
       .then(function (usnap) {
         var docs = usnap.docs;
@@ -3781,40 +3892,85 @@
         // Reflect the reset in the current session.
         if (state.user) { state.user.totalPoints = 0; state.user.currentStreak = 0; state.user.longestStreak = 0; }
         state.logs = [];
-        btn.disabled = false;
-        btn.textContent = 'Confirm Reset';
         done(true, 'Challenge data reset successfully. All scores and logs have been cleared.'); // 6
       })
-      .catch(function (err) {
-        btn.disabled = false;
-        btn.textContent = 'Confirm Reset';
-        done(false, friendlyError(err));
-      });
+      .catch(function (err) { done(false, friendlyError(err)); });
   }
 
-  // Registered-user overview for the admin panel.
+  // Premium squad list for the admin panel — status-ringed user cards.
   function loadAdminUsers(container) {
-    db.collection('users').get()
-      .then(function (snap) {
-        var rows = snap.docs.map(function (d) {
-          var u = d.data() || {};
-          var name = cleanName(u.name, u.email);
-          var joined = (u.joinedAt && u.joinedAt.toDate) ? u.joinedAt.toDate().toLocaleDateString() : '—';
-          var faceId = u.biometricCredentialId ? 'Yes' : 'No';
-          return '<div class="admin-user">' +
-                   avatarMarkup(name, 'mini-avatar') +
-                   '<div class="admin-user-info">' +
-                     '<span class="admin-user-name">' + esc(name) + '</span>' +
-                     '<span class="admin-user-meta">Joined ' + esc(joined) +
-                       ' · Face ID: ' + faceId + ' · ' + (u.totalPoints || 0) + ' pts</span>' +
-                   '</div>' +
-                 '</div>';
-        }).join('');
-        container.innerHTML = rows || '<p class="feed-empty">No users registered yet.</p>';
-      })
-      .catch(function (err) {
-        container.innerHTML = '<p class="message is-error">' + esc(friendlyError(err)) + '</p>';
+    var today = dateKey(new Date());
+    Promise.all([
+      db.collection('users').get(),
+      db.collectionGroup('logs').where('date', '==', today).get()
+        .catch(function () { return { forEach: function () {} }; }) // logged-today is best-effort
+    ]).then(function (res) {
+      var loggedToday = {};
+      res[1].forEach(function (doc) {
+        try { loggedToday[doc.ref.parent.parent.id] = true; } catch (e) { /* no-op */ }
       });
+
+      var docs = res[0].docs.slice().sort(function (a, b) {
+        return ((b.data() || {}).totalPoints || 0) - ((a.data() || {}).totalPoints || 0);
+      });
+
+      var rows = docs.map(function (d, i) {
+        var u = d.data() || {};
+        var name = cleanName(u.name, u.email);
+        var joined = (u.joinedAt && u.joinedAt.toDate) ? u.joinedAt.toDate().toLocaleDateString() : '—';
+        var hasBio = !!u.biometricCredentialId;
+        var pts = u.totalPoints || 0;
+        var ring = loggedToday[d.id] ? 'admin-ring--green'
+          : ((pts > 0 || hasBio) ? 'admin-ring--orange' : 'admin-ring--grey');
+        var faceBadge = hasBio
+          ? '<span class="admin-badge admin-badge--face">FACE ID ✓</span>'
+          : '<span class="admin-badge admin-badge--noface">NO FACE ID</span>';
+        return '<div class="admin-user" style="animation-delay:' + (Math.min(i, 12) * 80) + 'ms">' +
+                 '<div class="admin-user-ring ' + ring + '">' + avatarMarkup(name, 'admin-avatar') + '</div>' +
+                 '<div class="admin-user-info">' +
+                   '<span class="admin-user-name">' + esc(name) + '</span>' +
+                   '<span class="admin-user-join">Joined ' + esc(joined) + '</span>' +
+                   faceBadge +
+                 '</div>' +
+                 '<span class="admin-user-pts">' + pts + ' pts</span>' +
+                 '<button type="button" class="admin-user-remove" data-remove-id="' + esc(d.id) +
+                   '" data-remove-name="' + esc(name) + '" aria-label="Remove ' + esc(name) + '">×</button>' +
+               '</div>';
+      }).join('');
+      container.innerHTML = rows || '<p class="feed-empty">No users registered yet.</p>';
+
+      Array.prototype.forEach.call(container.querySelectorAll('.admin-user-remove'), function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-remove-id');
+          var nm = btn.getAttribute('data-remove-name');
+          showAdminConfirm({
+            title: 'Remove from Forge',
+            body: 'Remove ' + nm + ' from Forge? This cannot be undone.',
+            confirmLabel: 'Remove',
+            danger: true,
+            onConfirm: function (cBtn, close, overlay) {
+              cBtn.disabled = true;
+              cBtn.innerHTML = ADMIN_SPINNER + 'Removing…';
+              // Delete the user doc only — their logs subcollection is left intact.
+              db.collection('users').doc(id).delete().then(function () {
+                var ti = TEAM.indexOf(nm);
+                if (ti >= 0) TEAM.splice(ti, 1); // drop from the carousel immediately
+                usersLoaded = false;
+                renderCarousel();
+                close();
+                loadAdminUsers(container);
+              }).catch(function (err) {
+                cBtn.disabled = false;
+                cBtn.textContent = 'Remove';
+                setMessage(overlay.querySelector('.admin-modal-msg'), friendlyError(err), true);
+              });
+            }
+          });
+        });
+      });
+    }).catch(function (err) {
+      container.innerHTML = '<p class="message is-error">' + esc(friendlyError(err)) + '</p>';
+    });
   }
 
   // ===================================================================

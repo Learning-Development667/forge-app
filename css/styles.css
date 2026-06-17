@@ -4463,42 +4463,169 @@ button:focus { outline: none; }
 }
 
 /* ===================================================================
-   Admin panel
+   Admin panel — premium rebuild
    =================================================================== */
-#admin-screen { background-image: url('../images/bg-minimal.png'); }
+#admin-screen {
+  background-image: url('../images/bg-minimal.png');
+  justify-content: flex-start;
+  gap: 18px;
+}
 
-/* Destructive action — cream outline, red text, no background. */
-.btn-danger {
+/* Back link */
+.admin-topbar { width: 100%; }
+
+.admin-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--cream);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: 0.85;
+}
+
+.admin-back-icon { width: 16px; height: 16px; }
+
+/* Header */
+.admin-header {
+  position: relative;
   width: 100%;
-  border: 1px solid var(--cream);
-  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 18px;
+}
+
+.admin-header > * { position: relative; z-index: 1; }
+
+.admin-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.admin-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--cream);
+  text-align: center;
+  animation: forgeNameGlow 3s ease-in-out infinite;
+}
+
+.admin-subtitle {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+  opacity: 0.5;
+  text-align: center;
+}
+
+.admin-underline {
+  width: 64px;
+  height: 3px;
+  margin-top: 4px;
+  background: var(--orange);
+  border-radius: 2px;
+  transform-origin: left center;
+  animation: ruleDraw 600ms ease-out both;
+}
+
+/* Sections */
+.admin-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Danger (reset) card */
+.admin-danger-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid #ff5a5a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.admin-warn {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cream);
+  opacity: 0.6;
+}
+
+.admin-reset {
+  width: 100%;
+  border: 2px solid #ff5a5a;
+  border-radius: 12px;
   background: none;
   color: #ff5a5a;
   font-family: 'Bebas Neue', sans-serif;
   font-size: 24px;
   letter-spacing: 2px;
-  padding: 14px;
+  padding: 13px;
   cursor: pointer;
-}
-.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.admin-confirm {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 6px;
+  transition: box-shadow 0.18s ease, background 0.18s ease;
 }
 
-.admin-confirm-text {
+.admin-reset:hover,
+.admin-reset:active {
+  box-shadow: 0 0 16px rgba(255, 90, 90, 0.45);
+  background: rgba(255, 90, 90, 0.08);
+}
+
+.admin-reset-msg {
   font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
   color: var(--cream);
-  text-align: center;
 }
 
-/* Registered-user list */
+.admin-reset-msg.is-error { color: #ff5a5a; }
+
+.admin-reset-msg.admin-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+}
+
+.admin-reset-msg .admin-check { width: 16px; height: 16px; }
+
+/* Spinner + checkmark */
+.admin-spinner {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 6px;
+  animation: adminSpin 0.8s linear infinite;
+}
+
+@keyframes adminSpin { to { transform: rotate(360deg); } }
+
+.admin-check {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* Squad user cards */
 .admin-users {
   width: 100%;
   display: flex;
@@ -4507,26 +4634,266 @@ button:focus { outline: none; }
 }
 
 .admin-user {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid var(--orange);
+  border-radius: 12px;
+  padding: 12px 14px;
+  animation: feedIn 300ms ease-out both;
 }
 
+.admin-user-ring {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 50%;
+  padding: 2px;
+}
+
+.admin-user-ring::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.admin-ring--green::before { border-color: var(--green); box-shadow: 0 0 8px rgba(39, 174, 96, 0.5); }
+.admin-ring--orange::before { border-color: var(--orange); box-shadow: 0 0 8px rgba(232, 98, 26, 0.45); }
+.admin-ring--grey::before { border-color: #4a4a4d; }
+
+.admin-avatar {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  overflow: hidden;
+  display: block;
+}
+
+.admin-avatar.avatar-ph { font-size: 20px; }
+
 .admin-user-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .admin-user-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
+  font-size: 22px;
   letter-spacing: 1px;
   color: var(--cream);
 }
 
-.admin-user-meta {
-  font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 12px;
+.admin-user-join {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
   color: var(--cream);
-  opacity: 0.6;
+  opacity: 0.4;
 }
+
+.admin-badge {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.admin-badge--face { background: rgba(39, 174, 96, 0.15); color: var(--green); }
+.admin-badge--noface { background: rgba(245, 240, 232, 0.08); color: rgba(245, 240, 232, 0.5); }
+
+.admin-user-pts {
+  align-self: center;
+  flex-shrink: 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--orange);
+}
+
+.admin-user-remove {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  background: none;
+  border: none;
+  color: #ff5a5a;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 2px 4px;
+}
+
+/* Add-to-squad card */
+.admin-add-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid var(--orange);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-field-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.45;
+}
+
+.admin-add-card input {
+  background: #1a1a1a;
+  border: 1px solid #3a3a3d;
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 15px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.admin-add-card input:focus { border-color: var(--orange); }
+
+.admin-add-preview:empty { display: none; }
+
+.admin-add-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-add-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #141414;
+}
+
+.admin-add-prevnote {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--cream);
+  opacity: 0.5;
+}
+
+.admin-add-prevnote.is-error { color: #ff5a5a; opacity: 0.85; }
+
+.admin-add-msg {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--cream);
+}
+
+.admin-add-msg.is-error { color: #ff5a5a; }
+
+/* Confirm modal */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.admin-modal-overlay.is-visible { opacity: 1; }
+
+.admin-modal {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--charcoal);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  transform: translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.admin-modal-overlay.is-visible .admin-modal { transform: translateY(0); }
+
+.admin-modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 1px;
+  color: var(--cream);
+  text-align: center;
+}
+
+.admin-modal-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream);
+  opacity: 0.8;
+  text-align: center;
+}
+
+.admin-modal-msg {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  text-align: center;
+}
+
+.admin-modal-msg.is-error { color: #ff5a5a; }
+
+.admin-modal-msg:empty { display: none; }
+
+.admin-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.admin-modal-cancel { flex-shrink: 0; }
+
+.admin-modal-confirm {
+  flex: 1;
+  border: none;
+  border-radius: 12px;
+  background: var(--orange);
+  color: var(--cream);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 1.5px;
+  padding: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-modal-confirm--danger { background: #ff5a5a; }
+.admin-modal-confirm:disabled { opacity: 0.7; cursor: default; }
