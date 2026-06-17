@@ -1474,31 +1474,45 @@ img.topbar-avatar,
 }
 
 .plank-opt {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 3px;
   text-align: left;
-  background: var(--card);
-  border: 1px solid var(--card-border);
+  background: #111;
+  border: 1px solid #2a2a2a;
   border-radius: 12px;
   padding: 14px 18px;
   cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .plank-opt.is-selected {
   border-color: var(--orange);
-  background: rgba(232, 98, 26, 0.12);
+  background: rgba(232, 98, 26, 0.1);
+  box-shadow: 0 0 16px rgba(232, 98, 26, 0.35);
+}
+
+/* Checkmark on the selected card. */
+.plank-opt.is-selected::after {
+  content: '✓';
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  color: var(--orange);
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .plank-title {
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
   font-size: 16px;
-  color: var(--cream);
+  color: rgba(245, 240, 232, 0.7);
 }
 
 .plank-opt.is-selected .plank-title {
-  color: var(--orange);
+  color: var(--cream);
 }
 
 .plank-desc {
@@ -2186,16 +2200,142 @@ button:focus { outline: none; }
   color: var(--cream);
 }
 
+/* ---------- Settings screen layout ---------- */
+#settings-screen { gap: 20px; }
+
+/* Header */
+.set-header {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 20px;
+}
+
+.set-header > * { position: relative; z-index: 1; }
+
+.set-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.set-header .settings-title {
+  width: auto;
+  text-align: center;
+  text-shadow: 0 0 16px rgba(232, 98, 26, 0.5);
+}
+
+.set-id {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Avatar with a slow, subtle rotating comet border. */
+.set-avatar-ring {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.set-avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from var(--forgeAngle, 0deg),
+              rgba(255, 140, 0, 0) 0deg,
+              rgba(255, 185, 90, 0.7) 30deg,
+              rgba(232, 98, 26, 0.2) 80deg,
+              rgba(232, 98, 26, 0) 140deg,
+              rgba(232, 98, 26, 0) 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: forgTrace 10s linear infinite;
+  pointer-events: none;
+}
+
+.set-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.set-avatar.avatar-ph { font-size: 34px; }
+
+.set-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--cream);
+}
+
+/* Sections */
+.set-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.set-section-title {
+  position: relative;
+  align-self: flex-start;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.5);
+  padding-bottom: 8px;
+}
+
+.set-section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 28px;
+  height: 2px;
+  background: var(--orange);
+}
+
+/* Section card */
+.set-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid var(--orange);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+/* Rows sit transparently inside a section card. */
 .set-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 12px 16px;
 }
 
 .set-label {
@@ -2205,14 +2345,18 @@ button:focus { outline: none; }
 }
 
 .set-time {
-  background: #2a2a2d;
+  background: #1a1a1a;
   border: 1px solid #3a3a3d;
   border-radius: 8px;
   color: var(--cream);
   font-family: 'DM Mono', monospace;
   font-size: 15px;
   padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
+
+.set-time:focus { border-color: var(--orange); }
 
 .set-value {
   font-family: 'DM Mono', monospace;
@@ -2227,9 +2371,52 @@ button:focus { outline: none; }
   opacity: 0.6;
 }
 
-.set-signout {
-  align-self: flex-start;
+/* App action buttons — outlined secondary with an orange glow on press. */
+.set-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+#settings-screen .btn-outline {
+  background: transparent;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.1s ease;
+}
+
+#settings-screen .btn-outline:hover,
+#settings-screen .btn-outline:active {
+  border-color: var(--orange);
+  box-shadow: 0 0 16px rgba(232, 98, 26, 0.4);
+}
+
+/* Disable Face ID — distinguished as a security action (caution red). */
+.set-bio-disable { border-color: rgba(255, 90, 90, 0.7); }
+
+#settings-screen .set-bio-disable:hover,
+#settings-screen .set-bio-disable:active {
+  border-color: #ff5a5a;
+  box-shadow: 0 0 16px rgba(255, 90, 90, 0.4);
+}
+
+/* Sign out — clearly destructive, with a logout icon. */
+.set-section--account { margin-top: 8px; }
+
+.set-signout {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #ff5a5a;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 14px;
+}
+
+.set-signout-icon { width: 16px; height: 16px; }
 
 /* Toggle switch */
 .toggle {
@@ -3708,7 +3895,9 @@ button:focus { outline: none; }
 /* ---------- Settings footer (version + Mark One Apps branding) ---------- */
 .settings-footer {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 16px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(245, 240, 232, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3717,7 +3906,7 @@ button:focus { outline: none; }
 
 .settings-version {
   font-family: 'DM Mono', monospace;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 1px;
   color: var(--cream);
   opacity: 0.35;
@@ -3734,7 +3923,7 @@ button:focus { outline: none; }
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 11px;
   color: var(--cream);
-  opacity: 0.35;
+  opacity: 0.25;
   text-align: center;
 }
 

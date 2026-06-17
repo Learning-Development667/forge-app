@@ -3033,61 +3033,77 @@
     var reminderTime = u.reminderTime || '07:00';
     var hasBio = !!u.biometricCredentialId;
 
-    screen.innerHTML =
-      '<h1 class="settings-title">SETTINGS</h1>' +
+    var logoutIcon = '<svg class="set-signout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>' +
+      '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">Reminders</p>' +
-        '<div class="set-row">' +
-          '<span class="set-label">Daily reminder</span>' +
-          '<button type="button" class="toggle' + (reminderOn ? ' is-on' : '') +
-            '" id="reminder-toggle" role="switch" aria-checked="' + reminderOn +
-            '"><span class="toggle-knob"></span></button>' +
+    screen.innerHTML =
+      '<header class="set-header">' +
+        '<canvas class="set-embers"></canvas>' +
+        '<h1 class="settings-title">SETTINGS</h1>' +
+        '<div class="set-id">' +
+          '<div class="set-avatar-ring">' + avatarMarkup(u.name, 'set-avatar') + '</div>' +
+          '<p class="set-name">' + esc(u.name || 'Forger') + '</p>' +
         '</div>' +
-        '<label class="set-row">' +
-          '<span class="set-label">Reminder time</span>' +
-          '<input type="time" id="reminder-time" class="set-time" value="' + esc(reminderTime) + '" />' +
-        '</label>' +
-        '<button type="button" class="btn-forge" id="save-reminders">Save</button>' +
-        '<p class="set-note">Reminders require the app to be installed on your home screen</p>' +
+      '</header>' +
+
+      '<section class="set-section">' +
+        '<p class="set-section-title">Reminders</p>' +
+        '<div class="set-card">' +
+          '<div class="set-row">' +
+            '<span class="set-label">Daily reminder</span>' +
+            '<button type="button" class="toggle' + (reminderOn ? ' is-on' : '') +
+              '" id="reminder-toggle" role="switch" aria-checked="' + reminderOn +
+              '"><span class="toggle-knob"></span></button>' +
+          '</div>' +
+          '<label class="set-row">' +
+            '<span class="set-label">Reminder time</span>' +
+            '<input type="time" id="reminder-time" class="set-time" value="' + esc(reminderTime) + '" />' +
+          '</label>' +
+          '<button type="button" class="btn-forge" id="save-reminders">Save</button>' +
+          '<p class="set-note">Reminders require the app to be installed on your home screen</p>' +
+        '</div>' +
       '</section>' +
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">Plank Preference</p>' +
+      '<section class="set-section">' +
+        '<p class="set-section-title">Plank Preference</p>' +
         '<div class="plank-opts">' +
           plankOption('forward', 'Forward Plank', 'Classic core hold, face down', pref) +
           plankOption('reverse', 'Reverse Plank', 'Posterior chain hold, face up', pref) +
         '</div>' +
       '</section>' +
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">Sign in</p>' +
-        (hasBio
-          ? '<button type="button" class="btn-outline set-bio-disable">Disable Face ID</button>'
-          : '<button type="button" class="btn-outline set-bio-enable">Enable Face ID</button>') +
-        '<p class="set-bio-msg message" role="status" aria-live="polite"></p>' +
-      '</section>' +
-
-      '<section class="profile-section">' +
-        '<div class="lock-id">' +
-          avatarMarkup(u.name, 'lock-avatar') +
-          '<p class="ucard-name">' + esc(u.name || '') + '</p>' +
+      '<section class="set-section">' +
+        '<p class="set-section-title">Face ID</p>' +
+        '<div class="set-card">' +
+          '<span class="set-label">Use Face ID to sign in on this device</span>' +
+          (hasBio
+            ? '<button type="button" class="btn-outline set-bio-disable">Disable Face ID</button>'
+            : '<button type="button" class="btn-outline set-bio-enable">Enable Face ID</button>') +
+          '<p class="set-bio-msg message" role="status" aria-live="polite"></p>' +
         '</div>' +
-        '<button type="button" class="btn-link set-signout">Sign out</button>' +
       '</section>' +
 
-      '<section class="profile-section">' +
-        '<p class="section-heading">App</p>' +
-        '<button type="button" class="btn-outline set-view-intro">View intro</button>' +
-        '<button type="button" class="btn-outline set-check-updates">Check for Updates</button>' +
-        (isAdmin() ? '<button type="button" class="btn-outline set-admin">Admin</button>' : '') +
+      '<section class="set-section">' +
+        '<p class="set-section-title">App</p>' +
+        '<div class="set-actions">' +
+          '<button type="button" class="btn-outline set-view-intro">View intro</button>' +
+          '<button type="button" class="btn-outline set-check-updates">Check for Updates</button>' +
+          (isAdmin() ? '<button type="button" class="btn-outline set-admin">Admin</button>' : '') +
+        '</div>' +
+      '</section>' +
+
+      '<section class="set-section set-section--account">' +
+        '<p class="set-section-title">Account</p>' +
+        '<button type="button" class="set-signout">' + logoutIcon + 'Sign out</button>' +
       '</section>' +
 
       '<p class="message set-msg" role="status" aria-live="polite"></p>' +
 
       '<footer class="settings-footer">' +
-        '<p class="settings-version">' + esc(appVersion()) + '</p>' +
         '<img class="m1-logo" src="images/mark_one_log.png" alt="Mark One Apps" />' +
+        '<p class="settings-version">' + esc(appVersion()) + '</p>' +
         '<p class="m1-credit">Built by Mark One Apps</p>' +
       '</footer>';
 
@@ -3152,6 +3168,11 @@
 
     showScreen(screen);
     showNav('settings');
+
+    var saveBtn = screen.querySelector('#save-reminders');
+    if (saveBtn) addFire(saveBtn); // fire animation on the Save button
+    var setEmbers = screen.querySelector('.set-embers');
+    if (setEmbers) startEmbers(setEmbers); // subtle embers behind the header
   }
 
   // The current app version (single source of truth: the login-screen badge).
