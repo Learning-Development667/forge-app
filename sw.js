@@ -31,6 +31,12 @@ self.addEventListener('activate', function (event) {
 
 // Fetch: network-first. Fall back to cache only when offline.
 self.addEventListener('fetch', function (event) {
+  // Let OneSignal handle its own SDK/API requests — never intercept them.
+  if (event.request.url.includes('onesignal.com') ||
+      event.request.url.includes('OneSignalSDK')) {
+    return;
+  }
+
   if (event.request.method !== 'GET') {
     return;
   }
