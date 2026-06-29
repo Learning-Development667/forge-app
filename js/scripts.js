@@ -1638,9 +1638,34 @@
       reactions: [],
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function (ref) {
+      // Notify the rest of the squad that this user just finished (best-effort —
+      // never block or break the completion flow if push fails).
+      notifySquadCompletion();
       // Offer a post-workout mood photo immediately on session complete.
       showCameraPrompt(ref.id);
     }).catch(function (err) { console.error('Failed to write activity:', err); });
+  }
+
+  // Fire a OneSignal web-push to all subscribers when a squad member completes
+  // their daily session. Fire-and-forget: not awaited, errors swallowed.
+  function notifySquadCompletion() {
+    try {
+      var identity = getForgeUser() || {};
+      var userName = identity.name || (state.user && state.user.name) || 'A squad member';
+      var dayNumber = challengeDay(new Date());
+      fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          app_id: ONESIGNAL_APP_ID,
+          included_segments: ['Total Subscribed'],
+          headings: { en: 'Forge 🔥' },
+          contents: { en: userName + ' just completed Day ' + dayNumber + " — don't let the squad down!" }
+        })
+      }).catch(function () {});
+    } catch (e) { /* silently ignore */ }
   }
 
   // ===================================================================
@@ -3734,9 +3759,10 @@
     var screen = ensureScreen('settings-screen');
     var u = state.user || {};
     var pref = u.plankPreference || null;
-    var reminderOn = !!u.reminderEnabled;
-    var reminderTime = u.reminderTime || '07:00';
     var hasBio = !!u.biometricCredentialId;
+
+    var notifChevron = '<svg class="set-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 
     var logoutIcon = '<svg class="set-signout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
       'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -3787,21 +3813,14 @@
       '</header>' +
 
       '<section class="set-section">' +
-        '<p class="set-section-title">Reminders</p>' +
-        '<div class="set-card">' +
-          '<div class="set-row">' +
-            '<span class="set-label">Daily reminder</span>' +
-            '<button type="button" class="toggle' + (reminderOn ? ' is-on' : '') +
-              '" id="reminder-toggle" role="switch" aria-checked="' + reminderOn +
-              '"><span class="toggle-knob"></span></button>' +
-          '</div>' +
-          '<label class="set-row">' +
-            '<span class="set-label">Reminder time</span>' +
-            '<input type="time" id="reminder-time" class="set-time" value="' + esc(reminderTime) + '" />' +
-          '</label>' +
-          '<button type="button" class="btn-forge" id="save-reminders">Save</button>' +
-          '<p class="set-note">Reminders require the app to be installed on your home screen</p>' +
-        '</div>' +
+        '<p class="set-section-title">Notifications</p>' +
+        '<button type="button" class="set-card set-nav-card set-notifications">' +
+          '<span class="set-nav-text">' +
+            '<span class="set-label">Push Notifications</span>' +
+            '<span class="set-note">Reminders and squad alerts</span>' +
+          '</span>' +
+          notifChevron +
+        '</button>' +
       '</section>' +
 
       '<section class="set-section">' +
@@ -3846,22 +3865,8 @@
         '<p class="m1-credit">Built by Mark One Apps</p>' +
       '</footer>';
 
-    var toggle = screen.querySelector('#reminder-toggle');
-    toggle.addEventListener('click', function () {
-      toggle.classList.toggle('is-on');
-      toggle.setAttribute('aria-checked', toggle.classList.contains('is-on'));
-    });
-
-    screen.querySelector('#save-reminders').addEventListener('click', function () {
-      var on = toggle.classList.contains('is-on');
-      var time = screen.querySelector('#reminder-time').value || '07:00';
-      state.user.reminderEnabled = on;
-      state.user.reminderTime = time;
-      db.collection('users').doc(state.user.id)
-        .set({ reminderEnabled: on, reminderTime: time }, { merge: true })
-        .then(function () { setMessage(screen.querySelector('.set-msg'), 'Reminders saved.'); })
-        .catch(function (err) { setMessage(screen.querySelector('.set-msg'), friendlyError(err), true); });
-    });
+    var notifCard = screen.querySelector('.set-notifications');
+    if (notifCard) notifCard.addEventListener('click', showNotificationsScreen);
 
     Array.prototype.forEach.call(screen.querySelectorAll('[data-plank]'), function (btn) {
       btn.addEventListener('click', function () { setPlankPreference(btn.getAttribute('data-plank')); });
@@ -3908,8 +3913,6 @@
     showScreen(screen);
     showNav('settings');
 
-    var saveBtn = screen.querySelector('#save-reminders');
-    if (saveBtn) addFire(saveBtn); // fire animation on the Save button
     var setEmbers = screen.querySelector('.set-embers');
     if (setEmbers) startEmbers(setEmbers); // subtle embers behind the header
   }
@@ -3950,6 +3953,117 @@
         settle('You are up to date', false);
       }, 3000);
     }).catch(function () { settle('You are up to date', false); });
+  }
+
+  // ===================================================================
+  // Notifications (OneSignal web push opt-in)
+  // ===================================================================
+  var FORGE_NOTIF_KEY = 'forgeNotifications';
+
+  function notificationsEnabled() {
+    try {
+      var raw = window.localStorage.getItem(FORGE_NOTIF_KEY);
+      return raw ? !!JSON.parse(raw).notificationsEnabled : false;
+    } catch (e) { return false; }
+  }
+
+  function setNotificationsPref(on) {
+    try {
+      window.localStorage.setItem(FORGE_NOTIF_KEY, JSON.stringify({ notificationsEnabled: !!on }));
+    } catch (e) {}
+  }
+
+  function showNotificationsScreen() {
+    var screen = ensureScreen('notifications-screen');
+    var enabled = notificationsEnabled();
+
+    var backArrow = '<svg class="admin-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+    var chevron = '<svg class="set-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+    screen.innerHTML =
+      '<div class="admin-topbar"><button type="button" class="admin-back">' + backArrow + 'Back</button></div>' +
+
+      '<header class="admin-header">' +
+        '<canvas class="admin-embers"></canvas>' +
+        '<h1 class="admin-title">NOTIFICATIONS</h1>' +
+        '<p class="admin-subtitle">Stay in the fight</p>' +
+        '<span class="admin-underline"></span>' +
+      '</header>' +
+
+      '<section class="set-section">' +
+        '<p class="set-section-title">What you’ll get</p>' +
+        '<div class="set-card">' +
+          '<ul class="notif-list">' +
+            '<li>Daily reminders at 7am and 7pm</li>' +
+            '<li>A heads-up when a squad member completes their workout</li>' +
+          '</ul>' +
+        '</div>' +
+      '</section>' +
+
+      '<section class="set-section">' +
+        '<div class="set-card">' +
+          '<p class="notif-status' + (enabled ? ' is-on' : '') + '" role="status" aria-live="polite">' +
+            (enabled ? 'Notifications are ON ✓' : '') +
+          '</p>' +
+          '<div class="notif-actions"' + (enabled ? ' hidden' : '') + '>' +
+            '<button type="button" class="btn-forge notif-on">TURN ON NOTIFICATIONS</button>' +
+            '<button type="button" class="btn-link notif-no">NO THANKS</button>' +
+          '</div>' +
+          '<p class="set-note">iPhone users: you must have Forge added to your home screen via ' +
+            'Safari before notifications will work.</p>' +
+        '</div>' +
+      '</section>';
+
+    showScreen(screen);
+
+    var statusEl = screen.querySelector('.notif-status');
+    var actionsEl = screen.querySelector('.notif-actions');
+
+    function markOn() {
+      setNotificationsPref(true);
+      if (statusEl) {
+        statusEl.textContent = 'Notifications are ON ✓';
+        statusEl.classList.add('is-on');
+      }
+      if (actionsEl) actionsEl.setAttribute('hidden', '');
+    }
+
+    screen.querySelector('.admin-back').addEventListener('click', openSettings);
+
+    var onBtn = screen.querySelector('.notif-on');
+    if (onBtn) {
+      addFire(onBtn); // fire animation on the primary button
+      onBtn.addEventListener('click', function () {
+        function granted() {
+          markOn();
+          showToast("You're in — we'll keep you accountable!");
+        }
+        try {
+          if (window.OneSignal && OneSignal.Notifications &&
+              typeof OneSignal.Notifications.requestPermission === 'function') {
+            var p = OneSignal.Notifications.requestPermission();
+            if (p && typeof p.then === 'function') p.then(granted).catch(function () {});
+            else granted();
+          } else {
+            // SDK not ready (e.g. blocked CDN) — still record the user's intent.
+            granted();
+          }
+        } catch (e) { granted(); }
+      });
+    }
+
+    var noBtn = screen.querySelector('.notif-no');
+    if (noBtn) {
+      noBtn.addEventListener('click', function () {
+        setNotificationsPref(false);
+        openSettings();
+      });
+    }
+
+    var emb = screen.querySelector('.admin-embers');
+    if (emb) startEmbers(emb); // subtle embers behind the header
   }
 
   // ===================================================================

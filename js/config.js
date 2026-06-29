@@ -12,3 +12,5 @@ const FIREBASE_PROJECT_ID = 'forge-bc1d3';
 const FIREBASE_STORAGE_BUCKET = 'forge-bc1d3.firebasestorage.app';
 const FIREBASE_MESSAGING_SENDER_ID = '340499125460';
 const FIREBASE_APP_ID = 'G-7SQGJGZDGS';
+
+const ONESIGNAL_APP_ID = '74707ec9-2d2d-4fb3-aad5-e73e6b7aca59';

@@ -270,7 +270,72 @@
       transition: transform 0.1s ease, box-shadow 0.15s ease;
     }
     .plank-stop:active { transform: scale(0.96); }
+
+    /* Notifications screen + the Settings "Push Notifications" nav card
+       (OneSignal push opt-in). Reuses the .set-card look. */
+    .set-nav-card {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+    }
+    .set-nav-text { display: flex; flex-direction: column; gap: 2px; }
+    .set-nav-chevron { width: 18px; height: 18px; flex: none; color: #E8611A; }
+    .set-nav-card:active { transform: scale(0.99); }
+
+    .notif-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .notif-list li {
+      position: relative;
+      padding-left: 24px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--cream);
+      opacity: 0.85;
+      line-height: 1.35;
+    }
+    .notif-list li::before { content: '🔥'; position: absolute; left: 0; top: 0; }
+
+    .notif-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .notif-actions[hidden] { display: none; }
+
+    .notif-status {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      text-align: center;
+      margin: 0;
+    }
+    .notif-status:empty { display: none; }
+    .notif-status.is-on { color: #27AE60; text-shadow: 0 0 12px rgba(39, 174, 96, 0.5); }
   </style>
+
+  <!-- OneSignal Web Push SDK (v16) -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: '74707ec9-2d2d-4fb3-aad5-e73e6b7aca59',
+      });
+    });
+  </script>
 </head>
 <body>
   <!-- ===================== LOGIN / USER SELECTION ===================== -->
@@ -278,7 +343,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.50</p>
+      <p class="brand-version">v1.0.51</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
