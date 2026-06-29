@@ -1,5 +1,3 @@
-importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
-
 /* ===================================================================
    Forge — service worker
    Strategy: network-first, always. No pre-caching. On activate, all
