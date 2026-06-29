@@ -2756,12 +2756,131 @@
     showSpinOutcome(overlay, bonus, false);
   }
 
+  // Time-based bonus exercises get an interactive countdown timer (same visual
+  // pattern as the in-card plank timer). Segment durations are in seconds; a
+  // multi-segment entry (Single Leg Balance) runs its timers back-to-back with
+  // a switch cue between them.
+  var BONUS_TIMERS = {
+    'Dead Bug':           { segments: [30] },
+    'Mountain Climbers':  { segments: [30] },
+    'Superman Hold':      { segments: [30] },
+    'Hollow Body Hold':   { segments: [20] },
+    'Single Leg Balance': { segments: [30, 30], labels: ['First leg', 'Second leg'] },
+    'Flutter Kicks':      { segments: [30] }
+  };
+
+  function bonusIdleInstr(timed, i) {
+    return timed.labels
+      ? timed.labels[i] + ' — get into position, then press Start'
+      : 'Get into position, then press Start';
+  }
+  function bonusRunInstr(timed, i) {
+    return timed.labels ? timed.labels[i] + ' — keep your balance' : 'Keep going — you\'ve got this';
+  }
+
+  // Markup for a bonus countdown timer card. Mirrors the plank timer DOM so it
+  // reuses the same CSS (progress ring, embers, big Bebas-Neue burnt-orange
+  // number). The countdown does not begin until START is tapped.
+  function bonusTimerHTML(timed) {
+    var r = 52;
+    return '' +
+      '<p class="spin-win-target spin-timer-instr">' + esc(bonusIdleInstr(timed, 0)) + '</p>' +
+      '<div class="plank-timer">' +
+        '<canvas class="plank-embers"></canvas>' +
+        '<div class="plank-ring-wrap">' +
+          '<svg class="plank-ring" viewBox="0 0 120 120">' +
+            '<circle class="plank-ring-bg" cx="60" cy="60" r="' + r + '"></circle>' +
+            '<circle class="plank-ring-fg" cx="60" cy="60" r="' + r + '"></circle>' +
+          '</svg>' +
+          '<span class="plank-time">' + timed.segments[0] + '</span>' +
+        '</div>' +
+        '<button type="button" class="btn-forge bonus-timer-start">START</button>' +
+        '<button type="button" class="plank-stop bonus-timer-stop hidden">STOP</button>' +
+      '</div>';
+  }
+
+  // Wire the countdown for a bonus timer card. Each segment counts DOWN to 0,
+  // beeping the final seconds; multi-segment moves auto-advance with a switch
+  // cue, and a success tone fires when the last segment finishes.
+  function wireBonusTimer(out, timed) {
+    var wrap = out.querySelector('.plank-timer');
+    if (!wrap) return;
+    var embers = wrap.querySelector('.plank-embers');
+    if (embers) startEmbers(embers, 9);
+    var ringFg = wrap.querySelector('.plank-ring-fg');
+    var timeEl = wrap.querySelector('.plank-time');
+    var instrEl = out.querySelector('.spin-timer-instr');
+    var startBtn = wrap.querySelector('.bonus-timer-start');
+    var stopBtn = wrap.querySelector('.bonus-timer-stop');
+    var r = 52, C = 2 * Math.PI * r;
+    ringFg.style.strokeDasharray = C;
+    ringFg.style.strokeDashoffset = 0; // full ring; drains as it counts down
+
+    addFire(startBtn); // orange forge-laser glow on START
+
+    var iv = null, segIdx = 0, total = timed.segments[0], remaining = total;
+
+    function clearIv() { if (iv) { clearInterval(iv); iv = null; } }
+    function showStart() { stopBtn.classList.add('hidden'); startBtn.classList.remove('hidden'); }
+    function showStop()  { startBtn.classList.add('hidden'); stopBtn.classList.remove('hidden'); }
+
+    function startSegment(i) {
+      segIdx = i;
+      total = timed.segments[i];
+      remaining = total;
+      timeEl.textContent = remaining;
+      ringFg.style.strokeDashoffset = 0;
+      if (instrEl) instrEl.textContent = bonusRunInstr(timed, i);
+      iv = setInterval(tick, 1000);
+    }
+
+    function tick() {
+      if (!timeEl.isConnected) { clearIv(); plankTimerActive = false; return; }
+      remaining--;
+      timeEl.textContent = Math.max(0, remaining);
+      ringFg.style.strokeDashoffset = C * (1 - remaining / total); // drain
+      if (remaining > 0 && remaining <= 3) soundPlankBeep();        // beep each of the final seconds
+      if (remaining <= 0) {
+        clearIv();
+        if (segIdx + 1 < timed.segments.length) {
+          plankTwoBeep();               // switch-side cue
+          startSegment(segIdx + 1);
+        } else {
+          soundPlankDone();             // finished
+          plankTimerActive = false;
+          if (instrEl) instrEl.textContent = 'Done — nice work! Tap LET\'S GO to log it.';
+          showStart();
+        }
+      }
+    }
+
+    startBtn.addEventListener('click', function () {
+      ensureAudio();            // unlock Web Audio on the user gesture
+      plankTimerActive = true;  // suppress cheer pop-ups while timing
+      showStop();
+      startSegment(0);
+    });
+
+    stopBtn.addEventListener('click', function () {
+      clearIv();
+      plankTimerActive = false;
+      segIdx = 0; total = timed.segments[0]; remaining = total;
+      timeEl.textContent = total;
+      ringFg.style.strokeDashoffset = 0;
+      if (instrEl) instrEl.textContent = bonusIdleInstr(timed, 0);
+      showStart();
+    });
+  }
+
   function showSpinOutcome(overlay, bonus, alreadyUsed) {
     var out = overlay.querySelector('.spin-outcome');
+    var timed = alreadyUsed ? null : BONUS_TIMERS[bonus.name]; // timer config for time-based moves
     out.innerHTML =
       '<span class="spin-shockwave"></span>' +
       '<h2 class="spin-win-name">' + esc(bonus.name) + '</h2>' +
-      '<p class="spin-win-target">' + esc(bonus.target || '') + '</p>' +
+      (timed
+        ? bonusTimerHTML(timed)
+        : '<p class="spin-win-target">' + esc(bonus.target || '') + '</p>') +
       (alreadyUsed
         ? '<p class="spin-used-note">Bonus already claimed today</p>' +
           '<button type="button" class="btn-forge spin-done">Close</button>'
@@ -2772,6 +2891,7 @@
       out.querySelector('.spin-done').addEventListener('click', closeSpin);
       return;
     }
+    if (timed) wireBonusTimer(out, timed);
     var go = out.querySelector('.spin-go');
     addFire(go);
     go.addEventListener('click', function () {
