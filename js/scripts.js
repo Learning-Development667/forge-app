@@ -2633,6 +2633,8 @@
 
   function closeSpin() {
     clearSpinTimers();
+    releaseBonusWakeLock(); // drop the screen wake lock if a bonus timer was running
+    plankTimerActive = false;
     var overlay = document.getElementById('spin-overlay');
     if (!overlay) return;
     overlay.classList.remove('is-visible');
@@ -2757,25 +2759,44 @@
   }
 
   // Time-based bonus exercises get an interactive countdown timer (same visual
-  // pattern as the in-card plank timer). Segment durations are in seconds; a
-  // multi-segment entry (Single Leg Balance) runs its timers back-to-back with
-  // a switch cue between them.
-  var BONUS_TIMERS = {
-    'Dead Bug':           { segments: [30] },
-    'Mountain Climbers':  { segments: [30] },
-    'Superman Hold':      { segments: [30] },
-    'Hollow Body Hold':   { segments: [20] },
-    'Single Leg Balance': { segments: [30, 30], labels: ['First leg', 'Second leg'] },
-    'Flutter Kicks':      { segments: [30] }
-  };
+  // pattern as the in-card plank timer). Detection is by parsing the target
+  // string: any target containing "seconds" is timed, the duration is the first
+  // number in it, and "each leg" (Single Leg Balance) means two consecutive
+  // timers (LEFT then RIGHT), each started manually.
+  function parseBonusTimer(bonus) {
+    var target = (bonus && bonus.target) || '';
+    if (!/seconds/i.test(target)) return null;       // rep-based — leave as-is
+    var m = target.match(/\d+/);
+    var secs = m ? parseInt(m[0], 10) : 0;
+    if (!secs || secs <= 0) return null;
+    var eachLeg = /each leg/i.test(target);
+    return {
+      segments: eachLeg ? [secs, secs] : [secs],
+      labels: eachLeg ? ['LEFT LEG', 'RIGHT LEG'] : null
+    };
+  }
 
   function bonusIdleInstr(timed, i) {
     return timed.labels
-      ? timed.labels[i] + ' — get into position, then press Start'
+      ? timed.labels[i] + ' — ' + timed.segments[i] + ' seconds'
       : 'Get into position, then press Start';
   }
-  function bonusRunInstr(timed, i) {
-    return timed.labels ? timed.labels[i] + ' — keep your balance' : 'Keep going — you\'ve got this';
+
+  // Screen Wake Lock so the phone doesn't sleep mid-exercise. Best-effort:
+  // unsupported browsers (and rejections) are swallowed.
+  var bonusWakeLock = null;
+  function requestBonusWakeLock() {
+    try {
+      if (navigator.wakeLock && navigator.wakeLock.request) {
+        navigator.wakeLock.request('screen')
+          .then(function (wl) { bonusWakeLock = wl; })
+          .catch(function () {});
+      }
+    } catch (e) {}
+  }
+  function releaseBonusWakeLock() {
+    try { if (bonusWakeLock) { bonusWakeLock.release(); bonusWakeLock = null; } }
+    catch (e) {}
   }
 
   // Markup for a bonus countdown timer card. Mirrors the plank timer DOM so it
@@ -2799,10 +2820,11 @@
       '</div>';
   }
 
-  // Wire the countdown for a bonus timer card. Each segment counts DOWN to 0,
-  // beeping the final seconds; multi-segment moves auto-advance with a switch
-  // cue, and a success tone fires when the last segment finishes.
-  function wireBonusTimer(out, timed) {
+  // Wire the countdown for a bonus timer card. Each segment counts DOWN to 0
+  // (beeping the final 3 seconds + a longer tone at 0). Multi-segment moves
+  // reset and wait for START again between segments; onComplete fires (revealing
+  // the complete flow) only once the final segment finishes.
+  function wireBonusTimer(out, timed, onComplete) {
     var wrap = out.querySelector('.plank-timer');
     if (!wrap) return;
     var embers = wrap.querySelector('.plank-embers');
@@ -2824,57 +2846,72 @@
     function showStart() { stopBtn.classList.add('hidden'); startBtn.classList.remove('hidden'); }
     function showStop()  { startBtn.classList.add('hidden'); stopBtn.classList.remove('hidden'); }
 
+    // Idle state for segment i: number, full ring, instruction; wait for START.
+    function readySegment(i) {
+      segIdx = i;
+      total = timed.segments[i];
+      remaining = total;
+      timeEl.textContent = total;
+      ringFg.style.strokeDashoffset = 0;
+      if (instrEl) instrEl.textContent = bonusIdleInstr(timed, i);
+      showStart();
+    }
+
     function startSegment(i) {
       segIdx = i;
       total = timed.segments[i];
       remaining = total;
       timeEl.textContent = remaining;
       ringFg.style.strokeDashoffset = 0;
-      if (instrEl) instrEl.textContent = bonusRunInstr(timed, i);
+      ensureAudio();            // unlock Web Audio on the user gesture
+      requestBonusWakeLock();   // keep the screen awake while exercising
+      plankTimerActive = true;  // suppress cheer pop-ups while timing
+      showStop();
       iv = setInterval(tick, 1000);
     }
 
+    function finishAll() {
+      clearIv();
+      plankTimerActive = false;
+      releaseBonusWakeLock();
+      startBtn.classList.add('hidden');
+      stopBtn.classList.add('hidden');
+      if (instrEl) { instrEl.textContent = 'Done! ✓'; instrEl.style.color = '#27AE60'; }
+      if (typeof onComplete === 'function') onComplete();
+    }
+
     function tick() {
-      if (!timeEl.isConnected) { clearIv(); plankTimerActive = false; return; }
+      if (!timeEl.isConnected) { clearIv(); plankTimerActive = false; releaseBonusWakeLock(); return; }
       remaining--;
       timeEl.textContent = Math.max(0, remaining);
       ringFg.style.strokeDashoffset = C * (1 - remaining / total); // drain
-      if (remaining > 0 && remaining <= 3) soundPlankBeep();        // beep each of the final seconds
+      if (remaining > 0 && remaining <= 3) soundPlankBeep();        // beep each of the last 3 seconds
       if (remaining <= 0) {
         clearIv();
+        soundPlankDone();                                          // longer beep at 0
         if (segIdx + 1 < timed.segments.length) {
-          plankTwoBeep();               // switch-side cue
-          startSegment(segIdx + 1);
-        } else {
-          soundPlankDone();             // finished
           plankTimerActive = false;
-          if (instrEl) instrEl.textContent = 'Done — nice work! Tap LET\'S GO to log it.';
-          showStart();
+          releaseBonusWakeLock();
+          readySegment(segIdx + 1); // next leg: fresh timer, manual START
+        } else {
+          finishAll();
         }
       }
     }
 
-    startBtn.addEventListener('click', function () {
-      ensureAudio();            // unlock Web Audio on the user gesture
-      plankTimerActive = true;  // suppress cheer pop-ups while timing
-      showStop();
-      startSegment(0);
-    });
+    startBtn.addEventListener('click', function () { startSegment(segIdx); });
 
     stopBtn.addEventListener('click', function () {
       clearIv();
       plankTimerActive = false;
-      segIdx = 0; total = timed.segments[0]; remaining = total;
-      timeEl.textContent = total;
-      ringFg.style.strokeDashoffset = 0;
-      if (instrEl) instrEl.textContent = bonusIdleInstr(timed, 0);
-      showStart();
+      releaseBonusWakeLock();
+      readySegment(segIdx); // reset the current segment, wait for START again
     });
   }
 
   function showSpinOutcome(overlay, bonus, alreadyUsed) {
     var out = overlay.querySelector('.spin-outcome');
-    var timed = alreadyUsed ? null : BONUS_TIMERS[bonus.name]; // timer config for time-based moves
+    var timed = alreadyUsed ? null : parseBonusTimer(bonus); // timer config for time-based moves
     out.innerHTML =
       '<span class="spin-shockwave"></span>' +
       '<h2 class="spin-win-name">' + esc(bonus.name) + '</h2>' +
@@ -2884,16 +2921,14 @@
       (alreadyUsed
         ? '<p class="spin-used-note">Bonus already claimed today</p>' +
           '<button type="button" class="btn-forge spin-done">Close</button>'
-        : '<button type="button" class="btn-forge spin-go">LET\'S GO</button>');
+        : '<button type="button" class="btn-forge spin-go' + (timed ? ' hidden' : '') + '">LET\'S GO</button>');
     out.classList.add('is-shown');
 
     if (alreadyUsed) {
       out.querySelector('.spin-done').addEventListener('click', closeSpin);
       return;
     }
-    if (timed) wireBonusTimer(out, timed);
     var go = out.querySelector('.spin-go');
-    addFire(go);
     go.addEventListener('click', function () {
       go.disabled = true;
       // Mark the spin used via the existing logging path (bonusExercise = true).
@@ -2901,6 +2936,16 @@
         .then(function () { closeSpin(); renderDashboard(); })
         .catch(function () { closeSpin(); renderDashboard(); });
     });
+    if (timed) {
+      // Hold the complete button back until the countdown(s) finish, then reveal
+      // it (with its fire glow) as the "complete flow".
+      wireBonusTimer(out, timed, function () {
+        go.classList.remove('hidden');
+        addFire(go);
+      });
+    } else {
+      addFire(go);
+    }
   }
 
   // ===================================================================
