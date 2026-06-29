@@ -1,0 +1,22 @@
+name: Forge Daily Reminders
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+    - cron: '0 18 * * *'
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Forge Reminder
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "06" ]; then
+            MESSAGE="Time to train — your squad is counting on you! 💪"
+          else
+            MESSAGE="Evening session — don't end the day without it! 🔥"
+          fi
+          curl -X POST https://forge-notifications.markbrown667.workers.dev \
+            -H "Content-Type: application/json" \
+            -d "{\"title\": \"Forge 🔥\", \"message\": \"$MESSAGE\"}"
