@@ -1646,26 +1646,21 @@
     }).catch(function (err) { console.error('Failed to write activity:', err); });
   }
 
-  // Fire a OneSignal web-push to all subscribers when a squad member completes
-  // their daily session. Fire-and-forget: not awaited, errors swallowed.
+  // Fire a squad-completion web-push via the Cloudflare Worker (which holds the
+  // OneSignal REST API key). Fire-and-forget: not awaited, errors swallowed.
   function notifySquadCompletion() {
     try {
-      var identity = getForgeUser() || {};
-      var userName = identity.name || (state.user && state.user.name) || 'A squad member';
-      var dayNumber = challengeDay(new Date());
-      fetch('https://onesignal.com/api/v1/notifications', {
+      const userName = (JSON.parse(localStorage.getItem('forgeUser')) || {}).name || 'Someone';
+      const dayNumber = challengeDay(new Date());
+      fetch('https://forge-notifications.markbrown667.workers.dev', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          app_id: ONESIGNAL_APP_ID,
-          included_segments: ['Total Subscribed'],
-          headings: { en: 'Forge 🔥' },
-          contents: { en: userName + ' just completed Day ' + dayNumber + " — don't let the squad down!" }
+          title: 'Forge 🔥',
+          message: `${userName} just completed Day ${dayNumber} — don't let the squad down!`
         })
-      }).catch(function () {});
-    } catch (e) { /* silently ignore */ }
+      });
+    } catch(e) {}
   }
 
   // ===================================================================
@@ -4295,7 +4290,18 @@
           '<button type="button" class="btn-forge admin-add-btn">Add to Squad</button>' +
           '<p class="admin-add-msg message" role="status" aria-live="polite"></p>' +
         '</div>' +
-      '</section>';
+      '</section>' +
+
+      (isAdmin()
+        ? '<section class="admin-section">' +
+            '<p class="set-section-title">Send Notification</p>' +
+            '<div class="admin-add-card">' +
+              '<label class="admin-field"><span class="admin-field-label">Message</span>' +
+                '<input type="text" class="admin-notif-input" placeholder="Type a message to the squad..." /></label>' +
+              '<button type="button" class="btn-forge admin-notif-send">SEND TO ALL</button>' +
+            '</div>' +
+          '</section>'
+        : '');
 
     showScreen(screen);
 
@@ -4390,6 +4396,27 @@
 
     loadAdminUsers(screen.querySelector('.admin-users'));
     addFire(addBtn); // fire on the primary Add button
+
+    // ---- Send notification flow (admin only) ----
+    var notifSend = screen.querySelector('.admin-notif-send');
+    if (notifSend) {
+      addFire(notifSend); // fire on the primary Send button
+      notifSend.addEventListener('click', function () {
+        var input = screen.querySelector('.admin-notif-input');
+        var inputValue = ((input && input.value) || '').trim();
+        if (!inputValue) { showToast('Type a message first'); return; }
+        fetch('https://forge-notifications.markbrown667.workers.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'Forge 🔥',
+            message: inputValue
+          })
+        })
+        .then(function () { showToast('Notification sent to the squad!'); })
+        .catch(function () { showToast('Failed to send — check your connection'); });
+      });
+    }
 
     var emb = screen.querySelector('.admin-embers');
     if (emb) startEmbers(emb); // subtle embers behind the header
