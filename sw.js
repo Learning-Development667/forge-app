@@ -1,50 +1,27 @@
-/* ===================================================================
-   Forge — service worker
-   Strategy: network-first, always. No pre-caching. On activate, all
-   caches are wiped so stale assets never linger.
-   =================================================================== */
+var CACHE_NAME = 'forge-runtime-v2';
 
-var CACHE_NAME = 'forge-runtime';
-
-// Install: take over immediately, do NOT pre-cache anything.
 self.addEventListener('install', function () {
   self.skipWaiting();
 });
 
-// Activate: delete ALL caches, then claim open clients.
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches
-      .keys()
-      .then(function (keys) {
-        return Promise.all(
-          keys.map(function (key) {
-            return caches.delete(key);
-          })
-        );
-      })
-      .then(function () {
-        return self.clients.claim();
-      })
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (key) {
+        return caches.delete(key);
+      }));
+    }).then(function () {
+      return self.clients.claim();
+    })
   );
 });
 
-// Fetch: network-first. Fall back to cache only when offline.
 self.addEventListener('fetch', function (event) {
-  // Let OneSignal handle its own SDK/API requests — never intercept them.
-  if (event.request.url.includes('onesignal.com') ||
-      event.request.url.includes('OneSignalSDK')) {
-    return;
-  }
-
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
     fetch(event.request)
       .then(function (response) {
-        // Keep a fresh copy for offline fallback.
         var copy = response.clone();
         caches.open(CACHE_NAME).then(function (cache) {
           cache.put(event.request, copy);
@@ -52,8 +29,33 @@ self.addEventListener('fetch', function (event) {
         return response;
       })
       .catch(function () {
-        // Offline — serve the cached copy if we have one.
         return caches.match(event.request);
       })
+  );
+});
+
+self.addEventListener('push', function (event) {
+  var data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {}
+
+  var title = (data.notification && data.notification.title) || 'Forge 🔥';
+  var body = (data.notification && data.notification.body) || 'Time to train!';
+  var icon = '/forge-app/icons/icon-192.png';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: icon,
+      badge: icon,
+      tag: 'forge-reminder',
+      renotify: true
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('https://learning-development667.github.io/forge-app/')
   );
 });
