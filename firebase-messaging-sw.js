@@ -15,11 +15,10 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function(payload) {
   var title = (payload.data && payload.data.title) || 'Forge 🔥';
   var body = (payload.data && payload.data.body) || 'Time to train!';
-  var icon = '/forge-app/icons/icon-192.png';
   self.registration.showNotification(title, {
     body: body,
-    icon: icon,
-    badge: icon,
+    icon: '/forge-app/icons/icon-192.png',
+    badge: '/forge-app/icons/icon-192.png',
     tag: 'forge-reminder',
     renotify: true
   });
