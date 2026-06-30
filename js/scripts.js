@@ -4196,56 +4196,53 @@
     if (onBtn) {
       addFire(onBtn); // fire animation on the primary button
       onBtn.addEventListener('click', function () {
-        var VAPID_KEY = 'BA7v4Zi3gYJ93sj3Z-fEEXLrM7JO_Slqb6MS3brCfkBYzK8NAt_RprAHewCLH7f7lrRQNkSRY2CXcX0zdKtWfQA';
-        var firebaseConfig = {
-          apiKey: "AIzaSyExample",
-          projectId: "forge-bc1d3",
-          messagingSenderId: "340499125460",
-          appId: "forge-app"
-        };
-
         try {
-          if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+          var VAPID_KEY = 'BA7v4Zi3gYJ93sj3Z-fEEXLrM7JO_Slqb6MS3brCfkBYzK8NAt_RprAHewCLH7f7lrRQNkSRY2CXcX0zdKtWfQA';
           var messaging = firebase.messaging();
 
           Notification.requestPermission().then(function(permission) {
-            if (permission === 'granted') {
-              messaging.getToken({ vapidKey: VAPID_KEY }).then(function(token) {
+            if (permission !== 'granted') {
+              showToast('Notifications blocked — please enable in browser settings');
+              return;
+            }
+
+            navigator.serviceWorker.ready.then(function(registration) {
+              messaging.getToken({
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration
+              }).then(function(token) {
                 if (token) {
-                  // Store token in Firestore under fcmTokens collection
                   var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
                   var userName = user.name || 'unknown';
-                  firebase.firestore().collection('fcmTokens').doc(userName).set({
+                  db.collection('fcmTokens').doc(userName).set({
                     token: token,
                     name: userName,
                     updatedAt: new Date().toISOString()
                   }).catch(function(e) { console.warn('Token store failed:', e); });
 
-                  // Subscribe to forge-squad topic via Cloudflare Worker
                   fetch('https://forge-notifications.markbrown667.workers.dev/subscribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: token })
                   }).catch(function(e) { console.warn('Topic subscribe failed:', e); });
+
+                  markOn();
+                  showToast("You're in — we'll keep you accountable!");
+                } else {
+                  showToast('Could not get notification token — try again');
                 }
-                markOn();
-                showToast("You're in — we'll keep you accountable!");
               }).catch(function(e) {
                 console.warn('FCM getToken failed:', e);
-                markOn();
-                showToast("You're in — we'll keep you accountable!");
+                showToast('Notification setup failed — try again');
               });
-            } else {
-              showToast('Notifications blocked — please enable in browser settings');
-            }
+            });
           }).catch(function(e) {
-            markOn();
-            showToast("You're in — we'll keep you accountable!");
+            console.warn('Permission request failed:', e);
+            showToast('Notification setup failed — try again');
           });
         } catch(e) {
           console.warn('FCM init failed:', e);
-          markOn();
-          showToast("You're in — we'll keep you accountable!");
+          showToast('Notifications not available on this device');
         }
       });
     }
