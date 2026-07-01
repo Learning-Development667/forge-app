@@ -55,10 +55,10 @@
 
   var TOTAL_DAYS = 90;
   var TOTAL_WEEKS = 13;
-  // Soft launch (train freely, no points) runs 16–21 June 2026.
-  // Points/streaks begin Monday 22 June 2026 (POINTS_START).
-  // The day counter's Day 1 is Tuesday 23 June 2026 (CHALLENGE_START);
-  // so 22 June shows 0/90 while still earning points, Day 1 lands 23 June.
+  // Soft launch (train freely, no points) runs 16–22 June 2026.
+  // Points/streaks begin Tuesday 23 June 2026 (POINTS_START), the same day the
+  // day counter's Day 1 lands (CHALLENGE_START) — points and Day 1 now start
+  // together, so there is no Day 0 points-earning window.
   var SOFT_START = new Date(2026, 5, 16);
   var POINTS_START = new Date(2026, 5, 23);
   var CHALLENGE_START = new Date(2026, 5, 23);
