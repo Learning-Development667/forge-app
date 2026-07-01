@@ -339,6 +339,86 @@
     }
     .squad-streak { color: var(--cream); opacity: 0.55; }
     .squad-pts { color: #E8611A; }
+
+    /* Admin Results — per-member summary cards with day-by-day drill-down. */
+    .admin-results { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .ares-card {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-left: 3px solid #E8611A;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .ares-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 12px 14px;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+    }
+    .ares-head:active { background: rgba(232, 97, 26, 0.06); }
+    .ares-head .admin-user-ring { flex: none; }
+    .ares-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+    .ares-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+      line-height: 1;
+      color: var(--cream);
+    }
+    .ares-sub { display: flex; gap: 10px; font-family: 'DM Mono', monospace; font-size: 11px; }
+    .ares-streak { color: #FF6B00; }
+    .ares-pts { color: var(--cream); opacity: 0.7; }
+    .ares-prog { display: flex; flex-direction: column; align-items: center; flex: none; }
+    .ares-prog-frac {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      line-height: 1;
+      color: #E8611A;
+    }
+    .ares-prog-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--cream);
+      opacity: 0.45;
+    }
+    .ares-chevron { flex: none; color: #E8611A; font-size: 14px; transition: transform 0.2s ease; }
+    .ares-card.is-open .ares-chevron { transform: rotate(180deg); }
+
+    .ares-detail { display: none; padding-bottom: 6px; }
+    .ares-card.is-open .ares-detail { display: block; }
+    .ares-day {
+      display: grid;
+      grid-template-columns: 46px 50px 18px 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .ares-day-num { color: var(--cream); opacity: 0.85; }
+    .ares-day-date { color: var(--cream); opacity: 0.5; }
+    .ares-day-status { text-align: center; }
+    .ares-day-meta {
+      color: var(--cream);
+      opacity: 0.75;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ares-day--done .ares-day-status { color: #27AE60; }
+    .ares-day--missed .ares-day-status { color: #E5484D; }
+    .ares-day--missed .ares-day-num { opacity: 0.5; }
+    .ares-day--rest { opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -347,7 +427,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.3.0</p>
+      <p class="brand-version">v1.3.1</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->

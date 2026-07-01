@@ -4522,6 +4522,11 @@
       '</section>' +
 
       '<section class="admin-section">' +
+        '<p class="set-section-title">Results</p>' +
+        '<div class="admin-results"><p class="feed-empty">Loading…</p></div>' +
+      '</section>' +
+
+      '<section class="admin-section">' +
         '<p class="set-section-title">Add to Squad</p>' +
         '<div class="admin-add-card">' +
           '<label class="admin-field"><span class="admin-field-label">First name</span>' +
@@ -4637,6 +4642,7 @@
     });
 
     loadAdminUsers(screen.querySelector('.admin-users'));
+    loadAdminResults(screen.querySelector('.admin-results'));
     addFire(addBtn); // fire on the primary Add button
 
     // ---- Send notification flow (admin only) ----
@@ -4662,6 +4668,131 @@
 
     var emb = screen.querySelector('.admin-embers');
     if (emb) startEmbers(emb); // subtle embers behind the header
+  }
+
+  // ---- Admin Results: per-member summary + day-by-day drill-down ----
+  // Summary stats come from the users collection; the day-by-day detail is
+  // computed from each member's logs subcollection (index-free per-user reads).
+  function loadAdminResults(container) {
+    if (!container) return;
+    db.collection('users').get().then(function (snap) {
+      // Dedup by name (keep the most recently joined doc), highest points first.
+      var byName = {};
+      snap.docs.forEach(function (d) {
+        var u = d.data() || {};
+        var key = cleanName(u.name, u.email).toLowerCase();
+        var jt = (u.joinedAt && u.joinedAt.toMillis) ? u.joinedAt.toMillis() : 0;
+        if (!byName[key] || jt > byName[key].jt) byName[key] = { doc: d, jt: jt };
+      });
+      var docs = Object.keys(byName).map(function (k) { return byName[k].doc; })
+        .sort(function (a, b) { return ((b.data() || {}).totalPoints || 0) - ((a.data() || {}).totalPoints || 0); });
+
+      return Promise.all(docs.map(function (d) {
+        return d.ref.collection('logs').get()
+          .then(function (ls) { return { doc: d, logs: ls.docs.map(function (x) { return x.data() || {}; }) }; })
+          .catch(function () { return { doc: d, logs: [] }; });
+      }));
+    }).then(function (members) {
+      var today = atMidnight(new Date());
+      var html = members.map(function (m) {
+        var u = m.doc.data() || {};
+        var name = cleanName(u.name, u.email);
+        var byDate = logsByDate(m.logs);
+        var prog = resultsProgress(byDate, today);
+        return '<div class="ares-card">' +
+            '<button type="button" class="ares-head">' +
+              '<div class="admin-user-ring admin-ring--orange">' + avatarMarkup(name, 'admin-avatar') + '</div>' +
+              '<div class="ares-info">' +
+                '<span class="ares-name">' + esc(name) + '</span>' +
+                '<span class="ares-sub">' +
+                  '<span class="ares-streak">🔥 ' + (u.currentStreak || 0) + '</span>' +
+                  '<span class="ares-pts">' + (u.totalPoints || 0) + ' pts</span>' +
+                '</span>' +
+              '</div>' +
+              '<span class="ares-prog">' +
+                '<span class="ares-prog-frac">' + prog.completed + '/' + prog.elapsed + '</span>' +
+                '<span class="ares-prog-label">days done</span>' +
+              '</span>' +
+              '<span class="ares-chevron" aria-hidden="true">▾</span>' +
+            '</button>' +
+            '<div class="ares-detail">' + resultsDetail(byDate, today) + '</div>' +
+          '</div>';
+      }).join('');
+      container.innerHTML = html || '<p class="feed-empty">No results yet.</p>';
+      Array.prototype.forEach.call(container.querySelectorAll('.ares-card'), function (card) {
+        var head = card.querySelector('.ares-head');
+        if (head) head.addEventListener('click', function () { card.classList.toggle('is-open'); });
+      });
+    }).catch(function (err) {
+      console.error('Admin results failed:', err);
+      container.innerHTML = '<p class="feed-empty">Could not load results.</p>';
+    });
+  }
+
+  // Completed vs elapsed *active* days (Saturdays excluded) from Day 1 to today.
+  function resultsProgress(byDate, today) {
+    var d = new Date(CHALLENGE_START);
+    var end = new Date(CHALLENGE_START); end.setDate(end.getDate() + TOTAL_DAYS - 1);
+    var elapsed = 0, completed = 0;
+    while (d <= today && d <= end) {
+      if (scheduleFor(d).active.length > 0) {
+        elapsed++;
+        if (dayCompleted(d, byDate)) completed++;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return { elapsed: elapsed, completed: completed };
+  }
+
+  // Day-by-day rows from Day 1 to today for a member's drill-down.
+  function resultsDetail(byDate, today) {
+    var SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var EX_SHORT = { pressups: 'P', situps: 'S', plank: 'Pl', lunges: 'L' };
+    var rows = [];
+    var d = new Date(CHALLENGE_START);
+    var end = new Date(CHALLENGE_START); end.setDate(end.getDate() + TOTAL_DAYS - 1);
+    while (d <= today && d <= end) {
+      var dk = dateKey(d);
+      var sched = scheduleFor(d);
+      var dateStr = d.getDate() + ' ' + SHORT_MONTHS[d.getMonth()];
+      var nonBonus = (byDate[dk] || []).filter(function (l) { return !l.bonusExercise; });
+      var cls, status, meta;
+      if (sched.active.length === 0) {
+        cls = 'rest'; status = '🌙'; meta = 'Rest day';
+      } else {
+        var loggedKeys = nonBonus.map(function (l) { return l.exercise; });
+        var done = sched.active.every(function (k) { return loggedKeys.indexOf(k) >= 0; });
+        if (done && sched.type === 'besteffort') {
+          cls = 'done'; status = '✓';
+          meta = sched.active.map(function (k) {
+            var l = nonBonus.filter(function (x) { return x.exercise === k; })[0] || {};
+            var val = k === 'plank'
+              ? (l.plankDuration != null ? clock(l.plankDuration) : '—')
+              : (l.repsCompleted != null ? l.repsCompleted : '—');
+            return EX_SHORT[k] + ' ' + val;
+          }).join('  ');
+        } else if (done) {
+          cls = 'done'; status = '✓';
+          meta = sched.active.map(function (k) {
+            var l = nonBonus.filter(function (x) { return x.exercise === k; })[0] || {};
+            return MOOD_EMOJI[l.mood] || '·';
+          }).join(' ');
+        } else {
+          cls = 'missed'; status = '✗';
+          meta = loggedKeys.length ? ('Partial ' + loggedKeys.length + '/' + sched.active.length) : 'Missed';
+        }
+      }
+      rows.push(
+        '<div class="ares-day ares-day--' + cls + '">' +
+          '<span class="ares-day-num">Day ' + challengeDay(d) + '</span>' +
+          '<span class="ares-day-date">' + esc(dateStr) + '</span>' +
+          '<span class="ares-day-status">' + status + '</span>' +
+          '<span class="ares-day-meta">' + esc(meta) + '</span>' +
+        '</div>'
+      );
+      d.setDate(d.getDate() + 1);
+    }
+    return rows.join('');
   }
 
   // Delete every document in a top-level collection.
