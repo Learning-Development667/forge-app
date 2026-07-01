@@ -4089,34 +4089,38 @@
 
   // Force a service-worker update check from Settings.
   function onCheckUpdates(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    showToast('Checking for updates...');
+
+    var reloaded = false;
+    function doReload() {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload(true);
+    }
+
+    // Fallback: always refresh after 3s so the user ends up on a fresh version.
+    setTimeout(doReload, 3000);
+
     if (!('serviceWorker' in navigator) || !navigator.serviceWorker.getRegistration) {
-      btn.textContent = 'Updates unavailable';
-      setTimeout(function () { btn.textContent = 'Check for Updates'; }, 2000);
-      return;
+      return; // the fallback timer above will still reload
     }
-    btn.disabled = true;
-    btn.textContent = 'Checking…';
-    var settled = false;
-    function settle(text, reload) {
-      if (settled) return;
-      settled = true;
-      btn.textContent = text;
-      if (reload) {
-        setTimeout(function () { window.location.reload(); }, 2000);
-      } else {
-        setTimeout(function () { btn.textContent = 'Check for Updates'; btn.disabled = false; }, 2000);
-      }
-    }
-    navigator.serviceWorker.getRegistration().then(function (reg) {
-      if (!reg) { settle('You are up to date', false); return; }
-      var onFound = function () { settle('Update available — tap to reload', true); };
-      reg.addEventListener('updatefound', onFound);
+
+    navigator.serviceWorker.getRegistration('/forge-app/').then(function (reg) {
+      if (!reg) return; // fallback timer handles the reload
       try { reg.update(); } catch (e) {}
-      setTimeout(function () {
-        reg.removeEventListener('updatefound', onFound);
-        settle('You are up to date', false);
-      }, 3000);
-    }).catch(function () { settle('You are up to date', false); });
+
+      // Reload as soon as a newly installing/waiting worker becomes active.
+      function watch(sw) {
+        if (!sw) return;
+        if (sw.state === 'activated') { doReload(); return; }
+        sw.addEventListener('statechange', function () {
+          if (sw.state === 'activated') doReload();
+        });
+      }
+      watch(reg.installing || reg.waiting);
+      reg.addEventListener('updatefound', function () { watch(reg.installing); });
+    }).catch(function () { /* fallback timer handles the reload */ });
   }
 
   // ===================================================================
