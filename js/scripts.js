@@ -4206,32 +4206,35 @@
               return;
             }
 
-            messaging.getToken({
-              vapidKey: VAPID_KEY
-            }).then(function(token) {
-              if (token) {
-                var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
-                var userName = user.name || 'unknown';
-                db.collection('fcmTokens').doc(userName).set({
-                  token: token,
-                  name: userName,
-                  updatedAt: new Date().toISOString()
-                }).catch(function(e) { console.warn('Token store failed:', e); });
+            navigator.serviceWorker.getRegistration('/forge-app/').then(function(registration) {
+              messaging.getToken({
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration
+              }).then(function(token) {
+                if (token) {
+                  var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
+                  var userName = user.name || 'unknown';
+                  db.collection('fcmTokens').doc(userName).set({
+                    token: token,
+                    name: userName,
+                    updatedAt: new Date().toISOString()
+                  }).catch(function(e) { console.warn('Token store failed:', e); });
 
-                fetch('https://forge-notifications.markbrown667.workers.dev/subscribe', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token: token })
-                }).catch(function(e) { console.warn('Topic subscribe failed:', e); });
+                  fetch('https://forge-notifications.markbrown667.workers.dev/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                  }).catch(function(e) { console.warn('Topic subscribe failed:', e); });
 
-                markOn();
-                showToast("You're in — we'll keep you accountable!");
-              } else {
-                showToast('Could not get notification token — try again');
-              }
-            }).catch(function(e) {
-              console.warn('FCM getToken failed:', e);
-              showToast('Notification setup failed — try again');
+                  markOn();
+                  showToast("You're in — we'll keep you accountable!");
+                } else {
+                  showToast('Could not get notification token — try again');
+                }
+              }).catch(function(e) {
+                console.warn('FCM getToken failed:', e);
+                showToast('Notification setup failed — try again');
+              });
             });
           }).catch(function(e) {
             console.warn('Permission request failed:', e);
