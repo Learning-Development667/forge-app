@@ -889,12 +889,6 @@
     Array.prototype.forEach.call(navEl.querySelectorAll('.nav-item'), function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-go') === active);
     });
-    // Diagnostic: confirm one nav element at a consistent height.
-    requestAnimationFrame(function () {
-      console.log('[FORGE nav] screen=' + active +
-        ' | .topnav count=' + document.querySelectorAll('.topnav').length +
-        ' | clientHeight=' + navEl.clientHeight + 'px');
-    });
   }
 
   function hideNav() {
@@ -1650,8 +1644,8 @@
     }).catch(function (err) { console.error('Failed to write activity:', err); });
   }
 
-  // Fire a squad-completion web-push via the Cloudflare Worker (which holds the
-  // OneSignal REST API key). Fire-and-forget: not awaited, errors swallowed.
+  // Fire a squad-completion web-push via the Cloudflare Worker (which signs and
+  // sends VAPID Web Push to subscribers). Fire-and-forget: errors swallowed.
   function notifySquadCompletion() {
     try {
       const userName = (JSON.parse(localStorage.getItem('forgeUser')) || {}).name || 'Someone';
@@ -1717,8 +1711,8 @@
     if (day > TOTAL_DAYS) {
       banner = 'Challenge complete — you forged 90 days!';
     } else if (atMidnight(today) < POINTS_START) {
-      // Soft launch (16–21 June) and the run-up: points/streaks begin 22 June.
-      banner = 'Forge ignites Monday 22 June — keep training!';
+      // Soft launch (16–22 June) and the run-up: points/streaks begin 23 June.
+      banner = 'Forge ignites Tuesday 23 June — keep training!';
     }
 
     var body;
@@ -1950,9 +1944,7 @@
       btn.addEventListener('click', function () {
         var k = btn.getAttribute('data-log');
         var best = btn.getAttribute('data-best') === '1';
-        // Plank shows its dedicated timer first; other exercises log directly.
-        if (k === 'plank') openPlankTimer(best);
-        else openLogScreen(k, best, false);
+        openLogScreen(k, best, false);
       });
       addFire(btn);
     });
@@ -2433,127 +2425,6 @@
     if (m === 0) return s + 's';
     if (s === 0) return m + 'm';
     return m + 'm ' + s + 's';
-  }
-
-  // Plank timer shown before the plank logging flow. On scheduled plank days
-  // (Mon/Wed/Thu/Sun) it counts DOWN to the day's target; on Best Effort Friday
-  // it counts UP from zero. plankTimerActive gates cheer pop-ups while it runs.
-  function openPlankTimer(isBestEffort) {
-    var ex = EXERCISES.plank;
-    var day = challengeDay(new Date());
-    var target = targetFor(ex, day); // seconds
-    var countUp = !!isBestEffort;
-    var screen = ensureScreen('plank-timer-screen');
-
-    screen.innerHTML =
-      '<header class="topbar">' +
-        '<button type="button" class="btn-link back-btn">← Back</button>' +
-        '<button type="button" class="btn-link form-link">Form Guide</button>' +
-      '</header>' +
-      '<h1 class="log-title">PLANK</h1>' +
-      (countUp ? '' : '<p class="log-target">Target: ' + esc(plankTargetText(target)) + '</p>') +
-      '<div class="timer-zone">' +
-        '<div class="ring-wrap">' +
-          '<svg class="ring" viewBox="0 0 120 120">' +
-            '<circle class="ring-bg" cx="60" cy="60" r="54"></circle>' +
-            '<circle class="ring-fg" cx="60" cy="60" r="54"></circle>' +
-          '</svg>' +
-          '<span class="ring-label ring-label--bebas">' + (countUp ? '0:00' : clock(target)) + '</span>' +
-        '</div>' +
-        '<button type="button" class="btn-forge plank-start">Start</button>' +
-        '<button type="button" class="btn-outline plank-stop hidden">Stop</button>' +
-      '</div>' +
-      '<div class="log-flow hidden"></div>';
-
-    showScreen(screen); // (sets plankTimerActive = false until Start is pressed)
-
-    var ringFg = screen.querySelector('.ring-fg');
-    var ringLabel = screen.querySelector('.ring-label');
-    var startBtn = screen.querySelector('.plank-start');
-    var stopBtn = screen.querySelector('.plank-stop');
-    var flow = screen.querySelector('.log-flow');
-    var C = 2 * Math.PI * 54;
-    var iv = null;
-
-    function cancelTimer() { if (iv) { clearInterval(iv); iv = null; } plankTimerActive = false; }
-
-    screen.querySelector('.back-btn').addEventListener('click', function () {
-      cancelTimer();
-      renderDashboard();
-    });
-    screen.querySelector('.form-link').addEventListener('click', function () {
-      cancelTimer();
-      openFormGuide(ex.name, 'plank',
-        function () { openPlankTimer(isBestEffort); },
-        function () { openPlankTimer(isBestEffort); });
-    });
-
-    addFire(startBtn);
-
-    function finish(held, auto) {
-      cancelTimer();
-      startBtn.classList.add('hidden');
-      stopBtn.classList.add('hidden');
-      if (auto && navigator.vibrate) { try { navigator.vibrate(200); } catch (e) {} }
-      showPlankLog(flow, ex, target, isBestEffort, held);
-    }
-
-    startBtn.addEventListener('click', function () {
-      ensureAudio(); // unlock Web Audio on the user gesture
-      startBtn.classList.add('hidden');
-      stopBtn.classList.remove('hidden');
-      plankTimerActive = true;
-      ringFg.style.strokeDasharray = C;
-      ringFg.style.strokeDashoffset = 0;
-
-      if (countUp) {
-        var elapsed = 0;
-        ringLabel.textContent = clock(0);
-        iv = setInterval(function () {
-          elapsed++;
-          ringLabel.textContent = clock(elapsed);
-        }, 1000);
-        stopBtn.onclick = function () { finish(elapsed, false); };
-      } else {
-        var total = target, remaining = target;
-        ringLabel.textContent = clock(remaining);
-        iv = setInterval(function () {
-          remaining--;
-          ringLabel.textContent = clock(Math.max(0, remaining));
-          ringFg.style.strokeDashoffset = C * (1 - remaining / total); // ring depletes
-          if (remaining <= 10 && remaining >= 2) soundPlankBeep();
-          else if (remaining === 1) soundPlankDone();
-          if (remaining <= 0) { finish(total, true); }
-        }, 1000);
-        stopBtn.onclick = function () { finish(total - remaining, false); };
-      }
-    });
-  }
-
-  // Reveal the plank logging flow after the timer. Friday records the held time
-  // as plankDuration; other days confirm the day's target.
-  function showPlankLog(flow, ex, target, isBestEffort, held) {
-    flow.classList.remove('hidden');
-    if (isBestEffort) {
-      buildLogFlow(flow, {
-        requireInput: false,
-        confirmText: 'Log your ' + plankTargetText(held) + ' plank hold?',
-        targetDisplay: plankTargetText(held),
-        confirmValue: held,
-        onConfirm: function (value, mood) {
-          saveLog('plank', value, target, mood, true, false, held).then(renderDashboard);
-        }
-      });
-    } else {
-      buildLogFlow(flow, {
-        requireInput: false,
-        targetDisplay: formatTarget(ex, target),
-        confirmValue: target,
-        onConfirm: function (value, mood) {
-          saveLog('plank', value, target, mood, false, false).then(renderDashboard);
-        }
-      });
-    }
   }
 
   function startCountdown(seconds, ringEl, labelEl, fireEl, onDone) {
@@ -4109,7 +3980,7 @@
   }
 
   // ===================================================================
-  // Notifications (OneSignal web push opt-in)
+  // Notifications (Web Push opt-in)
   // ===================================================================
   var FORGE_NOTIF_KEY = 'forgeNotifications';
 

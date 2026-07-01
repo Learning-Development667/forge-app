@@ -272,7 +272,7 @@
     .plank-stop:active { transform: scale(0.96); }
 
     /* Notifications screen + the Settings "Push Notifications" nav card
-       (OneSignal push opt-in). Reuses the .set-card look. */
+       (Web Push opt-in). Reuses the .set-card look. */
     .set-nav-card {
       flex-direction: row;
       align-items: center;
@@ -427,7 +427,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.3.2</p>
+      <p class="brand-version">v1.3.3</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->
@@ -489,12 +489,11 @@
   <div id="camera-overlay" class="cam-overlay hidden" role="dialog" aria-modal="true"></div>
   <div id="photo-lightbox" class="lightbox-overlay hidden" role="dialog" aria-modal="true"></div>
 
-  <!-- Firebase SDK (compat) — Firestore + Storage; Authentication is no longer used -->
+  <!-- Firebase SDK (compat) — Auth (anonymous), Firestore, Storage -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
   <!-- Chart.js (progress graphs) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
