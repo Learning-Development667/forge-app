@@ -5057,7 +5057,6 @@
           var byName = {};
           snap.forEach(function (doc) {
             var d = doc.data() || {};
-            console.log('[squadStats] raw name:', d.name, '| normName:', normName(d.name));
             if (!d.name) return;
             byName[normName(d.name)] = {
               streak: d.currentStreak || 0,
@@ -5065,7 +5064,6 @@
             };
           });
           squadStats = byName;
-          console.log('[squadStats] populated:', squadStats);
           renderSquad();
         }, function (err) { console.error('Squad stats listener failed:', err); })
     );
