@@ -4093,35 +4093,19 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
     showToast('Checking for updates...');
 
-    var reloaded = false;
-    function doReload() {
-      if (reloaded) return;
-      reloaded = true;
-      window.location.reload(true);
+    // Grab the app's service worker and ask it to check for a new version.
+    var reg = null;
+    if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistration) {
+      navigator.serviceWorker.getRegistration('/forge-app/').then(function (r) {
+        reg = r;
+        if (reg) { try { reg.update(); } catch (e) {} }
+      }).catch(function () {});
     }
 
-    // Fallback: always refresh after 3s so the user ends up on a fresh version.
-    setTimeout(doReload, 3000);
-
-    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.getRegistration) {
-      return; // the fallback timer above will still reload
-    }
-
-    navigator.serviceWorker.getRegistration('/forge-app/').then(function (reg) {
-      if (!reg) return; // fallback timer handles the reload
-      try { reg.update(); } catch (e) {}
-
-      // Reload as soon as a newly installing/waiting worker becomes active.
-      function watch(sw) {
-        if (!sw) return;
-        if (sw.state === 'activated') { doReload(); return; }
-        sw.addEventListener('statechange', function () {
-          if (sw.state === 'activated') doReload();
-        });
-      }
-      watch(reg.installing || reg.waiting);
-      reg.addEventListener('updatefound', function () { watch(reg.installing); });
-    }).catch(function () { /* fallback timer handles the reload */ });
+    // After 1s drop the service worker entirely, then after 2s hard-reload — a
+    // fresh network load every time, regardless of service worker state.
+    setTimeout(function () { if (reg) { try { reg.unregister(); } catch (e) {} } }, 1000);
+    setTimeout(function () { window.location.reload(); }, 2000);
   }
 
   // ===================================================================
