@@ -2099,7 +2099,7 @@
     ringFg.style.strokeDashoffset = countUp ? C : 0; // count-up fills, countdown drains
 
     var iv = null;
-    function stopInterval() { if (iv) { clearInterval(iv); iv = null; } plankTimerActive = false; }
+    function stopInterval() { if (iv) { clearInterval(iv); iv = null; } plankTimerActive = false; releaseScreenWakeLock(); }
 
     // Hand off to the mood row (STATE 2), stashing the held seconds.
     function toMood(held) {
@@ -2117,6 +2117,7 @@
     }
 
     plankTimerActive = true;
+    requestScreenWakeLock(); // keep the screen awake for the duration of the hold
 
     if (countUp) {
       var elapsed = 0;
@@ -2637,7 +2638,7 @@
 
   function closeSpin() {
     clearSpinTimers();
-    releaseBonusWakeLock(); // drop the screen wake lock if a bonus timer was running
+    releaseScreenWakeLock(); // drop the screen wake lock if a bonus timer was running
     plankTimerActive = false;
     var overlay = document.getElementById('spin-overlay');
     if (!overlay) return;
@@ -2788,18 +2789,18 @@
 
   // Screen Wake Lock so the phone doesn't sleep mid-exercise. Best-effort:
   // unsupported browsers (and rejections) are swallowed.
-  var bonusWakeLock = null;
-  function requestBonusWakeLock() {
+  var screenWakeLock = null;
+  function requestScreenWakeLock() {
     try {
       if (navigator.wakeLock && navigator.wakeLock.request) {
         navigator.wakeLock.request('screen')
-          .then(function (wl) { bonusWakeLock = wl; })
+          .then(function (wl) { screenWakeLock = wl; })
           .catch(function () {});
       }
     } catch (e) {}
   }
-  function releaseBonusWakeLock() {
-    try { if (bonusWakeLock) { bonusWakeLock.release(); bonusWakeLock = null; } }
+  function releaseScreenWakeLock() {
+    try { if (screenWakeLock) { screenWakeLock.release(); screenWakeLock = null; } }
     catch (e) {}
   }
 
@@ -2868,7 +2869,7 @@
       timeEl.textContent = remaining;
       ringFg.style.strokeDashoffset = 0;
       ensureAudio();            // unlock Web Audio on the user gesture
-      requestBonusWakeLock();   // keep the screen awake while exercising
+      requestScreenWakeLock();   // keep the screen awake while exercising
       plankTimerActive = true;  // suppress cheer pop-ups while timing
       showStop();
       iv = setInterval(tick, 1000);
@@ -2877,7 +2878,7 @@
     function finishAll() {
       clearIv();
       plankTimerActive = false;
-      releaseBonusWakeLock();
+      releaseScreenWakeLock();
       startBtn.classList.add('hidden');
       stopBtn.classList.add('hidden');
       if (instrEl) { instrEl.textContent = 'Done! ✓'; instrEl.style.color = '#27AE60'; }
@@ -2885,7 +2886,7 @@
     }
 
     function tick() {
-      if (!timeEl.isConnected) { clearIv(); plankTimerActive = false; releaseBonusWakeLock(); return; }
+      if (!timeEl.isConnected) { clearIv(); plankTimerActive = false; releaseScreenWakeLock(); return; }
       remaining--;
       timeEl.textContent = Math.max(0, remaining);
       ringFg.style.strokeDashoffset = C * (1 - remaining / total); // drain
@@ -2895,7 +2896,7 @@
         soundPlankDone();                                          // longer beep at 0
         if (segIdx + 1 < timed.segments.length) {
           plankTimerActive = false;
-          releaseBonusWakeLock();
+          releaseScreenWakeLock();
           readySegment(segIdx + 1); // next leg: fresh timer, manual START
         } else {
           finishAll();
@@ -2908,7 +2909,7 @@
     stopBtn.addEventListener('click', function () {
       clearIv();
       plankTimerActive = false;
-      releaseBonusWakeLock();
+      releaseScreenWakeLock();
       readySegment(segIdx); // reset the current segment, wait for START again
     });
   }
