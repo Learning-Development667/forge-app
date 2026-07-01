@@ -4199,7 +4199,7 @@
     if (onBtn) {
       addFire(onBtn); // fire animation on the primary button
       onBtn.addEventListener('click', function () {
-        var VAPID_PUBLIC_KEY = 'BA7v4Zi3gYJ93sj3Z-fEEXLrM7JO_Slqb6MS3brCfkBYzK8NAt_RprAHewCLH7f7lrRQNkSRY2CXcX0zdKtWfQA';
+        var VAPID_PUBLIC_KEY = 'BGtdTFJWS3O8BvFB6xaOKTVC11tEygmEVrdZMf0RlYuIqu0lMBLPnLV90Xxdv3_a-pucsGuAVP4WahGnCZWYUUA';
 
         function urlBase64ToUint8Array(base64String) {
           var padding = '='.repeat((4 - base64String.length % 4) % 4);
