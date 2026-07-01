@@ -376,6 +376,9 @@
   };
 
   firebase.initializeApp(firebaseConfig);
+  firebase.auth().signInAnonymously().catch(function(e) {
+    console.warn('Anonymous auth failed:', e);
+  });
   var db = firebase.firestore();
   // Firebase Authentication is no longer used — identity lives in localStorage
   // (forgeUser). Users are added to the Firestore users collection by the squad
