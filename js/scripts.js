@@ -4199,54 +4199,60 @@
     if (onBtn) {
       addFire(onBtn); // fire animation on the primary button
       onBtn.addEventListener('click', function () {
-        try {
-          var VAPID_KEY = 'BA7v4Zi3gYJ93sj3Z-fEEXLrM7JO_Slqb6MS3brCfkBYzK8NAt_RprAHewCLH7f7lrRQNkSRY2CXcX0zdKtWfQA';
-          var messaging = firebase.messaging();
+        var VAPID_PUBLIC_KEY = 'BA7v4Zi3gYJ93sj3Z-fEEXLrM7JO_Slqb6MS3brCfkBYzK8NAt_RprAHewCLH7f7lrRQNkSRY2CXcX0zdKtWfQA';
 
-          Notification.requestPermission().then(function(permission) {
-            if (permission !== 'granted') {
-              showToast('Notifications blocked — please enable in browser settings');
+        function urlBase64ToUint8Array(base64String) {
+          var padding = '='.repeat((4 - base64String.length % 4) % 4);
+          var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+          var rawData = atob(base64);
+          var outputArray = new Uint8Array(rawData.length);
+          for (var i = 0; i < rawData.length; i++) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        }
+
+        Notification.requestPermission().then(function(permission) {
+          if (permission !== 'granted') {
+            showToast('Notifications blocked — please enable in browser settings');
+            return;
+          }
+
+          navigator.serviceWorker.getRegistration('/forge-app/').then(function(registration) {
+            if (!registration) {
+              showToast('Notification setup failed — try again');
               return;
             }
 
-            navigator.serviceWorker.getRegistration('/forge-app/').then(function(registration) {
-              messaging.getToken({
-                vapidKey: VAPID_KEY,
-                serviceWorkerRegistration: registration
-              }).then(function(token) {
-                if (token) {
-                  var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
-                  var userName = user.name || 'unknown';
-                  db.collection('fcmTokens').doc(userName).set({
-                    token: token,
-                    name: userName,
-                    updatedAt: new Date().toISOString()
-                  }).catch(function(e) { console.warn('Token store failed:', e); });
+            registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            }).then(function(subscription) {
+              var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
+              var userName = user.name || 'unknown';
+              var subData = JSON.parse(JSON.stringify(subscription));
 
-                  fetch('https://forge-notifications.markbrown667.workers.dev/subscribe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token })
-                  }).catch(function(e) { console.warn('Topic subscribe failed:', e); });
-
-                  markOn();
-                  showToast("You're in — we'll keep you accountable!");
-                } else {
-                  showToast('Could not get notification token — try again');
-                }
+              db.collection('pushSubscriptions').doc(userName).set({
+                subscription: subData,
+                name: userName,
+                updatedAt: new Date().toISOString()
+              }).then(function() {
+                markOn();
+                showToast("You're in — we'll keep you accountable!");
               }).catch(function(e) {
-                console.warn('FCM getToken failed:', e);
-                showToast('Notification setup failed — try again');
+                console.warn('Failed to save subscription:', e);
+                markOn();
+                showToast("You're in — we'll keep you accountable!");
               });
+            }).catch(function(e) {
+              console.warn('Push subscribe failed:', e);
+              showToast('Notification setup failed — try again');
             });
-          }).catch(function(e) {
-            console.warn('Permission request failed:', e);
-            showToast('Notification setup failed — try again');
           });
-        } catch(e) {
-          console.warn('FCM init failed:', e);
-          showToast('Notifications not available on this device');
-        }
+        }).catch(function(e) {
+          console.warn('Permission request failed:', e);
+          showToast('Notification setup failed — try again');
+        });
       });
     }
 
