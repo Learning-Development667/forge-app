@@ -4170,6 +4170,8 @@
           '<p class="notif-status' + (enabled ? ' is-on' : '') + '" role="status" aria-live="polite">' +
             (enabled ? 'Notifications are ON ✓' : '') +
           '</p>' +
+          '<button type="button" class="btn-outline notif-off"' + (enabled ? '' : ' hidden') +
+            '>TURN OFF NOTIFICATIONS</button>' +
           '<div class="notif-actions"' + (enabled ? ' hidden' : '') + '>' +
             '<button type="button" class="btn-forge notif-on">TURN ON NOTIFICATIONS</button>' +
             '<button type="button" class="btn-link notif-no">NO THANKS</button>' +
@@ -4183,6 +4185,7 @@
 
     var statusEl = screen.querySelector('.notif-status');
     var actionsEl = screen.querySelector('.notif-actions');
+    var offBtn = screen.querySelector('.notif-off');
 
     function markOn() {
       setNotificationsPref(true);
@@ -4191,6 +4194,7 @@
         statusEl.classList.add('is-on');
       }
       if (actionsEl) actionsEl.setAttribute('hidden', '');
+      if (offBtn) offBtn.removeAttribute('hidden');
     }
 
     screen.querySelector('.admin-back').addEventListener('click', openSettings);
@@ -4261,6 +4265,31 @@
       noBtn.addEventListener('click', function () {
         setNotificationsPref(false);
         openSettings();
+      });
+    }
+
+    if (offBtn) {
+      offBtn.addEventListener('click', function () {
+        offBtn.disabled = true;
+        var user = JSON.parse(localStorage.getItem('forgeUser') || '{}');
+        var userName = user.name || 'unknown';
+
+        // Unsubscribe from push, then drop the stored subscription.
+        navigator.serviceWorker.getRegistration('/forge-app/').then(function (registration) {
+          if (!registration) return;
+          return registration.pushManager.getSubscription().then(function (sub) {
+            if (sub) return sub.unsubscribe();
+          });
+        }).catch(function (e) { console.warn('Push unsubscribe failed:', e); })
+          .then(function () {
+            return db.collection('pushSubscriptions').doc(userName).delete()
+              .catch(function (e) { console.warn('Failed to delete subscription:', e); });
+          })
+          .then(function () {
+            setNotificationsPref(false);
+            showToast('Notifications turned off');
+            showNotificationsScreen(); // refresh — back to the opt-in state
+          });
       });
     }
 
