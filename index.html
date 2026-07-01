@@ -324,6 +324,21 @@
     }
     .notif-status:empty { display: none; }
     .notif-status.is-on { color: #27AE60; text-shadow: 0 0 12px rgba(39, 174, 96, 0.5); }
+
+    /* Squad member stats (streak + points) under each avatar on Messages. */
+    .squad-stats {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .squad-streak { color: var(--cream); opacity: 0.55; }
+    .squad-pts { color: #E8611A; }
   </style>
 </head>
 <body>
@@ -332,7 +347,7 @@
     <header class="brand">
       <h1 class="brand-name">FORGE</h1>
       <p class="brand-tagline">Built together. Day by day.</p>
-      <p class="brand-version">v1.0.75</p>
+      <p class="brand-version">v1.0.76</p>
     </header>
 
     <!-- Motivational quote (random, filled in by scripts.js) -->

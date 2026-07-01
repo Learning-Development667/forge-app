@@ -598,6 +598,7 @@
   var boardMessages = [];
   var boardActivities = [];
   var squadStatus = {}; // userId -> [logged exercise keys today]
+  var squadStats = {};  // normName(name) -> { streak, points }
   var boardSubtitleTimer = null; // rotating Messages-header subtitle interval
   var seenFeedIds = new Set(); // feed item ids already rendered — only new ones animate
 
@@ -5045,6 +5046,24 @@
         }, function (err) { console.error('Squad listener failed:', err); })
     );
 
+    // Live squad stats: each user's streak + points, keyed by normalised name.
+    boardUnsubs.push(
+      db.collection('users')
+        .onSnapshot(function (snap) {
+          var byName = {};
+          snap.forEach(function (doc) {
+            var d = doc.data() || {};
+            if (!d.name) return;
+            byName[normName(d.name)] = {
+              streak: d.currentStreak || 0,
+              points: d.totalPoints || 0
+            };
+          });
+          squadStats = byName;
+          renderSquad();
+        }, function (err) { console.error('Squad stats listener failed:', err); })
+    );
+
     boardUnsubs.push(
       db.collection('messages').orderBy('timestamp', 'desc').limit(40)
         .onSnapshot(function (snap) {
@@ -5084,6 +5103,7 @@
 
     row.innerHTML = uniqueTeam.map(function (name) {
       var user = registeredUser(name);
+      var stats = squadStats[normName(name)] || {};
       var ringClass, overlay = '';
       if (isRest) {
         ringClass = 'ring-rest';
@@ -5098,6 +5118,10 @@
                  avatarMarkup(name, 'squad-avatar') + overlay +
                '</div>' +
                '<span class="squad-name">' + esc(name) + '</span>' +
+               '<span class="squad-stats">' +
+                 '<span class="squad-streak">🔥 ' + (stats.streak || 0) + '</span>' +
+                 '<span class="squad-pts">' + (stats.points || 0) + ' pts</span>' +
+               '</span>' +
              '</div>';
     }).join('');
   }
