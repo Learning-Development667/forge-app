@@ -60,7 +60,7 @@
   // The day counter's Day 1 is Tuesday 23 June 2026 (CHALLENGE_START);
   // so 22 June shows 0/90 while still earning points, Day 1 lands 23 June.
   var SOFT_START = new Date(2026, 5, 16);
-  var POINTS_START = new Date(2026, 5, 22);
+  var POINTS_START = new Date(2026, 5, 23);
   var CHALLENGE_START = new Date(2026, 5, 23);
 
   // Exercise definitions with linear progression start/end points.
